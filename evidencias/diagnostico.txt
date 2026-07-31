@@ -1,0 +1,512 @@
+DIAGNÓSTICO DE ENTORNO — TALLER #3 LOTERÍA BINARIA CON DJANGO
+Fecha: 30 de julio de 2026
+Sistema: Windows PowerShell
+
+OBJETIVO
+Verificar Python 3.12, pip, Git y MySQL sin instalar nada todavía y sin crear el proyecto Django.
+
+ALCANCE CONFIRMADO
+- Fase 1: SQLite
+- Fase 2: MySQL
+- Bootstrap 5.3 en la fase de interfaz
+- No usar PostgreSQL
+- No ejecutar migraciones todavía
+- User personalizado antes de la primera migración general
+
+======================================================================
+1. ABRIR POWERSHELL
+======================================================================
+
+Abrir PowerShell en la carpeta donde se trabajará y ejecutar:
+
+Get-Location
+
+INTERPRETACIÓN
+- Debe mostrar la ruta actual.
+- No es obligatorio estar todavía dentro del repositorio.
+- No debe aparecer ningún error.
+
+======================================================================
+2. DIAGNÓSTICO DE PYTHON 3.12
+======================================================================
+
+2.1 Ver todas las versiones registradas por Python Launcher
+
+py -0p
+
+SALIDA ESPERADA
+Debe aparecer una línea similar a:
+
+-V:3.12-64    C:\...\Python312\python.exe
+
+INTERPRETACIÓN
+- Si aparece Python 3.12, está instalado.
+- Si solo aparece 3.13, 3.14 u otra versión, Python 3.12 no está disponible todavía.
+- El asterisco indica la versión predeterminada, pero no es obligatorio que 3.12 sea la predeterminada.
+
+2.2 Verificar específicamente Python 3.12
+
+py -3.12 --version
+
+SALIDA ESPERADA
+
+Python 3.12.x
+
+INTERPRETACIÓN
+- CORRECTO: aparece Python 3.12 seguido de cualquier parche.
+- INCORRECTO: aparece "No runtime installed that matches 3.12".
+- INCORRECTO: aparece una versión diferente.
+
+2.3 Verificar la arquitectura
+
+py -3.12 -c "import platform; print(platform.architecture()); print(platform.python_version())"
+
+SALIDA ESPERADA
+
+('64bit', 'WindowsPE')
+3.12.x
+
+INTERPRETACIÓN
+- Se recomienda 64 bits.
+- La segunda línea debe comenzar con 3.12.
+
+2.4 Verificar la ruta real del ejecutable
+
+py -3.12 -c "import sys; print(sys.executable)"
+
+INTERPRETACIÓN
+- Debe mostrar una ruta válida a python.exe.
+- Guardar esta salida como evidencia.
+- No debe apuntar a una versión 3.14 si se invocó py -3.12.
+
+2.5 Verificar módulos básicos requeridos para la fase SQLite
+
+py -3.12 -c "import sqlite3, venv, ssl; print('sqlite3 OK'); print('venv OK'); print('ssl OK'); print(sqlite3.sqlite_version)"
+
+SALIDA ESPERADA
+
+sqlite3 OK
+venv OK
+ssl OK
+<versión de SQLite>
+
+INTERPRETACIÓN
+- Si las tres líneas aparecen, Python está listo para crear el entorno virtual y trabajar con SQLite.
+- SQLite ya viene integrado con Python; no se instala aparte.
+- Si falla sqlite3, la instalación de Python está incompleta.
+
+======================================================================
+3. DIAGNÓSTICO DE PIP
+======================================================================
+
+3.1 Verificar pip asociado a Python 3.12
+
+py -3.12 -m pip --version
+
+SALIDA ESPERADA
+
+pip x.x.x from C:\...\site-packages\pip (python 3.12)
+
+INTERPRETACIÓN
+- La salida debe terminar indicando "(python 3.12)".
+- Si muestra otra versión de Python, no usar el comando pip global.
+- Para evitar errores, usar siempre:
+  py -3.12 -m pip
+
+3.2 Verificar que pip responde sin instalar nada
+
+py -3.12 -m pip list
+
+INTERPRETACIÓN
+- Debe mostrar una tabla de paquetes.
+- No es necesario que Django aparezca todavía.
+- No instalar nada en esta fase.
+
+3.3 Verificar configuración de pip
+
+py -3.12 -m pip config list
+
+INTERPRETACIÓN
+- Puede no mostrar nada, y eso es normal.
+- Si aparece un índice privado o proxy desconocido, anotarlo antes de instalar paquetes.
+- No modificar la configuración todavía.
+
+3.4 Comprobar si Django ya está instalado globalmente
+
+py -3.12 -m django --version
+
+INTERPRETACIÓN
+- Si muestra una versión, Django está instalado globalmente.
+- Si muestra "No module named django", no es un error del diagnóstico.
+- El taller deberá usar Django dentro del entorno virtual, no depender de una instalación global.
+
+======================================================================
+4. DIAGNÓSTICO DE GIT
+======================================================================
+
+4.1 Verificar Git
+
+git --version
+
+SALIDA ESPERADA
+
+git version 2.x.x.windows.x
+
+INTERPRETACIÓN
+- Si aparece una versión, Git está instalado.
+- Si PowerShell indica que "git no se reconoce", Git no está disponible en PATH.
+
+4.2 Verificar ruta del ejecutable
+
+Get-Command git
+
+INTERPRETACIÓN
+- Debe mostrar CommandType Application y una ruta a git.exe.
+- Si aparecen varias rutas, revisar cuál se está usando.
+
+4.3 Verificar identidad configurada
+
+git config --global user.name
+git config --global user.email
+
+INTERPRETACIÓN
+- Si muestran nombre y correo, Git ya tiene identidad global.
+- Si no muestran nada, falta configurar la identidad antes de hacer commits.
+- No es necesario modificarla durante este diagnóstico.
+
+4.4 Verificar configuración segura de finales de línea
+
+git config --global core.autocrlf
+
+INTERPRETACIÓN
+- En Windows suele ser correcto que muestre:
+  true
+- Si no muestra nada, Git usará su valor predeterminado.
+- No cambiarlo sin revisar el repositorio.
+
+4.5 Verificar el repositorio actual, solo si ya se está dentro de él
+
+git status
+
+INTERPRETACIÓN
+- "On branch main" y "working tree clean": repositorio limpio.
+- "not a git repository": la consola no está dentro del repositorio.
+- Si hay archivos modificados, no continuar con cambios hasta revisarlos.
+
+4.6 Ver ramas
+
+git branch -a
+
+INTERPRETACIÓN
+- Debe mostrar las ramas locales y remotas.
+- No cambiar de rama durante este diagnóstico.
+
+======================================================================
+5. REQUISITOS NECESARIOS SOLO PARA LA FASE SQLITE
+======================================================================
+
+Para comenzar la Fase 1 se necesita únicamente:
+
+[ ] Python 3.12 de 64 bits
+[ ] pip funcionando con Python 3.12
+[ ] módulo venv
+[ ] módulo sqlite3
+[ ] Git
+[ ] PowerShell
+[ ] espacio de trabajo limpio
+[ ] conexión a Internet solo para instalar dependencias más adelante
+
+NO se necesita todavía:
+
+[ ] MySQL Server
+[ ] MySQL Workbench
+[ ] mysqlclient
+[ ] PyMySQL
+[ ] PostgreSQL
+[ ] psycopg
+[ ] Docker
+[ ] Redis
+[ ] Celery
+
+COMANDO RESUMEN PARA SQLITE
+
+py -3.12 --version
+py -3.12 -m pip --version
+py -3.12 -c "import sqlite3, venv; print('SQLite y venv disponibles')"
+git --version
+
+CRITERIO DE APROBACIÓN SQLITE
+- Python 3.12 responde.
+- pip indica python 3.12.
+- sqlite3 y venv importan sin error.
+- Git responde.
+- No se ha instalado ni configurado PostgreSQL.
+
+======================================================================
+6. DIAGNÓSTICO DE MYSQL PARA LA SEGUNDA FASE
+======================================================================
+
+IMPORTANTE
+MySQL no es obligatorio para comenzar la Fase 1. Este bloque solo confirma si ya existe en el equipo.
+
+6.1 Verificar el cliente MySQL
+
+mysql --version
+
+SALIDA ESPERADA
+
+mysql  Ver 8.0.x for Win64 on x86_64
+
+INTERPRETACIÓN
+- Si aparece MySQL 8.0.x, el cliente está disponible.
+- Si "mysql no se reconoce", puede que MySQL no esté instalado o no esté en PATH.
+- No impide comenzar con SQLite.
+
+6.2 Buscar el ejecutable si no está en PATH
+
+Get-Command mysql -ErrorAction SilentlyContinue
+
+INTERPRETACIÓN
+- Si no devuelve nada, PowerShell no encuentra mysql.exe.
+- No instalar todavía si la Fase 1 aún no ha terminado.
+
+6.3 Revisar servicios MySQL instalados
+
+Get-Service | Where-Object {
+    $_.Name -match 'mysql' -or $_.DisplayName -match 'mysql'
+}
+
+INTERPRETACIÓN
+- Status Running: servidor MySQL activo.
+- Status Stopped: instalado pero detenido.
+- Sin resultados: probablemente no instalado como servicio.
+- Esto no bloquea SQLite.
+
+6.4 Revisar MySQL 8 desde Servicios conocidos
+
+Get-Service MySQL80 -ErrorAction SilentlyContinue
+
+INTERPRETACIÓN
+- Si aparece, el nombre común del servicio es MySQL80.
+- Si no aparece, podría usar otro nombre.
+
+6.5 Verificar conexión local solo si ya se conocen las credenciales
+
+mysql -u root -p -e "SELECT VERSION();"
+
+INTERPRETACIÓN
+- PowerShell solicitará la contraseña de forma interactiva.
+- No escribir la contraseña en el comando.
+- Si devuelve 8.0.x, servidor y credenciales funcionan.
+- "Access denied": credenciales incorrectas o usuario sin permiso.
+- "Can't connect": servicio apagado, puerto incorrecto o servidor ausente.
+
+6.6 Verificar bases visibles solo si la conexión funciona
+
+mysql -u root -p -e "SHOW DATABASES;"
+
+INTERPRETACIÓN
+- Debe mostrar bases del sistema como:
+  information_schema
+  mysql
+  performance_schema
+  sys
+- No crear todavía la base final del proyecto.
+
+6.7 Verificar puerto 3306
+
+Test-NetConnection -ComputerName 127.0.0.1 -Port 3306
+
+INTERPRETACIÓN
+- TcpTestSucceeded : True indica que algo escucha en el puerto 3306.
+- False indica servicio detenido, otro puerto o MySQL no instalado.
+- No es requisito para la fase SQLite.
+
+======================================================================
+7. COMPONENTES QUE SE INSTALARÁN DESPUÉS PARA MYSQL
+======================================================================
+
+Solo después de completar y aprobar SQLite se necesitará:
+
+[ ] MySQL Server 8.x
+[ ] MySQL Workbench, opcional pero recomendado
+[ ] Driver Python compatible con Django y MySQL
+[ ] Variables de entorno para conexión
+[ ] Base MySQL vacía
+[ ] Migraciones Django aplicadas desde cero
+[ ] Pruebas repetidas en MySQL
+
+No instalar en la fase actual:
+
+- psycopg
+- psycopg-binary
+- PostgreSQL
+- paquetes de producción no autorizados
+
+El driver concreto de MySQL se decidirá al comenzar la Fase 2 y después de revisar:
+- versión de Python;
+- versión de Django;
+- compiladores disponibles;
+- compatibilidad en Windows.
+
+======================================================================
+8. COMANDO DE DIAGNÓSTICO COMPLETO PARA COPIAR Y PEGAR
+======================================================================
+
+Write-Output "=== PYTHON 3.12 ==="
+py -0p
+py -3.12 --version
+py -3.12 -c "import sys, platform; print(sys.executable); print(platform.architecture()); print(platform.python_version())"
+
+Write-Output "=== SQLITE Y VENV ==="
+py -3.12 -c "import sqlite3, venv, ssl; print('sqlite3 OK'); print('venv OK'); print('ssl OK'); print('SQLite:', sqlite3.sqlite_version)"
+
+Write-Output "=== PIP ==="
+py -3.12 -m pip --version
+py -3.12 -m pip config list
+
+Write-Output "=== DJANGO GLOBAL, SOLO DIAGNÓSTICO ==="
+py -3.12 -m django --version
+
+Write-Output "=== GIT ==="
+git --version
+Get-Command git
+git config --global user.name
+git config --global user.email
+git config --global core.autocrlf
+
+Write-Output "=== MYSQL, SOLO DIAGNÓSTICO ==="
+mysql --version
+Get-Command mysql -ErrorAction SilentlyContinue
+Get-Service | Where-Object {
+    $_.Name -match 'mysql' -or $_.DisplayName -match 'mysql'
+}
+Test-NetConnection -ComputerName 127.0.0.1 -Port 3306
+
+======================================================================
+9. CÓMO GUARDAR TODA LA EVIDENCIA EN EL ARCHIVO ESPERADO
+======================================================================
+
+Desde la raíz del repositorio:
+
+New-Item -ItemType Directory -Force evidencias\01_entorno
+
+Luego ejecutar:
+
+& {
+    Write-Output "DIAGNÓSTICO TALLER #3 — $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+    Write-Output "`n=== UBICACIÓN ==="
+    Get-Location
+
+    Write-Output "`n=== PYTHON 3.12 ==="
+    py -0p
+    py -3.12 --version
+    py -3.12 -c "import sys, platform; print(sys.executable); print(platform.architecture()); print(platform.python_version())"
+
+    Write-Output "`n=== SQLITE, VENV Y SSL ==="
+    py -3.12 -c "import sqlite3, venv, ssl; print('sqlite3 OK'); print('venv OK'); print('ssl OK'); print('SQLite:', sqlite3.sqlite_version)"
+
+    Write-Output "`n=== PIP ==="
+    py -3.12 -m pip --version
+    py -3.12 -m pip config list
+
+    Write-Output "`n=== DJANGO GLOBAL, SOLO DIAGNÓSTICO ==="
+    py -3.12 -m django --version
+
+    Write-Output "`n=== GIT ==="
+    git --version
+    Get-Command git
+    git config --global user.name
+    git config --global user.email
+    git config --global core.autocrlf
+
+    Write-Output "`n=== ESTADO DEL REPOSITORIO ==="
+    git status
+    git branch -a
+
+    Write-Output "`n=== MYSQL, SOLO DIAGNÓSTICO ==="
+    mysql --version
+    Get-Command mysql -ErrorAction SilentlyContinue
+    Get-Service | Where-Object {
+        $_.Name -match 'mysql' -or $_.DisplayName -match 'mysql'
+    }
+    Test-NetConnection -ComputerName 127.0.0.1 -Port 3306
+} *>&1 | Tee-Object -FilePath evidencias\01_entorno\diagnostico.txt
+
+INTERPRETACIÓN
+- El archivo guardará salidas correctas y errores de comandos ausentes.
+- Un error de MySQL no bloquea la Fase 1.
+- Un error de Python 3.12, pip, sqlite3, venv o Git sí bloquea el inicio.
+- El archivo no debe contener contraseñas.
+
+======================================================================
+10. TABLA DE RESULTADOS
+======================================================================
+
+Completar después de ejecutar los comandos:
+
+Python 3.12:
+[ ] Correcto
+[ ] Falta
+[ ] Versión diferente
+
+Arquitectura 64 bits:
+[ ] Correcto
+[ ] Incorrecto
+
+pip para Python 3.12:
+[ ] Correcto
+[ ] Incorrecto
+
+sqlite3:
+[ ] Correcto
+[ ] Incorrecto
+
+venv:
+[ ] Correcto
+[ ] Incorrecto
+
+Git:
+[ ] Correcto
+[ ] Falta
+[ ] Falta identidad global
+
+Repositorio:
+[ ] Limpio
+[ ] Tiene cambios
+[ ] No estoy dentro del repositorio
+
+MySQL 8:
+[ ] Instalado y activo
+[ ] Instalado y detenido
+[ ] No está en PATH
+[ ] No está instalado
+[ ] No se comprobó
+
+Puerto 3306:
+[ ] Abierto
+[ ] Cerrado
+[ ] No se comprobó
+
+======================================================================
+11. PUERTA DE SALIDA
+======================================================================
+
+El diagnóstico queda aprobado para comenzar la Fase 1 cuando:
+
+[ ] py -3.12 --version muestra Python 3.12.x
+[ ] pip corresponde a Python 3.12
+[ ] sqlite3 importa correctamente
+[ ] venv importa correctamente
+[ ] Git responde
+[ ] se guardó evidencias\01_entorno\diagnostico.txt
+[ ] el archivo no contiene credenciales
+[ ] no se instaló PostgreSQL
+[ ] no se creó proyecto todavía
+[ ] no se ejecutó migrate
+
+MySQL puede quedar pendiente.
+
+SIGUIENTE PASO ÚNICO DESPUÉS DE APROBAR
+Crear el entorno virtual con Python 3.12, pero únicamente cuando se autorice la siguiente tarea.
