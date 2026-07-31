@@ -1,0 +1,52 @@
+{% if messages %}
+    <section
+        class="mb-4"
+        aria-label="Mensajes del sistema"
+        aria-live="polite"
+        aria-atomic="true"
+    >
+        {% for message in messages %}
+            <div
+                class="alert
+                    {% if message.tags == 'error' %}
+                        alert-danger
+                    {% elif message.tags == 'success' %}
+                        alert-success
+                    {% elif message.tags == 'warning' %}
+                        alert-warning
+                    {% elif message.tags == 'info' %}
+                        alert-info
+                    {% else %}
+                        alert-secondary
+                    {% endif %}
+                    alert-dismissible fade show"
+                role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}"
+            >
+                <div class="d-flex align-items-start gap-2">
+                    <span class="fw-semibold">
+                        {% if message.tags == "error" %}
+                            Error:
+                        {% elif message.tags == "success" %}
+                            Correcto:
+                        {% elif message.tags == "warning" %}
+                            Atención:
+                        {% elif message.tags == "info" %}
+                            Información:
+                        {% else %}
+                            Aviso:
+                        {% endif %}
+                    </span>
+
+                    <span>{{ message }}</span>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Cerrar mensaje"
+                ></button>
+            </div>
+        {% endfor %}
+    </section>
+{% endif %}

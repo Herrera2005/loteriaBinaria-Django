@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Panel Cliente | Lotería Binaria{% endblock %}
+
+{% block content %}
+    <header
+        class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4"
+    >
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+
+            <h1 class="h2 mb-1">Panel de cliente</h1>
+
+            <p class="text-body-secondary mb-0">
+                Consulta eventos, boletos, wallets, movimientos y solicitudes.
+            </p>
+        </div>
+
+        {% if choose_mode_url %}
+            <a class="btn btn-outline-primary" href="{{ choose_mode_url }}">
+                Cambiar modo
+            </a>
+        {% endif %}
+    </header>
+
+    <div class="alert alert-info" role="note">
+        Los saldos y operaciones son simulados. Las compras y transiciones se
+        validan en Django; el navegador no decide permisos ni modifica saldos.
+    </div>
+
+    <section class="mb-5" aria-labelledby="client-summary-title">
+        <h2 id="client-summary-title" class="visually-hidden">
+            Resumen del cliente
+        </h2>
+
+        <div class="row g-3">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">
+                            Saldo REAL disponible
+                        </p>
+
+                        <p class="h3 mb-0">
+                            {{ real_available_display|default:"—" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">
+                            Saldo VIRTUAL disponible
+                        </p>
+
+                        <p class="h3 mb-0">
+                            {{ virtual_available_display|default:"—" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">
+                            Boletos registrados
+                        </p>
+
+                        <p class="h3 mb-0">{{ ticket_count|default:0 }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">
+                            Solicitudes activas
+                        </p>
+
+                        <p class="h3 mb-0">
+                            {{ active_request_count|default:0 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="client-actions-title">
+        <div class="mb-3">
+            <h2 id="client-actions-title" class="h3 mb-1">
+                Acciones disponibles
+            </h2>
+
+            <p class="text-body-secondary mb-0">
+                Solo aparecen acciones habilitadas por el backend.
+            </p>
+        </div>
+
+        {% if client_actions %}
+            <div class="row g-3">
+                {% for action in client_actions %}
+                    {% if action.url and action.label %}
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <a
+                                class="card h-100 shadow-sm text-decoration-none"
+                                href="{{ action.url }}"
+                            >
+                                <div class="card-body">
+                                    <h3 class="h5 text-body">
+                                        {{ action.label }}
+                                    </h3>
+
+                                    {% if action.description %}
+                                        <p class="text-body-secondary mb-0">
+                                            {{ action.description }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay acciones disponibles</h3>
+
+                <p class="text-body-secondary mb-0">
+                    El backend no habilitó acciones para este usuario en este
+                    momento.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="mb-5" aria-labelledby="available-events-title">
+        <div class="mb-3">
+            <h2 id="available-events-title" class="h3 mb-1">
+                Eventos disponibles
+            </h2>
+
+            <p class="text-body-secondary mb-0">
+                En modo CLIENTE se permite comprar únicamente cuando el evento,
+                saldo y permisos lo autorizan.
+            </p>
+        </div>
+
+        {% if available_events %}
+            <div class="row g-4">
+                {% for event in available_events %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <div
+                                    class="d-flex justify-content-between align-items-start gap-2 mb-3"
+                                >
+                                    <h3 class="h5 mb-0">{{ event.name }}</h3>
+
+                                    {% if event.status_label %}
+                                        <span class="badge text-bg-success">
+                                            {{ event.status_label }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                {% if event.product_label %}
+                                    <p class="mb-2">
+                                        <strong>Producto:</strong>
+                                        {{ event.product_label }}
+                                    </p>
+                                {% endif %}
+
+                                {% if event.closes_at %}
+                                    <p class="small text-body-secondary mb-0">
+                                        Cierre:
+                                        {{ event.closes_at|date:"d/m/Y H:i" }}
+                                    </p>
+                                {% endif %}
+                            </div>
+
+                            {% if event.detail_url %}
+                                <div class="card-footer bg-transparent">
+                                    <a
+                                        class="btn btn-primary w-100"
+                                        href="{{ event.detail_url }}"
+                                    >
+                                        Ver evento
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay eventos disponibles</h3>
+
+                <p class="text-body-secondary mb-0">
+                    Los próximos eventos activos aparecerán aquí.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="mb-5" aria-labelledby="tickets-title">
+        <div class="mb-3">
+            <h2 id="tickets-title" class="h3 mb-1">
+                Mis boletos
+            </h2>
+
+            <p class="text-body-secondary mb-0">
+                Filtra por producto, estado, fecha o combinación.
+            </p>
+        </div>
+
+        <form
+            method="get"
+            class="card card-body shadow-sm mb-3"
+            aria-label="Filtros de boletos"
+        >
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label" for="ticket-product">
+                        Producto
+                    </label>
+
+                    <select
+                        class="form-select"
+                        id="ticket-product"
+                        name="product"
+                    >
+                        <option value="">Todos</option>
+
+                        {% for option in ticket_product_options %}
+                            <option
+                                value="{{ option.value }}"
+                                {% if option.selected %}selected{% endif %}
+                            >
+                                {{ option.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label" for="ticket-status">
+                        Estado
+                    </label>
+
+                    <select
+                        class="form-select"
+                        id="ticket-status"
+                        name="status"
+                    >
+                        <option value="">Todos</option>
+
+                        {% for option in ticket_status_options %}
+                            <option
+                                value="{{ option.value }}"
+                                {% if option.selected %}selected{% endif %}
+                            >
+                                {{ option.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-2">
+                    <label class="form-label" for="ticket-date-from">
+                        Desde
+                    </label>
+
+                    <input
+                        class="form-control"
+                        type="date"
+                        id="ticket-date-from"
+                        name="date_from"
+                        value="{{ ticket_filters.date_from|default:'' }}"
+                    >
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-2">
+                    <label class="form-label" for="ticket-search">
+                        Combinación
+                    </label>
+
+                    <input
+                        class="form-control"
+                        type="search"
+                        id="ticket-search"
+                        name="q"
+                        value="{{ ticket_filters.q|default:'' }}"
+                        placeholder="Ej. 0123"
+                    >
+                </div>
+
+                <div class="col-12 col-xl-2 d-grid">
+                    <button class="btn btn-primary" type="submit">
+                        Filtrar
+                    </button>
+                </div>
+            </div>
+
+            {% if clear_ticket_filters_url %}
+                <div class="mt-3">
+                    <a
+                        class="btn btn-link px-0"
+                        href="{{ clear_ticket_filters_url }}"
+                    >
+                        Limpiar filtros
+                    </a>
+                </div>
+            {% endif %}
+        </form>
+
+        {% if tickets %}
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Boleto</th>
+                            <th scope="col">Producto</th>
+                            <th scope="col">Combinación</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Fecha</th>
+                            <th scope="col" class="text-end">Acción</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for ticket in tickets %}
+                            <tr>
+                                <td>
+                                    {{ ticket.reference|default:ticket.pk }}
+                                </td>
+
+                                <td>
+                                    {{ ticket.product_label|default:"—" }}
+                                </td>
+
+                                <td>
+                                    <code>{{ ticket.combination }}</code>
+                                </td>
+
+                                <td>
+                                    <span class="badge text-bg-secondary">
+                                        {{ ticket.status_label|default:ticket.status }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {{ ticket.created_at|date:"d/m/Y H:i" }}
+                                </td>
+
+                                <td class="text-end">
+                                    {% if ticket.detail_url %}
+                                        <a
+                                            class="btn btn-sm btn-outline-primary"
+                                            href="{{ ticket.detail_url }}"
+                                        >
+                                            Ver
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No se encontraron boletos</h3>
+
+                <p class="text-body-secondary mb-0">
+                    Ajusta los filtros o consulta eventos disponibles.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <div class="row g-4">
+        <section
+            class="col-12 col-xl-6"
+            aria-labelledby="client-movements-title"
+        >
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 id="client-movements-title" class="h4">
+                        Movimientos recientes
+                    </h2>
+
+                    {% if recent_movements %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Tipo</th>
+                                        <th scope="col">Fecha</th>
+                                        <th scope="col" class="text-end">
+                                            Monto
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for movement in recent_movements %}
+                                        <tr>
+                                            <td>{{ movement.type_label }}</td>
+
+                                            <td>
+                                                {{ movement.created_at|date:"d/m/Y H:i" }}
+                                            </td>
+
+                                            <td class="text-end">
+                                                {{ movement.amount_display }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">
+                            No hay movimientos registrados.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section
+            class="col-12 col-xl-6"
+            aria-labelledby="client-requests-title"
+        >
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 id="client-requests-title" class="h4">
+                        Solicitudes recientes
+                    </h2>
+
+                    {% if recent_requests %}
+                        <ul class="list-group list-group-flush">
+                            {% for request_item in recent_requests %}
+                                <li
+                                    class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3"
+                                >
+                                    <div>
+                                        <p class="fw-semibold mb-1">
+                                            {{ request_item.reference|default:"Solicitud" }}
+                                        </p>
+
+                                        <p class="small text-body-secondary mb-0">
+                                            {{ request_item.created_at|date:"d/m/Y H:i" }}
+                                        </p>
+                                    </div>
+
+                                    <span class="badge text-bg-secondary">
+                                        {{ request_item.status_label|default:request_item.status }}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">
+                            No hay solicitudes registradas.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock %}

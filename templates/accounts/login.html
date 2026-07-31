@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Iniciar sesión | Lotería Binaria{% endblock %}
+
+{% block content %}
+    {% url "accounts:register" as register_url %}
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-9 col-lg-6 col-xl-5">
+            <section class="card shadow-sm" aria-labelledby="login-title">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="text-center mb-4">
+                        <span
+                            class="brand-logo mx-auto mb-3"
+                            aria-hidden="true"
+                        >
+                            LB
+                        </span>
+
+                        <h1 id="login-title" class="h2 mb-2">
+                            Iniciar sesión
+                        </h1>
+
+                        <p class="text-body-secondary mb-0">
+                            Accede con tu cuenta registrada en el sistema.
+                        </p>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            <p class="fw-semibold mb-1">
+                                No fue posible iniciar sesión.
+                            </p>
+
+                            {% for error in form.non_field_errors %}
+                                <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if next %}
+                            <input
+                                type="hidden"
+                                name="next"
+                                value="{{ next }}"
+                            >
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label
+                                class="form-label"
+                                for="{{ form.username.id_for_label }}"
+                            >
+                                {{ form.username.label }}
+                            </label>
+
+                            {{ form.username }}
+
+                            {% if form.username.help_text %}
+                                <div class="form-text">
+                                    {{ form.username.help_text|safe }}
+                                </div>
+                            {% endif %}
+
+                            {% for error in form.username.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label
+                                class="form-label"
+                                for="{{ form.password.id_for_label }}"
+                            >
+                                {{ form.password.label }}
+                            </label>
+
+                            {{ form.password }}
+
+                            {% if form.password.help_text %}
+                                <div class="form-text">
+                                    {{ form.password.help_text|safe }}
+                                </div>
+                            {% endif %}
+
+                            {% for error in form.password.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100"
+                        >
+                            Ingresar
+                        </button>
+                    </form>
+
+                    {% if register_url %}
+                        <hr class="my-4">
+
+                        <p class="text-center mb-0">
+                            ¿Aún no tienes una cuenta?
+                            <a href="{{ register_url }}">
+                                Crear cuenta
+                            </a>
+                        </p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <div class="alert alert-info mt-3 mb-0" role="note">
+                Las credenciales no se muestran públicamente. La autenticación
+                se valida en el servidor mediante Django.
+            </div>
+        </div>
+    </div>
+{% endblock %}

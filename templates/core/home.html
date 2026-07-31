@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Inicio | Lotería Binaria{% endblock %}
+
+{% block content %}
+    {% url "accounts:login" as login_url %}
+    {% url "accounts:register" as register_url %}
+
+    <section
+        class="row align-items-center g-4 g-xl-5 mb-5"
+        aria-labelledby="home-title"
+    >
+        <div class="col-12 col-lg-7">
+            <span class="badge text-bg-warning mb-3">
+                Proyecto académico con Django
+            </span>
+
+            <h1 id="home-title" class="display-5 fw-bold mb-3">
+                Sorteos académicos con lógica Octal, Decimal y Hexadecimal
+            </h1>
+
+            <p class="lead mb-4">
+                Lotería Binaria es una simulación educativa para administrar
+                usuarios, eventos y boletos desde un backend Django. No procesa
+                pagos reales ni utiliza tarjetas.
+            </p>
+
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                {% if request.user.is_authenticated %}
+                    {% if dashboard_url %}
+                        <a
+                            class="btn btn-primary btn-lg"
+                            href="{{ dashboard_url }}"
+                        >
+                            Ir a mi panel
+                        </a>
+                    {% endif %}
+                {% else %}
+                    {% if login_url %}
+                        <a
+                            class="btn btn-primary btn-lg"
+                            href="{{ login_url }}"
+                        >
+                            Iniciar sesión
+                        </a>
+                    {% endif %}
+
+                    {% if register_url %}
+                        <a
+                            class="btn btn-outline-primary btn-lg"
+                            href="{{ register_url }}"
+                        >
+                            Crear cuenta
+                        </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-xl-5">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="brand-logo" aria-hidden="true">LB</span>
+
+                        <div>
+                            <h2 class="h4 mb-1">Lotería Binaria</h2>
+                            <p class="text-body-secondary mb-0">
+                                Simulación académica
+                            </p>
+                        </div>
+                    </div>
+
+                    <p class="mb-3">
+                        La información de usuarios, roles, boletos y resultados
+                        proviene del servidor y de la base de datos.
+                    </p>
+
+                    <div class="alert alert-warning mb-0" role="note">
+                        No se muestran credenciales demo ni operaciones
+                        financieras reales en esta página pública.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="lottery-types-title">
+        <div class="row align-items-end g-3 mb-3">
+            <div class="col">
+                <h2 id="lottery-types-title" class="h3 mb-1">
+                    Tipos de lotería
+                </h2>
+
+                <p class="text-body-secondary mb-0">
+                    Cada combinación tiene longitud exacta y símbolos sin
+                    repetir.
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <span class="badge text-bg-primary mb-3">
+                            Octal
+                        </span>
+
+                        <h3 class="h5">Lotería Octal</h3>
+
+                        <p class="mb-3">
+                            Usa únicamente los símbolos del 0 al 7.
+                        </p>
+
+                        <dl class="row mb-0">
+                            <dt class="col-7">Longitud exacta</dt>
+                            <dd class="col-5 text-end">4 símbolos</dd>
+
+                            <dt class="col-7">Repeticiones</dt>
+                            <dd class="col-5 text-end">No permitidas</dd>
+                        </dl>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <span class="badge text-bg-secondary mb-3">
+                            Decimal
+                        </span>
+
+                        <h3 class="h5">Lotería Decimal</h3>
+
+                        <p class="mb-3">
+                            Usa los dígitos del 0 al 9.
+                        </p>
+
+                        <dl class="row mb-0">
+                            <dt class="col-7">Longitud exacta</dt>
+                            <dd class="col-5 text-end">5 símbolos</dd>
+
+                            <dt class="col-7">Repeticiones</dt>
+                            <dd class="col-5 text-end">No permitidas</dd>
+                        </dl>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <span class="badge text-bg-warning mb-3">
+                            Hexadecimal
+                        </span>
+
+                        <h3 class="h5">Lotería Hexadecimal</h3>
+
+                        <p class="mb-3">
+                            Usa los símbolos 0–9 y las letras A–F.
+                        </p>
+
+                        <dl class="row mb-0">
+                            <dt class="col-7">Longitud exacta</dt>
+                            <dd class="col-5 text-end">6 símbolos</dd>
+
+                            <dt class="col-7">Repeticiones</dt>
+                            <dd class="col-5 text-end">No permitidas</dd>
+                        </dl>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="active-products-title">
+        <div
+            class="d-flex justify-content-between align-items-end gap-3 mb-3"
+        >
+            <div>
+                <h2 id="active-products-title" class="h3 mb-1">
+                    Productos disponibles
+                </h2>
+
+                <p class="text-body-secondary mb-0">
+                    Información entregada por el backend.
+                </p>
+            </div>
+        </div>
+
+        {% if products %}
+            <div class="row g-4">
+                {% for product in products %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <div
+                                    class="d-flex justify-content-between gap-2 mb-3"
+                                >
+                                    <h3 class="h5 mb-0">
+                                        {{ product.name }}
+                                    </h3>
+
+                                    {% if product.is_active %}
+                                        <span class="badge text-bg-success">
+                                            Activo
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                {% if product.description %}
+                                    <p class="text-body-secondary mb-0">
+                                        {{ product.description }}
+                                    </p>
+                                {% endif %}
+                            </div>
+
+                            {% if product.detail_url %}
+                                <div
+                                    class="card-footer bg-transparent border-0 pt-0"
+                                >
+                                    <a
+                                        class="btn btn-outline-primary w-100"
+                                        href="{{ product.detail_url }}"
+                                    >
+                                        Ver información
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">
+                    Todavía no hay productos publicados
+                </h3>
+
+                <p class="text-body-secondary mb-0">
+                    Cuando el administrador habilite productos, aparecerán
+                    aquí.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section aria-labelledby="academic-scope-title">
+        <div class="card border-warning-subtle bg-warning-subtle">
+            <div class="card-body p-4">
+                <h2 id="academic-scope-title" class="h4">
+                    Alcance académico
+                </h2>
+
+                <p class="mb-0">
+                    Los saldos y operaciones son simulados. Las decisiones
+                    finales de permisos, compras, resultados y movimientos se
+                    validan en Django y no en el navegador.
+                </p>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -15,22 +15,12 @@ import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# ---------------------------------------------------------------------------
-# Variables de entorno
-# ---------------------------------------------------------------------------
-
 env = environ.Env(
     DJANGO_DEBUG=(bool, True),
     DJANGO_ALLOWED_HOSTS=(list, ["127.0.0.1", "localhost"]),
 )
 
 environ.Env.read_env(BASE_DIR / ".env")
-
-
-# ---------------------------------------------------------------------------
-# Seguridad y ejecución local
-# ---------------------------------------------------------------------------
 
 SECRET_KEY = env(
     "DJANGO_SECRET_KEY",
@@ -41,11 +31,6 @@ DEBUG = env.bool("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 
-
-# ---------------------------------------------------------------------------
-# Aplicaciones
-# ---------------------------------------------------------------------------
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -54,14 +39,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Aplicaciones canónicas del Taller #3
     "apps.accounts.apps.AccountsConfig",
     "apps.core.apps.CoreConfig",
     "apps.finance.apps.FinanceConfig",
     "apps.vendors.apps.VendorsConfig",
     "apps.lottery.apps.LotteryConfig",
 ]
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -73,13 +56,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-
 ROOT_URLCONF = "config.urls"
-
-
-# ---------------------------------------------------------------------------
-# Templates globales
-# ---------------------------------------------------------------------------
 
 TEMPLATES = [
     {
@@ -96,13 +73,7 @@ TEMPLATES = [
     },
 ]
 
-
 WSGI_APPLICATION = "config.wsgi.application"
-
-
-# ---------------------------------------------------------------------------
-# Base de datos
-# ---------------------------------------------------------------------------
 
 DATABASES = {
     "default": env.db_url(
@@ -110,11 +81,6 @@ DATABASES = {
         default="sqlite:///db.sqlite3",
     ),
 }
-
-
-# ---------------------------------------------------------------------------
-# Validación de contraseñas
-# ---------------------------------------------------------------------------
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -143,11 +109,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# ---------------------------------------------------------------------------
-# Internacionalización
-# ---------------------------------------------------------------------------
-
 LANGUAGE_CODE = "es"
 
 TIME_ZONE = "America/Guayaquil"
@@ -155,11 +116,6 @@ TIME_ZONE = "America/Guayaquil"
 USE_I18N = True
 
 USE_TZ = True
-
-
-# ---------------------------------------------------------------------------
-# Archivos estáticos
-# ---------------------------------------------------------------------------
 
 STATIC_URL = "static/"
 
@@ -169,28 +125,13 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
-# ---------------------------------------------------------------------------
-# Autenticación
-# ---------------------------------------------------------------------------
-
 LOGIN_URL = "/accounts/login/"
 
 LOGIN_REDIRECT_URL = "/"
 
 LOGOUT_REDIRECT_URL = "/"
 
-
-# ---------------------------------------------------------------------------
-# Claves primarias
-# ---------------------------------------------------------------------------
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-
-# IMPORTANTE:
-# AUTH_USER_MODEL = "accounts.User"
-#
-# Esta línea debe habilitarse en la siguiente tarea, al mismo tiempo que se
-# cree realmente apps/accounts/models.py con el User personalizado.
-# Debe quedar activa antes de ejecutar la primera migración general.
+# Debe existir antes de la primera migración general.
+AUTH_USER_MODEL = "accounts.User"
