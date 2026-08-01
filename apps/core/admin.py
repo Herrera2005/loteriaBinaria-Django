@@ -1,3 +1,1 @@
-from django.contrib import admin
-
-# Register your models here.
+"""Registro administrativo de core; sin modelos activos en esta fase."""

@@ -34,12 +34,7 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("username",)
     list_per_page = 25
     filter_horizontal = ("groups", "user_permissions")
-    readonly_fields = (
-        "created_at",
-        "updated_at",
-        "last_login",
-        "date_joined",
-    )
+    readonly_fields = ("created_at", "updated_at", "last_login", "date_joined")
 
     fieldsets = UserAdmin.fieldsets + (
         (
@@ -52,11 +47,10 @@ class CustomUserAdmin(UserAdmin):
                     "status",
                     "created_at",
                     "updated_at",
-                ),
+                )
             },
         ),
     )
-
     add_fieldsets = UserAdmin.add_fieldsets + (
         (
             "Datos del Taller #3",
@@ -72,18 +66,11 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
-
-    actions = (
-        "activate_selected_users",
-        "deactivate_selected_users",
-    )
+    actions = ("activate_selected_users", "deactivate_selected_users")
 
     @admin.action(description="Activar usuarios seleccionados")
     def activate_selected_users(self, request, queryset):
-        updated = queryset.update(
-            status=User.Status.ACTIVE,
-            is_active=True,
-        )
+        updated = queryset.update(status=User.Status.ACTIVE, is_active=True)
         self.message_user(
             request,
             f"{updated} usuario(s) activado(s).",
@@ -95,23 +82,16 @@ class CustomUserAdmin(UserAdmin):
         protected_ids = list(
             queryset.filter(is_superuser=True).values_list("id", flat=True)
         )
-        safe_queryset = queryset.exclude(id__in=protected_ids)
-
-        updated = safe_queryset.update(
+        updated = queryset.exclude(id__in=protected_ids).update(
             status=User.Status.DISABLED,
             is_active=False,
         )
-
         if protected_ids:
             self.message_user(
                 request,
-                (
-                    "Los superusuarios seleccionados no fueron desactivados "
-                    "por esta acción."
-                ),
+                "Los superusuarios seleccionados no fueron desactivados.",
                 level=messages.WARNING,
             )
-
         self.message_user(
             request,
             f"{updated} usuario(s) desactivado(s).",
@@ -119,13 +99,12 @@ class CustomUserAdmin(UserAdmin):
         )
 
     def has_delete_permission(self, request, obj=None):
-        # Las cuentas se desactivan para conservar historial.
         return False
 
 
 @admin.register(TermsVersion)
 class TermsVersionAdmin(admin.ModelAdmin):
-    """Versiones legales: editables solo mientras no tengan aceptaciones."""
+    """Versión legal editable solo antes de recibir aceptaciones."""
 
     list_display = (
         "kind",
@@ -135,16 +114,8 @@ class TermsVersionAdmin(admin.ModelAdmin):
         "is_active",
         "acceptance_count",
     )
-    list_filter = (
-        "kind",
-        "is_active",
-        "effective_at",
-    )
-    search_fields = (
-        "version",
-        "title",
-        "content",
-    )
+    list_filter = ("kind", "is_active", "effective_at")
+    search_fields = ("version", "title", "content")
     ordering = ("-effective_at", "-created_at")
     list_per_page = 25
     readonly_fields = ("created_at",)
@@ -158,38 +129,23 @@ class TermsVersionAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
-
         if obj is not None and obj.acceptances.exists():
             readonly.extend(
-                (
-                    "kind",
-                    "version",
-                    "title",
-                    "content",
-                    "effective_at",
-                )
+                ("kind", "version", "title", "content", "effective_at")
             )
-
         return tuple(readonly)
 
     def has_delete_permission(self, request, obj=None):
         if obj is None:
-            # Evita eliminación masiva desde el changelist.
             return False
-
         return not obj.acceptances.exists()
 
 
 @admin.register(TermsAcceptance)
 class TermsAcceptanceAdmin(admin.ModelAdmin):
-    """Registro histórico completamente de solo lectura."""
+    """Histórico de solo lectura."""
 
-    list_display = (
-        "user",
-        "terms_version",
-        "accepted_at",
-        "ip_address",
-    )
+    list_display = ("user", "terms_version", "accepted_at", "ip_address")
     list_filter = (
         "terms_version__kind",
         "terms_version__version",
@@ -203,28 +159,17 @@ class TermsAcceptanceAdmin(admin.ModelAdmin):
     )
     ordering = ("-accepted_at",)
     list_per_page = 25
-    list_select_related = (
-        "user",
-        "terms_version",
-    )
-    readonly_fields = (
-        "user",
-        "terms_version",
-        "accepted_at",
-        "ip_address",
-    )
+    list_select_related = ("user", "terms_version")
+    readonly_fields = ("user", "terms_version", "accepted_at", "ip_address")
 
     def has_add_permission(self, request):
         return False
 
-    def has_change_permission(self, request, obj=None):
-        # Permite abrir la ficha, pero no modificar sus campos.
+    def has_view_permission(self, request, obj=None):
         return request.user.is_active and request.user.is_staff
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
     def has_delete_permission(self, request, obj=None):
         return False
-
-    def save_model(self, request, obj, form, change):
-        raise PermissionError(
-            "Las aceptaciones de términos son históricas y no se editan."
-        )

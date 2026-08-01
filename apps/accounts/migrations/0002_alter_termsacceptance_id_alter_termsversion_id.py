@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0001_initial'),
+        ("accounts", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='termsacceptance',
-            name='id',
+            model_name="termsacceptance",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
         migrations.AlterField(
-            model_name='termsversion',
-            name='id',
+            model_name="termsversion",
+            name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
     ]

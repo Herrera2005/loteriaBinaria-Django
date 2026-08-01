@@ -1,0 +1,8 @@
+apps/accounts/tests/test_admin.py: 3
+apps/accounts/tests/test_auth_and_modes.py: 10
+apps/accounts/tests/test_model_integrity.py: 4
+apps/accounts/tests/test_registration.py: 10
+apps/core/tests/test_configuration.py: 6
+apps/core/tests/test_seed_commands.py: 6
+apps/core/tests/test_views.py: 9
+TOTAL: 48

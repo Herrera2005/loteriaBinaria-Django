@@ -4,17 +4,12 @@
 {% block title %}Panel Vendedor | Lotería Binaria{% endblock %}
 
 {% block content %}
-    <header
-        class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4"
-    >
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
         <div>
             <span class="badge text-bg-warning mb-2">Modo VENDEDOR</span>
-
             <h1 class="h2 mb-1">Panel de vendedor</h1>
-
             <p class="text-body-secondary mb-0">
-                Gestiona solicitudes, wallets y operaciones autorizadas de
-                vendedor.
+                Gestiona solicitudes, wallets y operaciones autorizadas de vendedor.
             </p>
         </div>
 
@@ -25,10 +20,15 @@
         {% endif %}
     </header>
 
+    {% if backend_modules_pending %}
+        <div class="empty-state" role="status">
+            <h2 class="h4">Módulos de negocio pendientes</h2>
+            <p class="text-body-secondary mb-0">Las operaciones de inventario y solicitudes se habilitarán cuando sus modelos, servicios y pruebas estén implementados.</p>
+        </div>
+    {% else %}
     <div class="alert alert-warning" role="note">
         En modo VENDEDOR no se permite comprar boletos. Para usar funciones de
-        cliente, la cuenta debe tener el rol CLIENTE asignado y seleccionar ese
-        modo.
+        cliente, la cuenta debe tener el rol CLIENTE asignado y seleccionar ese modo.
     </div>
 
     <section class="mb-5" aria-labelledby="vendor-summary-title">
@@ -40,13 +40,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            REAL disponible
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ real_available_display|default:"—" }}
-                        </p>
+                        <p class="text-body-secondary mb-1">REAL disponible</p>
+                        <p class="h3 mb-0">{{ real_available_display|default:"—" }}</p>
                     </div>
                 </div>
             </div>
@@ -54,13 +49,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            VIRTUAL disponible
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ virtual_available_display|default:"—" }}
-                        </p>
+                        <p class="text-body-secondary mb-1">VIRTUAL disponible</p>
+                        <p class="h3 mb-0">{{ virtual_available_display|default:"—" }}</p>
                     </div>
                 </div>
             </div>
@@ -68,13 +58,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Solicitudes pendientes
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ pending_request_count|default:0 }}
-                        </p>
+                        <p class="text-body-secondary mb-1">Solicitudes pendientes</p>
+                        <p class="h3 mb-0">{{ pending_request_count|default:0 }}</p>
                     </div>
                 </div>
             </div>
@@ -82,13 +67,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Solicitudes completadas
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ completed_request_count|default:0 }}
-                        </p>
+                        <p class="text-body-secondary mb-1">Solicitudes completadas</p>
+                        <p class="h3 mb-0">{{ completed_request_count|default:0 }}</p>
                     </div>
                 </div>
             </div>
@@ -96,24 +76,16 @@
     </section>
 
     <section class="mb-5" aria-labelledby="vendor-actions-title">
-        <h2 id="vendor-actions-title" class="h3">
-            Acciones de vendedor
-        </h2>
+        <h2 id="vendor-actions-title" class="h3">Acciones de vendedor</h2>
 
         {% if vendor_actions %}
             <div class="row g-3">
                 {% for action in vendor_actions %}
                     {% if action.url and action.label %}
                         <div class="col-12 col-md-6 col-xl-4">
-                            <a
-                                class="card h-100 shadow-sm text-decoration-none"
-                                href="{{ action.url }}"
-                            >
+                            <a class="card h-100 shadow-sm text-decoration-none" href="{{ action.url }}">
                                 <div class="card-body">
-                                    <h3 class="h5 text-body">
-                                        {{ action.label }}
-                                    </h3>
-
+                                    <h3 class="h5 text-body">{{ action.label }}</h3>
                                     {% if action.description %}
                                         <p class="text-body-secondary mb-0">
                                             {{ action.description }}
@@ -128,7 +100,6 @@
         {% else %}
             <div class="empty-state" role="status">
                 <h3 class="h5">No hay acciones habilitadas</h3>
-
                 <p class="text-body-secondary mb-0">
                     El backend no habilitó operaciones para este vendedor.
                 </p>
@@ -137,25 +108,18 @@
     </section>
 
     <section class="mb-5" aria-labelledby="vendor-requests-title">
-        <div
-            class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3"
-        >
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3">
             <div>
                 <h2 id="vendor-requests-title" class="h3 mb-1">
                     Solicitudes asignadas
                 </h2>
-
                 <p class="text-body-secondary mb-0">
-                    Las transiciones se ejecutan mediante acciones POST y
-                    servicios Django.
+                    Las transiciones se ejecutan mediante acciones POST y servicios Django.
                 </p>
             </div>
 
             {% if request_filter_url %}
-                <a
-                    class="btn btn-outline-secondary"
-                    href="{{ request_filter_url }}"
-                >
+                <a class="btn btn-outline-secondary" href="{{ request_filter_url }}">
                     Ver todas
                 </a>
             {% endif %}
@@ -174,28 +138,17 @@
                             <th scope="col" class="text-end">Acción</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         {% for request_item in assigned_requests %}
                             <tr>
-                                <td>
-                                    {{ request_item.reference|default:request_item.pk }}
-                                </td>
-
-                                <td>
-                                    {{ request_item.client_label|default:"—" }}
-                                </td>
-
-                                <td>
-                                    {{ request_item.amount_display|default:"—" }}
-                                </td>
-
+                                <td>{{ request_item.reference|default:request_item.pk }}</td>
+                                <td>{{ request_item.client_label|default:"—" }}</td>
+                                <td>{{ request_item.amount_display|default:"—" }}</td>
                                 <td>
                                     <span class="badge text-bg-secondary">
                                         {{ request_item.status_label|default:request_item.status }}
                                     </span>
                                 </td>
-
                                 <td>
                                     {% if request_item.expires_at %}
                                         {{ request_item.expires_at|date:"d/m/Y H:i" }}
@@ -203,13 +156,9 @@
                                         —
                                     {% endif %}
                                 </td>
-
                                 <td class="text-end">
                                     {% if request_item.detail_url %}
-                                        <a
-                                            class="btn btn-sm btn-outline-primary"
-                                            href="{{ request_item.detail_url }}"
-                                        >
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ request_item.detail_url }}">
                                             Revisar
                                         </a>
                                     {% endif %}
@@ -222,48 +171,35 @@
         {% else %}
             <div class="empty-state" role="status">
                 <h3 class="h5">No hay solicitudes asignadas</h3>
-
                 <p class="text-body-secondary mb-0">
-                    Las solicitudes disponibles aparecerán cuando el backend
-                    las asigne.
+                    Las solicitudes disponibles aparecerán cuando el backend las asigne.
                 </p>
             </div>
         {% endif %}
     </section>
 
     <div class="row g-4">
-        <section
-            class="col-12 col-xl-6"
-            aria-labelledby="wholesale-title"
-        >
+        {% if wholesale_url %}
+        <section class="col-12 col-xl-6" aria-labelledby="wholesale-title">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h2 id="wholesale-title" class="h4">
                         Compra mayorista simulada
                     </h2>
-
                     <p>
                         La regla académica es 0.90 REAL por cada 1.00 VIRTUAL.
                         El cálculo definitivo se realiza en el servidor.
                     </p>
 
-                    {% if wholesale_url %}
-                        <a class="btn btn-primary" href="{{ wholesale_url }}">
-                            Ir a compra mayorista
-                        </a>
-                    {% else %}
-                        <p class="text-body-secondary mb-0">
-                            Esta operación todavía no está habilitada.
-                        </p>
-                    {% endif %}
+                    <a class="btn btn-primary" href="{{ wholesale_url }}">
+                        Ir a compra mayorista
+                    </a>
                 </div>
             </div>
         </section>
+        {% endif %}
 
-        <section
-            class="col-12 col-xl-6"
-            aria-labelledby="vendor-movements-title"
-        >
+        <section class="col-12 col-xl-6" aria-labelledby="vendor-movements-title">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h2 id="vendor-movements-title" class="h4">
@@ -277,24 +213,15 @@
                                     <tr>
                                         <th scope="col">Tipo</th>
                                         <th scope="col">Fecha</th>
-                                        <th scope="col" class="text-end">
-                                            Monto
-                                        </th>
+                                        <th scope="col" class="text-end">Monto</th>
                                     </tr>
                                 </thead>
-
                                 <tbody>
                                     {% for movement in recent_movements %}
                                         <tr>
                                             <td>{{ movement.type_label }}</td>
-
-                                            <td>
-                                                {{ movement.created_at|date:"d/m/Y H:i" }}
-                                            </td>
-
-                                            <td class="text-end">
-                                                {{ movement.amount_display }}
-                                            </td>
+                                            <td>{{ movement.created_at|date:"d/m/Y H:i" }}</td>
+                                            <td class="text-end">{{ movement.amount_display }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -309,4 +236,5 @@
             </div>
         </section>
     </div>
+    {% endif %}
 {% endblock %}

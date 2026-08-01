@@ -46,7 +46,13 @@
                     href="{{ home_url|default:'/' }}"
                     aria-label="Ir al inicio de Lotería Binaria"
                 >
-                    <span class="brand-logo" aria-hidden="true">LB</span>
+                    <img
+                        class="brand-logo-image"
+                        src="{% static 'img/logo-placeholder.png' %}"
+                        alt=""
+                        width="44"
+                        height="44"
+                    >
                     <span>
                         <span class="d-block fw-bold lh-1">Lotería Binaria</span>
                         <small class="brand-subtitle">Simulación académica</small>
@@ -85,8 +91,8 @@
                         ></button>
                     </div>
 
-                    <div class="offcanvas-body align-items-lg-center">
-                        <ul class="navbar-nav me-auto mb-3 mb-lg-0">
+                    <div class="offcanvas-body d-flex flex-column flex-xl-row align-items-xl-center">
+                        <ul class="navbar-nav me-xl-auto mb-3 mb-xl-0">
                             {% if home_url %}
                                 <li class="nav-item">
                                     <a
@@ -115,7 +121,7 @@
                                 {# No se muestran funciones inexistentes. #}
                             {% endfor %}
 
-                            {% if request.user.is_authenticated and request.user.is_staff and admin_url %}
+                            {% if request.user.is_authenticated and request.user.is_staff and active_mode_code == "ADMINISTRADOR" and admin_url %}
                                 <li class="nav-item">
                                     <a class="nav-link" href="{{ admin_url }}">
                                         Administración
@@ -124,9 +130,9 @@
                             {% endif %}
                         </ul>
 
-                        <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
+                        <div class="d-flex flex-column flex-xl-row align-items-xl-center gap-2">
                             {% if request.user.is_authenticated %}
-                                <div class="user-summary text-lg-end me-lg-2">
+                                <div class="user-summary text-xl-end me-xl-2">
                                     <span class="d-block fw-semibold">
                                         {{ request.user.get_full_name|default:request.user.username }}
                                     </span>
@@ -152,6 +158,8 @@
                                         method="post"
                                         action="{{ logout_url }}"
                                         class="d-grid"
+                                        data-confirm-title="Cerrar sesión"
+                                        data-confirm-message="¿Deseas cerrar la sesión actual?"
                                     >
                                         {% csrf_token %}
                                         <button
@@ -208,11 +216,13 @@
         </div>
     </footer>
 
+    {% include "includes/_confirm_modal.html" %}
     <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
         crossorigin="anonymous"
     ></script>
+    <script src="{% static 'js/app.js' %}" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

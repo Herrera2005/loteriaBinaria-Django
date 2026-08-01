@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Acceso denegado | Lotería Binaria{% endblock %}
+{% block content %}
+    <section class="text-center py-5" aria-labelledby="error-title">
+        <span class="badge text-bg-danger mb-3">403</span>
+        <h1 id="error-title" class="h2">Acceso no permitido</h1>
+        <p class="text-body-secondary">
+            La ruta no corresponde a tu rol o al modo activo de la sesión.
+        </p>
+        <a class="btn btn-primary" href="{% url 'core:home' %}">Volver al inicio</a>
+    </section>
+{% endblock %}

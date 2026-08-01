@@ -4,19 +4,12 @@
 {% block title %}Panel Administrador | Lotería Binaria{% endblock %}
 
 {% block content %}
-    <header
-        class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4"
-    >
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
         <div>
-            <span class="badge text-bg-warning mb-2">
-                Modo ADMINISTRADOR
-            </span>
-
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
             <h1 class="h2 mb-1">Panel de administración</h1>
-
             <p class="text-body-secondary mb-0">
-                Supervisa usuarios, vendedores, productos, eventos e
-                históricos.
+                Acceso a los módulos administrativos ya implementados.
             </p>
         </div>
 
@@ -26,12 +19,8 @@
                     Abrir administración Django
                 </a>
             {% endif %}
-
             {% if choose_mode_url %}
-                <a
-                    class="btn btn-outline-primary"
-                    href="{{ choose_mode_url }}"
-                >
+                <a class="btn btn-outline-primary" href="{{ choose_mode_url }}">
                     Cambiar modo
                 </a>
             {% endif %}
@@ -39,289 +28,105 @@
     </header>
 
     <div class="alert alert-warning" role="note">
-        En modo ADMINISTRADOR no se permite comprar boletos. Los históricos
-        sensibles se consultan sin eliminación física.
+        En modo ADMINISTRADOR no se permite comprar boletos. La asignación del
+        grupo ADMINISTRADOR no sustituye el permiso técnico <code>is_staff</code>.
     </div>
 
-    <section class="mb-5" aria-labelledby="admin-summary-title">
-        <h2 id="admin-summary-title" class="visually-hidden">
-            Resumen administrativo
-        </h2>
-
-        <div class="row g-3">
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Usuarios activos
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ active_user_count|default:0 }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Vendedores activos
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ active_vendor_count|default:0 }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Eventos activos
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ active_event_count|default:0 }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Solicitudes pendientes
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ pending_request_count|default:0 }}
-                        </p>
-                    </div>
-                </div>
-            </div>
+    {% if not admin_access_ready %}
+        <div class="alert alert-danger" role="alert">
+            Tu cuenta tiene el modo ADMINISTRADOR asignado, pero no posee acceso
+            al sitio administrativo de Django. No se muestran conteos ni datos
+            agregados. Solicita a un superusuario que revise <code>is_staff</code>
+            y tus permisos.
         </div>
-    </section>
-
-    <section class="mb-5" aria-labelledby="admin-sections-title">
-        <h2 id="admin-sections-title" class="h3">
-            Módulos disponibles
-        </h2>
-
-        {% if admin_sections %}
-            <div class="row g-4">
-                {% for section in admin_sections %}
-                    {% if section.url and section.label %}
-                        <div class="col-12 col-md-6 col-xl-4">
-                            <a
-                                class="card h-100 shadow-sm text-decoration-none"
-                                href="{{ section.url }}"
-                            >
-                                <div class="card-body">
-                                    <div
-                                        class="d-flex justify-content-between align-items-start gap-2 mb-2"
-                                    >
-                                        <h3 class="h5 text-body mb-0">
-                                            {{ section.label }}
-                                        </h3>
-
-                                        {% if section.count is not None %}
-                                            <span class="badge text-bg-secondary">
-                                                {{ section.count }}
-                                            </span>
-                                        {% endif %}
-                                    </div>
-
-                                    {% if section.description %}
-                                        <p class="text-body-secondary mb-0">
-                                            {{ section.description }}
-                                        </p>
-                                    {% endif %}
-                                </div>
-                            </a>
+    {% else %}
+        <section class="mb-5" aria-labelledby="admin-summary-title">
+            <h2 id="admin-summary-title" class="h3">Resumen implementado</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <p class="text-body-secondary mb-1">Usuarios activos</p>
+                            <p class="h3 mb-0">{{ active_user_count }}</p>
                         </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="empty-state" role="status">
-                <h3 class="h5">No hay módulos habilitados</h3>
-
-                <p class="text-body-secondary mb-0">
-                    El backend todavía no proporcionó accesos administrativos.
-                </p>
-            </div>
-        {% endif %}
-    </section>
-
-    <section class="mb-5" aria-labelledby="admin-events-title">
-        <div
-            class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3"
-        >
-            <div>
-                <h2 id="admin-events-title" class="h3 mb-1">
-                    Eventos recientes
-                </h2>
-
-                <p class="text-body-secondary mb-0">
-                    Los eventos publicados no se editan libremente; las
-                    acciones disponibles dependen de su estado.
-                </p>
-            </div>
-
-            {% if event_list_url %}
-                <a
-                    class="btn btn-outline-primary"
-                    href="{{ event_list_url }}"
-                >
-                    Ver todos
-                </a>
-            {% endif %}
-        </div>
-
-        {% if recent_events %}
-            <div class="table-responsive shadow-sm rounded">
-                <table class="table table-striped align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th scope="col">Evento</th>
-                            <th scope="col">Producto</th>
-                            <th scope="col">Estado</th>
-                            <th scope="col">Cierre</th>
-                            <th scope="col" class="text-end">Acción</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for event in recent_events %}
-                            <tr>
-                                <td>{{ event.name }}</td>
-
-                                <td>
-                                    {{ event.product_label|default:"—" }}
-                                </td>
-
-                                <td>
-                                    <span class="badge text-bg-secondary">
-                                        {{ event.status_label|default:event.status }}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    {% if event.closes_at %}
-                                        {{ event.closes_at|date:"d/m/Y H:i" }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                </td>
-
-                                <td class="text-end">
-                                    {% if event.detail_url %}
-                                        <a
-                                            class="btn btn-sm btn-outline-primary"
-                                            href="{{ event.detail_url }}"
-                                        >
-                                            Revisar
-                                        </a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="empty-state" role="status">
-                <h3 class="h5">No hay eventos registrados</h3>
-
-                <p class="text-body-secondary mb-0">
-                    Los eventos aparecerán cuando exista información en la base.
-                </p>
-            </div>
-        {% endif %}
-    </section>
-
-    <div class="row g-4">
-        <section
-            class="col-12 col-xl-6"
-            aria-labelledby="admin-requests-title"
-        >
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h2 id="admin-requests-title" class="h4">
-                        Solicitudes recientes
-                    </h2>
-
-                    {% if recent_requests %}
-                        <ul class="list-group list-group-flush">
-                            {% for request_item in recent_requests %}
-                                <li
-                                    class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3"
-                                >
-                                    <div>
-                                        <p class="fw-semibold mb-1">
-                                            {{ request_item.reference|default:"Solicitud" }}
-                                        </p>
-
-                                        <p class="small text-body-secondary mb-0">
-                                            {{ request_item.created_at|date:"d/m/Y H:i" }}
-                                        </p>
-                                    </div>
-
-                                    <span class="badge text-bg-secondary">
-                                        {{ request_item.status_label|default:request_item.status }}
-                                    </span>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="text-body-secondary mb-0">
-                            No hay solicitudes registradas.
-                        </p>
-                    {% endif %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <p class="text-body-secondary mb-1">Vendedores activos</p>
+                            <p class="h3 mb-0">{{ active_vendor_count }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section
-            class="col-12 col-xl-6"
-            aria-labelledby="admin-history-title"
-        >
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h2 id="admin-history-title" class="h4">
-                        Históricos protegidos
-                    </h2>
-
-                    <p class="text-body-secondary">
-                        Movimientos, boletos, resultados, aceptaciones y
-                        auditoría se conservan y no deben eliminarse físicamente.
+        <section class="mb-5" aria-labelledby="admin-sections-title">
+            <h2 id="admin-sections-title" class="h3">Módulos disponibles</h2>
+            {% if admin_sections %}
+                <div class="row g-4">
+                    {% for section in admin_sections %}
+                        {% if section.url and section.label %}
+                            <div class="col-12 col-md-6 col-xl-4">
+                                <a class="card h-100 shadow-sm text-decoration-none" href="{{ section.url }}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                            <h3 class="h5 text-body mb-0">{{ section.label }}</h3>
+                                            {% if section.count is not None %}
+                                                <span class="badge text-bg-secondary">{{ section.count }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if section.description %}
+                                            <p class="text-body-secondary mb-0">{{ section.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state" role="status">
+                    <h3 class="h5">No hay módulos habilitados</h3>
+                    <p class="text-body-secondary mb-0">
+                        Revisa los permisos del usuario en la administración Django.
                     </p>
+                </div>
+            {% endif %}
+        </section>
 
+        <section class="mb-5" aria-labelledby="admin-history-title">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 id="admin-history-title" class="h4">Históricos protegidos</h2>
+                    <p class="text-body-secondary">
+                        Las aceptaciones legales se consultan, pero no se editan ni
+                        eliminan desde el sitio administrativo.
+                    </p>
                     {% if history_links %}
                         <div class="list-group">
                             {% for link in history_links %}
                                 {% if link.url and link.label %}
-                                    <a
-                                        class="list-group-item list-group-item-action"
-                                        href="{{ link.url }}"
-                                    >
+                                    <a class="list-group-item list-group-item-action" href="{{ link.url }}">
                                         {{ link.label }}
                                     </a>
                                 {% endif %}
                             {% endfor %}
                         </div>
-                    {% else %}
-                        <p class="text-body-secondary mb-0">
-                            No hay vistas históricas habilitadas todavía.
-                        </p>
                     {% endif %}
                 </div>
             </div>
         </section>
-    </div>
+    {% endif %}
+
+    {% if backend_modules_pending %}
+        <div class="empty-state" role="status">
+            <h2 class="h4">Módulos de negocio pendientes</h2>
+            <p class="text-body-secondary mb-0">
+                Eventos, resultados, solicitudes y finanzas no aparecen como
+                acciones hasta disponer de modelos, servicios y pruebas reales.
+            </p>
+        </div>
+    {% endif %}
 {% endblock %}

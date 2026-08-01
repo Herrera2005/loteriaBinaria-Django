@@ -11,17 +11,8 @@
             <section class="card shadow-sm" aria-labelledby="login-title">
                 <div class="card-body p-4 p-lg-5">
                     <div class="text-center mb-4">
-                        <span
-                            class="brand-logo mx-auto mb-3"
-                            aria-hidden="true"
-                        >
-                            LB
-                        </span>
-
-                        <h1 id="login-title" class="h2 mb-2">
-                            Iniciar sesión
-                        </h1>
-
+                        <span class="brand-logo mx-auto mb-3" aria-hidden="true">LB</span>
+                        <h1 id="login-title" class="h2 mb-2">Iniciar sesión</h1>
                         <p class="text-body-secondary mb-0">
                             Accede con tu cuenta registrada en el sistema.
                         </p>
@@ -32,7 +23,6 @@
                             <p class="fw-semibold mb-1">
                                 No fue posible iniciar sesión.
                             </p>
-
                             {% for error in form.non_field_errors %}
                                 <p class="mb-0">{{ error }}</p>
                             {% endfor %}
@@ -41,14 +31,6 @@
 
                     <form method="post" novalidate>
                         {% csrf_token %}
-
-                        {% if next %}
-                            <input
-                                type="hidden"
-                                name="next"
-                                value="{{ next }}"
-                            >
-                        {% endif %}
 
                         <div class="mb-3">
                             <label
@@ -96,22 +78,16 @@
                             {% endfor %}
                         </div>
 
-                        <button
-                            type="submit"
-                            class="btn btn-primary w-100"
-                        >
+                        <button type="submit" class="btn btn-primary w-100">
                             Ingresar
                         </button>
                     </form>
 
                     {% if register_url %}
                         <hr class="my-4">
-
                         <p class="text-center mb-0">
                             ¿Aún no tienes una cuenta?
-                            <a href="{{ register_url }}">
-                                Crear cuenta
-                            </a>
+                            <a href="{{ register_url }}">Crear cuenta</a>
                         </p>
                     {% endif %}
                 </div>

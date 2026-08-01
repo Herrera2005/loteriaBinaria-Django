@@ -4,14 +4,10 @@
 {% block title %}Panel Cliente | Lotería Binaria{% endblock %}
 
 {% block content %}
-    <header
-        class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4"
-    >
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
         <div>
             <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
-
             <h1 class="h2 mb-1">Panel de cliente</h1>
-
             <p class="text-body-secondary mb-0">
                 Consulta eventos, boletos, wallets, movimientos y solicitudes.
             </p>
@@ -24,6 +20,12 @@
         {% endif %}
     </header>
 
+    {% if backend_modules_pending %}
+        <div class="empty-state" role="status">
+            <h2 class="h4">Módulos de negocio pendientes</h2>
+            <p class="text-body-secondary mb-0">Los paneles de finanzas, boletos y solicitudes se habilitarán cuando sus modelos, servicios y pruebas estén implementados.</p>
+        </div>
+    {% else %}
     <div class="alert alert-info" role="note">
         Los saldos y operaciones son simulados. Las compras y transiciones se
         validan en Django; el navegador no decide permisos ni modifica saldos.
@@ -38,13 +40,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Saldo REAL disponible
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ real_available_display|default:"—" }}
-                        </p>
+                        <p class="text-body-secondary mb-1">Saldo REAL disponible</p>
+                        <p class="h3 mb-0">{{ real_available_display|default:"—" }}</p>
                     </div>
                 </div>
             </div>
@@ -52,13 +49,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Saldo VIRTUAL disponible
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ virtual_available_display|default:"—" }}
-                        </p>
+                        <p class="text-body-secondary mb-1">Saldo VIRTUAL disponible</p>
+                        <p class="h3 mb-0">{{ virtual_available_display|default:"—" }}</p>
                     </div>
                 </div>
             </div>
@@ -66,10 +58,7 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Boletos registrados
-                        </p>
-
+                        <p class="text-body-secondary mb-1">Boletos registrados</p>
                         <p class="h3 mb-0">{{ ticket_count|default:0 }}</p>
                     </div>
                 </div>
@@ -78,13 +67,8 @@
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <p class="text-body-secondary mb-1">
-                            Solicitudes activas
-                        </p>
-
-                        <p class="h3 mb-0">
-                            {{ active_request_count|default:0 }}
-                        </p>
+                        <p class="text-body-secondary mb-1">Solicitudes activas</p>
+                        <p class="h3 mb-0">{{ active_request_count|default:0 }}</p>
                     </div>
                 </div>
             </div>
@@ -92,14 +76,15 @@
     </section>
 
     <section class="mb-5" aria-labelledby="client-actions-title">
-        <div class="mb-3">
-            <h2 id="client-actions-title" class="h3 mb-1">
-                Acciones disponibles
-            </h2>
-
-            <p class="text-body-secondary mb-0">
-                Solo aparecen acciones habilitadas por el backend.
-            </p>
+        <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
+            <div>
+                <h2 id="client-actions-title" class="h3 mb-1">
+                    Acciones disponibles
+                </h2>
+                <p class="text-body-secondary mb-0">
+                    Solo aparecen acciones habilitadas por el backend.
+                </p>
+            </div>
         </div>
 
         {% if client_actions %}
@@ -107,15 +92,9 @@
                 {% for action in client_actions %}
                     {% if action.url and action.label %}
                         <div class="col-12 col-md-6 col-xl-4">
-                            <a
-                                class="card h-100 shadow-sm text-decoration-none"
-                                href="{{ action.url }}"
-                            >
+                            <a class="card h-100 shadow-sm text-decoration-none" href="{{ action.url }}">
                                 <div class="card-body">
-                                    <h3 class="h5 text-body">
-                                        {{ action.label }}
-                                    </h3>
-
+                                    <h3 class="h5 text-body">{{ action.label }}</h3>
                                     {% if action.description %}
                                         <p class="text-body-secondary mb-0">
                                             {{ action.description }}
@@ -130,25 +109,24 @@
         {% else %}
             <div class="empty-state" role="status">
                 <h3 class="h5">No hay acciones disponibles</h3>
-
                 <p class="text-body-secondary mb-0">
-                    El backend no habilitó acciones para este usuario en este
-                    momento.
+                    El backend no habilitó acciones para este usuario en este momento.
                 </p>
             </div>
         {% endif %}
     </section>
 
     <section class="mb-5" aria-labelledby="available-events-title">
-        <div class="mb-3">
-            <h2 id="available-events-title" class="h3 mb-1">
-                Eventos disponibles
-            </h2>
-
-            <p class="text-body-secondary mb-0">
-                En modo CLIENTE se permite comprar únicamente cuando el evento,
-                saldo y permisos lo autorizan.
-            </p>
+        <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
+            <div>
+                <h2 id="available-events-title" class="h3 mb-1">
+                    Eventos disponibles
+                </h2>
+                <p class="text-body-secondary mb-0">
+                    En modo CLIENTE se permite comprar únicamente cuando el
+                    evento, saldo y permisos lo autorizan.
+                </p>
+            </div>
         </div>
 
         {% if available_events %}
@@ -157,11 +135,8 @@
                     <div class="col-12 col-md-6 col-xl-4">
                         <article class="card h-100 shadow-sm">
                             <div class="card-body">
-                                <div
-                                    class="d-flex justify-content-between align-items-start gap-2 mb-3"
-                                >
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
                                     <h3 class="h5 mb-0">{{ event.name }}</h3>
-
                                     {% if event.status_label %}
                                         <span class="badge text-bg-success">
                                             {{ event.status_label }}
@@ -178,18 +153,14 @@
 
                                 {% if event.closes_at %}
                                     <p class="small text-body-secondary mb-0">
-                                        Cierre:
-                                        {{ event.closes_at|date:"d/m/Y H:i" }}
+                                        Cierre: {{ event.closes_at|date:"d/m/Y H:i" }}
                                     </p>
                                 {% endif %}
                             </div>
 
                             {% if event.detail_url %}
                                 <div class="card-footer bg-transparent">
-                                    <a
-                                        class="btn btn-primary w-100"
-                                        href="{{ event.detail_url }}"
-                                    >
+                                    <a class="btn btn-primary w-100" href="{{ event.detail_url }}">
                                         Ver evento
                                     </a>
                                 </div>
@@ -201,7 +172,6 @@
         {% else %}
             <div class="empty-state" role="status">
                 <h3 class="h5">No hay eventos disponibles</h3>
-
                 <p class="text-body-secondary mb-0">
                     Los próximos eventos activos aparecerán aquí.
                 </p>
@@ -210,39 +180,23 @@
     </section>
 
     <section class="mb-5" aria-labelledby="tickets-title">
-        <div class="mb-3">
-            <h2 id="tickets-title" class="h3 mb-1">
-                Mis boletos
-            </h2>
-
-            <p class="text-body-secondary mb-0">
-                Filtra por producto, estado, fecha o combinación.
-            </p>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3">
+            <div>
+                <h2 id="tickets-title" class="h3 mb-1">Mis boletos</h2>
+                <p class="text-body-secondary mb-0">
+                    Filtra por producto, estado, fecha o combinación.
+                </p>
+            </div>
         </div>
 
-        <form
-            method="get"
-            class="card card-body shadow-sm mb-3"
-            aria-label="Filtros de boletos"
-        >
+        <form method="get" class="card card-body shadow-sm mb-3" aria-label="Filtros de boletos">
             <div class="row g-3 align-items-end">
                 <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label" for="ticket-product">
-                        Producto
-                    </label>
-
-                    <select
-                        class="form-select"
-                        id="ticket-product"
-                        name="product"
-                    >
+                    <label class="form-label" for="ticket-product">Producto</label>
+                    <select class="form-select" id="ticket-product" name="product">
                         <option value="">Todos</option>
-
                         {% for option in ticket_product_options %}
-                            <option
-                                value="{{ option.value }}"
-                                {% if option.selected %}selected{% endif %}
-                            >
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>
                                 {{ option.label }}
                             </option>
                         {% endfor %}
@@ -250,22 +204,11 @@
                 </div>
 
                 <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label" for="ticket-status">
-                        Estado
-                    </label>
-
-                    <select
-                        class="form-select"
-                        id="ticket-status"
-                        name="status"
-                    >
+                    <label class="form-label" for="ticket-status">Estado</label>
+                    <select class="form-select" id="ticket-status" name="status">
                         <option value="">Todos</option>
-
                         {% for option in ticket_status_options %}
-                            <option
-                                value="{{ option.value }}"
-                                {% if option.selected %}selected{% endif %}
-                            >
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>
                                 {{ option.label }}
                             </option>
                         {% endfor %}
@@ -273,10 +216,7 @@
                 </div>
 
                 <div class="col-12 col-md-6 col-xl-2">
-                    <label class="form-label" for="ticket-date-from">
-                        Desde
-                    </label>
-
+                    <label class="form-label" for="ticket-date-from">Desde</label>
                     <input
                         class="form-control"
                         type="date"
@@ -287,10 +227,7 @@
                 </div>
 
                 <div class="col-12 col-md-6 col-xl-2">
-                    <label class="form-label" for="ticket-search">
-                        Combinación
-                    </label>
-
+                    <label class="form-label" for="ticket-search">Combinación</label>
                     <input
                         class="form-control"
                         type="search"
@@ -310,10 +247,7 @@
 
             {% if clear_ticket_filters_url %}
                 <div class="mt-3">
-                    <a
-                        class="btn btn-link px-0"
-                        href="{{ clear_ticket_filters_url }}"
-                    >
+                    <a class="btn btn-link px-0" href="{{ clear_ticket_filters_url }}">
                         Limpiar filtros
                     </a>
                 </div>
@@ -333,38 +267,21 @@
                             <th scope="col" class="text-end">Acción</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         {% for ticket in tickets %}
                             <tr>
-                                <td>
-                                    {{ ticket.reference|default:ticket.pk }}
-                                </td>
-
-                                <td>
-                                    {{ ticket.product_label|default:"—" }}
-                                </td>
-
-                                <td>
-                                    <code>{{ ticket.combination }}</code>
-                                </td>
-
+                                <td>{{ ticket.reference|default:ticket.pk }}</td>
+                                <td>{{ ticket.product_label|default:"—" }}</td>
+                                <td><code>{{ ticket.combination }}</code></td>
                                 <td>
                                     <span class="badge text-bg-secondary">
                                         {{ ticket.status_label|default:ticket.status }}
                                     </span>
                                 </td>
-
-                                <td>
-                                    {{ ticket.created_at|date:"d/m/Y H:i" }}
-                                </td>
-
+                                <td>{{ ticket.created_at|date:"d/m/Y H:i" }}</td>
                                 <td class="text-end">
                                     {% if ticket.detail_url %}
-                                        <a
-                                            class="btn btn-sm btn-outline-primary"
-                                            href="{{ ticket.detail_url }}"
-                                        >
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ ticket.detail_url }}">
                                             Ver
                                         </a>
                                     {% endif %}
@@ -374,10 +291,37 @@
                     </tbody>
                 </table>
             </div>
+
+            {% if tickets_page %}
+                <nav class="mt-3" aria-label="Paginación de boletos">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if tickets_page.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ tickets_page.previous_url }}">
+                                    Anterior
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link">
+                                {{ tickets_page.number }} de {{ tickets_page.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if tickets_page.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ tickets_page.next_url }}">
+                                    Siguiente
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
         {% else %}
             <div class="empty-state" role="status">
                 <h3 class="h5">No se encontraron boletos</h3>
-
                 <p class="text-body-secondary mb-0">
                     Ajusta los filtros o consulta eventos disponibles.
                 </p>
@@ -386,10 +330,7 @@
     </section>
 
     <div class="row g-4">
-        <section
-            class="col-12 col-xl-6"
-            aria-labelledby="client-movements-title"
-        >
+        <section class="col-12 col-xl-6" aria-labelledby="client-movements-title">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h2 id="client-movements-title" class="h4">
@@ -403,24 +344,15 @@
                                     <tr>
                                         <th scope="col">Tipo</th>
                                         <th scope="col">Fecha</th>
-                                        <th scope="col" class="text-end">
-                                            Monto
-                                        </th>
+                                        <th scope="col" class="text-end">Monto</th>
                                     </tr>
                                 </thead>
-
                                 <tbody>
                                     {% for movement in recent_movements %}
                                         <tr>
                                             <td>{{ movement.type_label }}</td>
-
-                                            <td>
-                                                {{ movement.created_at|date:"d/m/Y H:i" }}
-                                            </td>
-
-                                            <td class="text-end">
-                                                {{ movement.amount_display }}
-                                            </td>
+                                            <td>{{ movement.created_at|date:"d/m/Y H:i" }}</td>
+                                            <td class="text-end">{{ movement.amount_display }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -435,10 +367,7 @@
             </div>
         </section>
 
-        <section
-            class="col-12 col-xl-6"
-            aria-labelledby="client-requests-title"
-        >
+        <section class="col-12 col-xl-6" aria-labelledby="client-requests-title">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h2 id="client-requests-title" class="h4">
@@ -448,14 +377,11 @@
                     {% if recent_requests %}
                         <ul class="list-group list-group-flush">
                             {% for request_item in recent_requests %}
-                                <li
-                                    class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3"
-                                >
+                                <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3">
                                     <div>
                                         <p class="fw-semibold mb-1">
                                             {{ request_item.reference|default:"Solicitud" }}
                                         </p>
-
                                         <p class="small text-body-secondary mb-0">
                                             {{ request_item.created_at|date:"d/m/Y H:i" }}
                                         </p>
@@ -476,4 +402,5 @@
             </div>
         </section>
     </div>
+    {% endif %}
 {% endblock %}

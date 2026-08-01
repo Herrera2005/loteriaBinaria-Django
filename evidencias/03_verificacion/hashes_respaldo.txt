@@ -1,0 +1,10 @@
+SHA256 ZIP legado:
+55ef6a710891c625602c0c2b98bde23b4f32f18b832d36b14426ec3c33d2c8dd  respaldo_frontend/Proyecto_HerreraNietoCristhian_legacy.zip
+
+SHA256 logo runtime:
+5e74de69ffd5b988008fed6718d09ddf1a015f77bece826b5f0cbed3a084daba  static/img/logo-placeholder.png
+
+SHA256 logo dentro del ZIP legado:
+5e74de69ffd5b988008fed6718d09ddf1a015f77bece826b5f0cbed3a084daba
+
+Resultado: el logo runtime es una copia exacta del recurso visual legado.

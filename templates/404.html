@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Página no encontrada | Lotería Binaria{% endblock %}
+{% block content %}
+    <section class="text-center py-5" aria-labelledby="error-title">
+        <span class="badge text-bg-secondary mb-3">404</span>
+        <h1 id="error-title" class="h2">Página no encontrada</h1>
+        <p class="text-body-secondary">La dirección solicitada no existe.</p>
+        <a class="btn btn-primary" href="{% url 'core:home' %}">Volver al inicio</a>
+    </section>
+{% endblock %}

@@ -1,3 +1,1 @@
-from django.db import models
-
-# Create your models here.
+"""Modelos de core; se implementarán en su fase documentada."""

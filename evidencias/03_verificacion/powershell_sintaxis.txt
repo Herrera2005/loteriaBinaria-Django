@@ -1,0 +1,1 @@
+PowerShell no disponible en este contenedor; revisar al ejecutar verify.ps1 en Windows.

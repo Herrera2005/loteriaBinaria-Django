@@ -1,0 +1,14 @@
+Nombres de URL usados directamente en templates:
+- accounts:choose_mode
+- accounts:login
+- accounts:logout
+- accounts:register
+- admin:index
+- core:home
+
+Definición correlacionada:
+- apps/accounts/urls.py
+- apps/core/urls.py
+- config/urls.py
+
+Las URLs de dashboards y módulos se entregan mediante contexto backend y no se inventan en templates.
