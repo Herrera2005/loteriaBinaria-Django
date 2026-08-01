@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Inicio | Lotería Binaria{% endblock %}
+
+{% block content %}
+    {% url "accounts:login" as login_url %}
+    {% url "accounts:register" as register_url %}
+
+    <section class="row align-items-center g-4 g-xl-5 mb-5" aria-labelledby="home-title">
+        <div class="col-12 col-lg-7">
+            <span class="badge text-bg-warning mb-3">
+                Proyecto académico con Django
+            </span>
+            <h1 id="home-title" class="display-5 fw-bold mb-3">
+                Sorteos académicos con lógica Octal, Decimal y Hexadecimal
+            </h1>
+            <p class="lead mb-4">
+                Lotería Binaria administra usuarios, productos, eventos y registros
+                históricos desde el backend. No procesa pagos reales ni utiliza tarjetas.
+            </p>
+
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                {% if request.user.is_authenticated %}
+                    {% if dashboard_url %}
+                        <a class="btn btn-primary btn-lg" href="{{ dashboard_url }}">
+                            Ir a mi panel
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <a class="btn btn-primary btn-lg" href="{{ login_url }}">
+                        Iniciar sesión
+                    </a>
+                    <a class="btn btn-outline-primary btn-lg" href="{{ register_url }}">
+                        Crear cuenta
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-xl-5">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <img
+                            class="brand-logo-image"
+                            src="{% static 'img/logo-placeholder.png' %}"
+                            alt=""
+                            width="64"
+                            height="64"
+                        >
+                        <div>
+                            <h2 class="h4 mb-1">Lotería Binaria</h2>
+                            <p class="text-body-secondary mb-0">Simulación académica</p>
+                        </div>
+                    </div>
+                    <p>
+                        Usuarios, roles, wallets y registros provienen de Django y de
+                        la base de datos; el navegador no es fuente de verdad.
+                    </p>
+                    <div class="alert alert-warning mb-0" role="note">
+                        Las operaciones financieras son simuladas y todavía no están
+                        habilitadas desde esta página pública.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="lottery-rules-title">
+        <div class="mb-3">
+            <h2 id="lottery-rules-title" class="h3 mb-1">Reglas oficiales</h2>
+            <p class="text-body-secondary mb-0">
+                Cada combinación tiene longitud exacta y símbolos únicos.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <span class="badge text-bg-primary mb-3">Octal</span>
+                        <h3 class="h5">0 al 7</h3>
+                        <p class="mb-0">4 símbolos exactos, sin repeticiones.</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <span class="badge text-bg-secondary mb-3">Decimal</span>
+                        <h3 class="h5">0 al 9</h3>
+                        <p class="mb-0">5 símbolos exactos, sin repeticiones.</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <span class="badge text-bg-warning mb-3">Hexadecimal</span>
+                        <h3 class="h5">0–9 y A–F</h3>
+                        <p class="mb-0">6 símbolos exactos, sin repeticiones.</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="active-products-title">
+        <div class="mb-3">
+            <h2 id="active-products-title" class="h3 mb-1">Productos activos</h2>
+            <p class="text-body-secondary mb-0">
+                Catálogo real consultado desde <code>LotteryProduct</code>.
+            </p>
+        </div>
+
+        {% if products %}
+            <div class="row g-4">
+                {% for product in products %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="card h-100 shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                                <h3 class="h5 mb-0">{{ product.name }}</h3>
+                                <span class="badge text-bg-success">Activo</span>
+                            </div>
+                            <div class="card-body">
+                                <dl class="row mb-0">
+                                    <dt class="col-6">Código</dt>
+                                    <dd class="col-6 text-end">{{ product.get_code_display }}</dd>
+                                    <dt class="col-6">Símbolos</dt>
+                                    <dd class="col-6 text-end">{{ product.allowed_symbols }}</dd>
+                                    <dt class="col-7">Longitud exacta</dt>
+                                    <dd class="col-5 text-end">{{ product.selection_count }}</dd>
+                                </dl>
+                            </div>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">Todavía no hay productos activos</h3>
+                <p class="text-body-secondary mb-0">
+                    Cuando el administrador habilite el catálogo, aparecerá aquí.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section aria-labelledby="academic-scope-title">
+        <div class="card border-warning shadow-sm">
+            <div class="card-body">
+                <h2 id="academic-scope-title" class="h4">Alcance de esta entrega</h2>
+                <p class="mb-0">
+                    La primera fase utiliza SQLite y la segunda utilizará MySQL.
+                    Wallets, movimientos y auditoría se muestran en modo read-only;
+                    no existen pagos reales, tarjetas ni saldos editables desde formularios.
+                </p>
+            </div>
+        </div>
+    </section>
+{% endblock %}

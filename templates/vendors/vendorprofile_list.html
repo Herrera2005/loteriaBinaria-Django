@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Perfiles vendedores | Lotería Binaria{% endblock %}
+
+{% block content %}
+<section aria-labelledby="vendor-profile-list-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 id="vendor-profile-list-title" class="h2 mb-1">
+                Perfiles vendedores
+            </h1>
+            <p class="text-body-secondary mb-0">
+                Administra perfiles sin modificar solicitudes ni estados del flujo.
+            </p>
+        </div>
+
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-outline-primary"
+                href="{% url 'vendors:conversionrequest_list' %}"
+            >
+                Ver solicitudes
+            </a>
+            <a
+                class="btn btn-primary"
+                href="{% url 'vendors:vendorprofile_create' %}"
+            >
+                Crear perfil
+            </a>
+        </div>
+    </header>
+
+    <form method="get" class="card card-body shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg">
+                <label for="vendor-search" class="form-label">
+                    Buscar por usuario, nombre, correo o documento
+                </label>
+                <input
+                    class="form-control"
+                    type="search"
+                    id="vendor-search"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="Ej. vendedor, correo@example.test o VEND-001"
+                >
+            </div>
+
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="status-filter" class="form-label">Estado</label>
+                <select class="form-select" id="status-filter" name="status">
+                    <option value="">Todos</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-auto d-grid">
+                <button class="btn btn-primary" type="submit">Filtrar</button>
+            </div>
+
+            {% if query or selected_status %}
+                <div class="col-12 col-sm-auto d-grid">
+                    <a
+                        class="btn btn-outline-secondary"
+                        href="{% url 'vendors:vendorprofile_list' %}"
+                    >
+                        Limpiar
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if vendor_profiles %}
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Vendedor</th>
+                        <th scope="col">Documento</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Asignaciones</th>
+                        <th scope="col">Actualizado</th>
+                        <th scope="col" class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for profile in vendor_profiles %}
+                        <tr>
+                            <td>
+                                <span class="fw-semibold">{{ profile.user.username }}</span>
+                                <span class="d-block small text-body-secondary">
+                                    {{ profile.user.email }}
+                                </span>
+                            </td>
+                            <td>{{ profile.user.document }}</td>
+                            <td>
+                                <span class="badge {% if profile.status == 'ACTIVE' %}text-bg-success{% elif profile.status == 'PENDING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                                    {{ profile.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ profile.assignments_count }}</td>
+                            <td>{{ profile.updated_at|date:"d/m/Y H:i" }}</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                    <a
+                                        class="btn btn-sm btn-outline-primary"
+                                        href="{% url 'vendors:vendorprofile_detail' profile.pk %}"
+                                    >
+                                        Ver
+                                    </a>
+                                    <a
+                                        class="btn btn-sm btn-outline-secondary"
+                                        href="{% url 'vendors:vendorprofile_update' profile.pk %}"
+                                    >
+                                        Editar
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Paginación de perfiles vendedores">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&page={{ page_obj.previous_page_number }}"
+                            >
+                                Anterior
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&page={{ page_obj.next_page_number }}"
+                            >
+                                Siguiente
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state" role="status">
+            <h2 class="h5">No se encontraron perfiles vendedores</h2>
+            <p class="text-body-secondary mb-0">
+                Cambia los filtros o crea el primer perfil elegible.
+            </p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

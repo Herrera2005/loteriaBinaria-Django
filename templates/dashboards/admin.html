@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Panel Administrador | Lotería Binaria{% endblock %}
+
+{% block content %}
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 class="h2 mb-1">Panel de administración</h1>
+            <p class="text-body-secondary mb-0">
+                Supervisión del sistema y acceso read-only a la auditoría.
+            </p>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row gap-2">
+            <a class="btn btn-primary" href="{{ audit_url }}">Abrir auditoría</a>
+            {% if django_admin_url %}
+                <a class="btn btn-outline-primary" href="{{ django_admin_url }}">
+                    Abrir administración Django
+                </a>
+            {% endif %}
+            <a class="btn btn-outline-secondary" href="{{ choose_mode_url }}">Cambiar modo</a>
+        </div>
+    </header>
+
+    <div class="alert alert-warning" role="note">
+        En modo ADMINISTRADOR no se compran boletos. AuditEvent, Movement y
+        aceptaciones históricas no se editan ni eliminan mediante CRUD genérico.
+    </div>
+
+    <section class="mb-5" aria-labelledby="business-tools-title">
+        <h2 id="business-tools-title" class="h3">Consultas seguras</h2>
+        <div class="row g-3">
+            <div class="col-12 col-md-6 col-xl-4">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ audit_url }}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <h3 class="h5 text-body">Auditoría administrativa</h3>
+                            <span class="badge text-bg-secondary">{{ audit_event_count }}</span>
+                        </div>
+                        <p class="text-body-secondary mb-0">
+                            Listado y detalle read-only de eventos transversales.
+                        </p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6 col-xl-4">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ wallet_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Mi wallet</h3>
+                        <p class="text-body-secondary mb-0">
+                            Consultar únicamente las wallets de la cuenta actual.
+                        </p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6 col-xl-4">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ movement_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Mis movimientos</h3>
+                        <p class="text-body-secondary mb-0">
+                            Histórico financiero propio, filtrable y paginado.
+                        </p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="recent-audit-title">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end gap-2 mb-3">
+            <h2 id="recent-audit-title" class="h3 mb-0">Auditoría reciente</h2>
+            <a class="btn btn-outline-primary" href="{{ audit_url }}">Ver todo</a>
+        </div>
+
+        {% if recent_audit_events %}
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Actor</th>
+                            <th scope="col">Acción</th>
+                            <th scope="col">Recurso</th>
+                            <th scope="col" class="text-end">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in recent_audit_events %}
+                            <tr>
+                                <td>{{ event.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>{{ event.actor.username }}</td>
+                                <td>{{ event.action }}</td>
+                                <td>{{ event.resource_type }}:{{ event.resource_id }}</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-primary" href="{% url 'core:audit_detail' event.pk %}">
+                                        Ver
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay eventos de auditoría</h3>
+                <p class="text-body-secondary mb-0">
+                    Los registros aparecerán cuando servicios críticos generen auditoría.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    {% if not admin_access_ready %}
+        <div class="alert alert-danger" role="alert">
+            La cuenta posee el rol ADMINISTRADOR, pero no tiene <code>is_staff</code>.
+            Puede consultar la auditoría visual. No se muestran métricas ni accesos
+            al sitio administrativo de Django.
+        </div>
+    {% else %}
+        <section class="mb-5" aria-labelledby="admin-summary-title">
+            <h2 id="admin-summary-title" class="h3">Resumen administrativo</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <p class="text-body-secondary mb-1">Usuarios activos</p>
+                            <p class="h3 mb-0">{{ active_user_count }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <p class="text-body-secondary mb-1">Vendedores activos</p>
+                            <p class="h3 mb-0">{{ active_vendor_count }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-5" aria-labelledby="admin-sections-title">
+            <h2 id="admin-sections-title" class="h3">Módulos implementados</h2>
+            <div class="row g-4">
+                {% for section in admin_sections %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <a class="card h-100 shadow-sm text-decoration-none" href="{{ section.url }}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <h3 class="h5 text-body mb-0">{{ section.label }}</h3>
+                                    <span class="badge text-bg-secondary">{{ section.count }}</span>
+                                </div>
+                                <p class="text-body-secondary mb-0">{{ section.description }}</p>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section aria-labelledby="protected-history-title">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 id="protected-history-title" class="h4">Históricos protegidos</h2>
+                    <div class="list-group">
+                        {% for link in history_links %}
+                            <a class="list-group-item list-group-item-action" href="{{ link.url }}">
+                                {{ link.label }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

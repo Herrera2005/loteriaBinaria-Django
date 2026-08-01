@@ -1,0 +1,43 @@
+<div
+    class="modal fade"
+    id="confirmationModal"
+    tabindex="-1"
+    aria-labelledby="confirmationModalTitle"
+    aria-describedby="confirmationModalMessage"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="confirmationModalTitle">
+                    Confirmar acción
+                </h2>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Cerrar"
+                ></button>
+            </div>
+            <div class="modal-body" id="confirmationModalMessage">
+                Confirma que deseas continuar.
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="confirmationModalAccept"
+                >
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Productos de lotería | Lotería Binaria{% endblock %}
+
+{% block content %}
+<section aria-labelledby="product-list-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 id="product-list-title" class="h2 mb-1">
+                Productos de lotería
+            </h1>
+            <p class="text-body-secondary mb-0">
+                Configuraciones oficiales Octal, Decimal y Hexadecimal.
+            </p>
+        </div>
+
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-outline-primary"
+                href="{% url 'lottery:event_list' %}"
+            >
+                Ver eventos
+            </a>
+            <a
+                class="btn btn-primary"
+                href="{% url 'lottery:product_create' %}"
+            >
+                Crear producto
+            </a>
+        </div>
+    </header>
+
+    <form method="get" class="card card-body shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg">
+                <label class="form-label" for="product-search">
+                    Buscar
+                </label>
+                <input
+                    class="form-control"
+                    id="product-search"
+                    name="q"
+                    type="search"
+                    value="{{ query }}"
+                    placeholder="Código, nombre o símbolos"
+                >
+            </div>
+
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label class="form-label" for="active-filter">
+                    Estado
+                </label>
+                <select
+                    class="form-select"
+                    id="active-filter"
+                    name="active"
+                >
+                    <option value="">Todos</option>
+                    <option value="1"{% if active_filter == "1" %} selected{% endif %}>
+                        Activos
+                    </option>
+                    <option value="0"{% if active_filter == "0" %} selected{% endif %}>
+                        Inactivos
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-auto d-grid">
+                <button class="btn btn-primary" type="submit">
+                    Filtrar
+                </button>
+            </div>
+
+            {% if query or active_filter %}
+                <div class="col-12 col-sm-auto d-grid">
+                    <a
+                        class="btn btn-outline-secondary"
+                        href="{% url 'lottery:product_list' %}"
+                    >
+                        Limpiar
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if products %}
+        <div class="row g-4">
+            {% for product in products %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <article class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between gap-3">
+                                <div>
+                                    <span class="badge text-bg-primary">
+                                        {{ product.code }}
+                                    </span>
+                                    <h2 class="h5 mt-2 mb-1">
+                                        {{ product.name }}
+                                    </h2>
+                                </div>
+
+                                <span class="badge {% if product.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                                    {% if product.is_active %}
+                                        Activo
+                                    {% else %}
+                                        Inactivo
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <dl class="row small mt-3 mb-0">
+                                <dt class="col-6">Símbolos</dt>
+                                <dd class="col-6 text-end">
+                                    <code>{{ product.allowed_symbols }}</code>
+                                </dd>
+
+                                <dt class="col-6">Selección</dt>
+                                <dd class="col-6 text-end">
+                                    {{ product.selection_count }} únicos
+                                </dd>
+
+                                <dt class="col-6">Eventos</dt>
+                                <dd class="col-6 text-end">
+                                    {{ product.events_count }}
+                                </dd>
+                            </dl>
+                        </div>
+
+                        <div class="card-footer bg-transparent d-flex flex-wrap gap-2">
+                            <a
+                                class="btn btn-sm btn-outline-primary"
+                                href="{% url 'lottery:product_detail' product.pk %}"
+                            >
+                                Ver
+                            </a>
+                            <a
+                                class="btn btn-sm btn-outline-secondary"
+                                href="{% url 'lottery:product_update' product.pk %}"
+                            >
+                                Editar
+                            </a>
+                        </div>
+                    </article>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Paginación de productos">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&active={{ active_filter|urlencode }}&page={{ page_obj.previous_page_number }}"
+                            >
+                                Anterior
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&active={{ active_filter|urlencode }}&page={{ page_obj.next_page_number }}"
+                            >
+                                Siguiente
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state" role="status">
+            <h2 class="h5">No se encontraron productos</h2>
+            <p class="text-body-secondary mb-0">
+                Cambia los filtros o crea una configuración oficial.
+            </p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

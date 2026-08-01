@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Panel Cliente | Lotería Binaria{% endblock %}
+
+{% block content %}
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+            <h1 class="h2 mb-1">Panel de cliente</h1>
+            <p class="text-body-secondary mb-0">
+                Resumen read-only de tus wallets, movimientos y registros existentes.
+            </p>
+        </div>
+        <a class="btn btn-outline-primary" href="{{ choose_mode_url }}">Cambiar modo</a>
+    </header>
+
+    <div class="alert alert-info" role="note">
+        El navegador no modifica saldos. Las recargas, conversiones y compras
+        todavía no están habilitadas en este bloque visual.
+    </div>
+
+    <section class="mb-5" aria-labelledby="client-summary-title">
+        <h2 id="client-summary-title" class="visually-hidden">Resumen del cliente</h2>
+        <div class="row g-3">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">REAL disponible</p>
+                        <p class="h3 mb-1">{{ real_available_display }}</p>
+                        <small class="text-body-secondary">Reservado: {{ real_reserved_display }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">VIRTUAL disponible</p>
+                        <p class="h3 mb-1">{{ virtual_available_display }}</p>
+                        <small class="text-body-secondary">Reservado: {{ virtual_reserved_display }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">Boletos registrados</p>
+                        <p class="h3 mb-0">{{ ticket_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">Solicitudes activas</p>
+                        <p class="h3 mb-0">{{ active_request_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="client-actions-title">
+        <h2 id="client-actions-title" class="h3">Consultas disponibles</h2>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ wallet_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Mi wallet</h3>
+                        <p class="text-body-secondary mb-0">
+                            Consultar saldos disponible y reservado por moneda.
+                        </p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ movement_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Mis movimientos</h3>
+                        <p class="text-body-secondary mb-0">
+                            Revisar el histórico propio con filtros y paginación.
+                        </p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="available-events-title">
+        <div class="mb-3">
+            <h2 id="available-events-title" class="h3 mb-1">Eventos visibles</h2>
+            <p class="text-body-secondary mb-0">
+                Esta etapa solo consulta eventos; todavía no crea boletos.
+            </p>
+        </div>
+
+        {% if available_events %}
+            <div class="row g-4">
+                {% for item in available_events %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="card h-100 shadow-sm">
+                            <div class="card-header d-flex justify-content-between gap-2">
+                                <h3 class="h5 mb-0">{{ item.event.name }}</h3>
+                                <span class="badge text-bg-success">{{ item.status_label }}</span>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Producto:</strong> {{ item.product_label }}</p>
+                                <dl class="row mb-0">
+                                    <dt class="col-6">Precio</dt>
+                                    <dd class="col-6 text-end">{{ item.price_display }}</dd>
+                                    <dt class="col-6">Premio</dt>
+                                    <dd class="col-6 text-end">{{ item.prize_display }}</dd>
+                                    <dt class="col-6">Cierre</dt>
+                                    <dd class="col-6 text-end">{{ item.event.sales_close_at|date:"d/m/Y H:i" }}</dd>
+                                </dl>
+                            </div>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay eventos visibles</h3>
+                <p class="text-body-secondary mb-0">
+                    Los eventos publicados o con ventas abiertas aparecerán aquí.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="mb-5" aria-labelledby="client-movements-title">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end gap-2 mb-3">
+            <h2 id="client-movements-title" class="h3 mb-0">Movimientos recientes</h2>
+            <a class="btn btn-outline-primary" href="{{ movement_url }}">Ver todos</a>
+        </div>
+
+        {% if recent_movements %}
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Moneda</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Dirección</th>
+                            <th scope="col" class="text-end">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in recent_movements %}
+                            <tr>
+                                <td>{{ row.movement.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>{{ row.currency_label }}</td>
+                                <td>{{ row.type_label }}</td>
+                                <td>
+                                    {% if row.direction == "CREDIT" %}
+                                        <span class="badge text-bg-success">{{ row.direction_label }}</span>
+                                    {% else %}
+                                        <span class="badge text-bg-danger">{{ row.direction_label }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-semibold">{{ row.amount_display }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay movimientos registrados</h3>
+                <p class="text-body-secondary mb-0">
+                    El histórico aparecerá cuando servicios autorizados registren operaciones.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <div class="row g-4">
+        <section class="col-12 col-xl-6" aria-labelledby="client-tickets-title">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 id="client-tickets-title" class="h4">Boletos recientes</h2>
+                    {% if recent_tickets %}
+                        <div class="list-group list-group-flush">
+                            {% for row in recent_tickets %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between gap-3">
+                                        <strong>{{ row.ticket.normalized_key }}</strong>
+                                        <span>{{ row.price_display }}</span>
+                                    </div>
+                                    <small class="text-body-secondary">
+                                        {{ row.product_label }} · {{ row.ownership_label }} · {{ row.evaluation_label }}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">No hay boletos registrados.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="col-12 col-xl-6" aria-labelledby="client-requests-title">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 id="client-requests-title" class="h4">Solicitudes recientes</h2>
+                    {% if recent_requests %}
+                        <div class="list-group list-group-flush">
+                            {% for row in recent_requests %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between gap-3">
+                                        <span class="badge text-bg-secondary">{{ row.status_label }}</span>
+                                        <strong>{{ row.amount_display }}</strong>
+                                    </div>
+                                    <small class="text-body-secondary">
+                                        {{ row.request.created_at|date:"d/m/Y H:i" }}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary mb-0">No hay solicitudes registradas.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock %}

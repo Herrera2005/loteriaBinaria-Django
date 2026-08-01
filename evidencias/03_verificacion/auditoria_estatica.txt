@@ -1,0 +1,7 @@
+AUDITORÍA ESTÁTICA: OK
+- Estructura mínima presente
+- Python parseable
+- Templates base/H1/CSRF verificados
+- Sin localStorage, fetch JSON, credenciales demo ni pages/*.html activos
+- ZIP visual legado preservado fuera del runtime
+- Configuración sin PostgreSQL y 48 pruebas diseñadas

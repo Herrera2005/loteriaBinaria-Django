@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if object %}Editar producto{% else %}Crear producto{% endif %}
+    | Lotería Binaria
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-9 col-xl-7">
+        <section
+            class="card shadow-sm"
+            aria-labelledby="product-form-title"
+        >
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-warning mb-2">
+                    Modo ADMINISTRADOR
+                </span>
+
+                <h1 id="product-form-title" class="h2">
+                    {% if object %}
+                        Editar producto
+                    {% else %}
+                        Crear producto
+                    {% endif %}
+                </h1>
+
+                <p class="text-body-secondary">
+                    OCTAL usa 0–7 y 4 únicos; DECIMAL 0–9 y 5;
+                    HEXADECIMAL 0–9/A–F y 6.
+                </p>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="col-12">
+                                {% if field.field.widget.input_type == "checkbox" %}
+                                    <div class="form-check">
+                                        {{ field }}
+                                        <label
+                                            class="form-check-label"
+                                            for="{{ field.id_for_label }}"
+                                        >
+                                            {{ field.label }}
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    <label
+                                        class="form-label"
+                                        for="{{ field.id_for_label }}"
+                                    >
+                                        {{ field.label }}
+                                    </label>
+                                    {{ field }}
+                                {% endif %}
+
+                                {% if field.help_text %}
+                                    <div class="form-text">
+                                        {{ field.help_text }}
+                                    </div>
+                                {% endif %}
+
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ error }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
+                        {% if object %}
+                            <a
+                                class="btn btn-outline-secondary"
+                                href="{% url 'lottery:product_detail' object.pk %}"
+                            >
+                                Cancelar
+                            </a>
+                        {% else %}
+                            <a
+                                class="btn btn-outline-secondary"
+                                href="{% url 'lottery:product_list' %}"
+                            >
+                                Cancelar
+                            </a>
+                        {% endif %}
+
+                        <button class="btn btn-primary" type="submit">
+                            Guardar producto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

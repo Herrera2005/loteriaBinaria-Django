@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Panel Vendedor | Lotería Binaria{% endblock %}
+
+{% block content %}
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo VENDEDOR</span>
+            <h1 class="h2 mb-1">Panel de vendedor</h1>
+            <p class="text-body-secondary mb-0">
+                Consulta wallets, movimientos y solicitudes asignadas.
+            </p>
+        </div>
+        <a class="btn btn-outline-primary" href="{{ choose_mode_url }}">Cambiar modo</a>
+    </header>
+
+    <div class="alert alert-warning" role="note">
+        En modo VENDEDOR no se compran boletos. La compra mayorista y las
+        conversiones todavía no están habilitadas en P-28.
+    </div>
+
+    {% if not vendor_profile %}
+        <div class="alert alert-danger" role="alert">
+            Tu cuenta tiene el modo VENDEDOR, pero no posee un perfil vendedor registrado.
+            Las solicitudes asignadas no pueden mostrarse hasta corregir esa configuración.
+        </div>
+    {% elif vendor_profile.status != "ACTIVE" %}
+        <div class="alert alert-warning" role="alert">
+            El perfil vendedor está en estado {{ vendor_profile.get_status_display }}.
+            Esta pantalla permanece en modo de consulta.
+        </div>
+    {% endif %}
+
+    <section class="mb-5" aria-labelledby="vendor-summary-title">
+        <h2 id="vendor-summary-title" class="visually-hidden">Resumen del vendedor</h2>
+        <div class="row g-3">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">REAL disponible</p>
+                        <p class="h3 mb-1">{{ real_available_display }}</p>
+                        <small class="text-body-secondary">Reservado: {{ real_reserved_display }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">VIRTUAL disponible</p>
+                        <p class="h3 mb-1">{{ virtual_available_display }}</p>
+                        <small class="text-body-secondary">Reservado: {{ virtual_reserved_display }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">Asignaciones activas</p>
+                        <p class="h3 mb-0">{{ pending_request_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-body-secondary mb-1">Asignaciones completadas</p>
+                        <p class="h3 mb-0">{{ completed_request_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="vendor-actions-title">
+        <h2 id="vendor-actions-title" class="h3">Consultas disponibles</h2>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ wallet_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Mi wallet</h3>
+                        <p class="text-body-secondary mb-0">
+                            Consultar capital REAL e inventario VIRTUAL registrados.
+                        </p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ movement_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Mis movimientos</h3>
+                        <p class="text-body-secondary mb-0">
+                            Revisar el histórico financiero propio y paginado.
+                        </p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="vendor-requests-title">
+        <div class="mb-3">
+            <h2 id="vendor-requests-title" class="h3 mb-1">Solicitudes asignadas</h2>
+            <p class="text-body-secondary mb-0">
+                Información read-only; no se ejecutan transiciones desde este dashboard.
+            </p>
+        </div>
+
+        {% if assigned_requests %}
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Asignación</th>
+                            <th scope="col">Cliente</th>
+                            <th scope="col">Monto</th>
+                            <th scope="col">Solicitud</th>
+                            <th scope="col">Asignación</th>
+                            <th scope="col">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in assigned_requests %}
+                            <tr>
+                                <td>{{ row.assignment.pk }}</td>
+                                <td>{{ row.client_label }}</td>
+                                <td>{{ row.amount_display }}</td>
+                                <td><span class="badge text-bg-secondary">{{ row.request_status_label }}</span></td>
+                                <td><span class="badge text-bg-info">{{ row.assignment_status_label }}</span></td>
+                                <td>{{ row.assignment.assigned_at|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay solicitudes asignadas</h3>
+                <p class="text-body-secondary mb-0">
+                    Las asignaciones reales aparecerán aquí cuando existan en la base de datos.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section aria-labelledby="vendor-movements-title">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end gap-2 mb-3">
+            <h2 id="vendor-movements-title" class="h3 mb-0">Movimientos recientes</h2>
+            <a class="btn btn-outline-primary" href="{{ movement_url }}">Ver todos</a>
+        </div>
+
+        {% if recent_movements %}
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Moneda</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Dirección</th>
+                            <th scope="col" class="text-end">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in recent_movements %}
+                            <tr>
+                                <td>{{ row.movement.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>{{ row.currency_label }}</td>
+                                <td>{{ row.type_label }}</td>
+                                <td>
+                                    {% if row.direction == "CREDIT" %}
+                                        <span class="badge text-bg-success">{{ row.direction_label }}</span>
+                                    {% else %}
+                                        <span class="badge text-bg-danger">{{ row.direction_label }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-semibold">{{ row.amount_display }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <h3 class="h5">No hay movimientos registrados</h3>
+                <p class="text-body-secondary mb-0">
+                    Las operaciones futuras se registrarán mediante servicios transaccionales.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

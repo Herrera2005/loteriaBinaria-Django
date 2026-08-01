@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar producto | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8 col-xl-6">
+        <section
+            class="card border-danger shadow-sm"
+            aria-labelledby="product-delete-title"
+        >
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-danger mb-3">Acción sensible</span>
+                <h1 id="product-delete-title" class="h2">
+                    Eliminar producto
+                </h1>
+                <p>
+                    Producto: <strong>{{ product.name }}</strong>
+                    ({{ product.code }}).
+                </p>
+
+                {% if product.events_count %}
+                    <div class="alert alert-warning" role="alert">
+                        Tiene {{ product.events_count }} evento(s) relacionado(s).
+                        La eliminación será rechazada para conservar la historia.
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger" role="alert">
+                        El producto no tiene eventos y será eliminado físicamente.
+                    </div>
+                {% endif %}
+
+                <form
+                    method="post"
+                    data-confirm-title="Eliminar producto"
+                    data-confirm-message="Confirma que deseas eliminar este producto sin eventos."
+                >
+                    {% csrf_token %}
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2">
+                        <a
+                            class="btn btn-outline-secondary"
+                            href="{% url 'lottery:product_detail' product.pk %}"
+                        >
+                            Cancelar
+                        </a>
+                        <button
+                            class="btn btn-danger"
+                            type="submit"
+                            {% if product.events_count %}disabled{% endif %}
+                        >
+                            Confirmar eliminación
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

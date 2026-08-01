@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar o desactivar perfil | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8 col-xl-6">
+        <section class="card border-danger shadow-sm" aria-labelledby="vendor-delete-title">
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-danger mb-3">Acción sensible</span>
+                <h1 id="vendor-delete-title" class="h2">
+                    Eliminar o desactivar perfil vendedor
+                </h1>
+
+                <p>
+                    Vas a procesar el perfil de
+                    <strong>{{ vendor_profile.user.username }}</strong>.
+                </p>
+
+                {% if has_history %}
+                    <div class="alert alert-warning" role="alert">
+                        El perfil conserva solicitudes, asignaciones o compras
+                        relacionadas. No se eliminará físicamente: quedará
+                        <strong>Desactivado</strong>.
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger" role="alert">
+                        El perfil no tiene historia relacionada y se eliminará
+                        físicamente. La cuenta de usuario no será eliminada.
+                    </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2">
+                        <a
+                            class="btn btn-outline-secondary"
+                            href="{% url 'vendors:vendorprofile_detail' vendor_profile.pk %}"
+                        >
+                            Cancelar
+                        </a>
+                        <button class="btn btn-danger" type="submit">
+                            {% if has_history %}
+                                Desactivar perfil
+                            {% else %}
+                                Eliminar perfil
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

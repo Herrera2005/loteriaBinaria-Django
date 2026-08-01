@@ -1,0 +1,100 @@
+﻿$ErrorActionPreference = "Stop"
+
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
+Set-Location $ProjectRoot
+
+$VerificationDatabase = Join-Path `
+    $ProjectRoot `
+    "verification.sqlite3"
+
+$PreviousDatabaseUrl = $env:DATABASE_URL
+$PreviousDebug = $env:DJANGO_DEBUG
+
+Write-Host `
+    "=== Taller #3: verificación completa SQLite limpia ===" `
+    -ForegroundColor Cyan
+
+try {
+    if (Test-Path $VerificationDatabase) {
+        Remove-Item $VerificationDatabase -Force
+    }
+
+    $env:DATABASE_URL = "sqlite:///verification.sqlite3"
+    $env:DJANGO_DEBUG = "True"
+
+    python scripts/audit_project.py
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló la auditoría estática."
+    }
+
+    python manage.py check
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló manage.py check."
+    }
+
+    python manage.py makemigrations --check --dry-run
+    if ($LASTEXITCODE -ne 0) {
+        throw "Hay cambios de modelos sin migración."
+    }
+
+    python manage.py migrate --noinput
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló la migración limpia."
+    }
+
+    python manage.py showmigrations
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló showmigrations."
+    }
+
+    python manage.py seed_baseline
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló seed_baseline."
+    }
+
+    python manage.py backfill_wallets
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló backfill_wallets."
+    }
+
+    python scripts/smoke_runserver.py
+    if ($LASTEXITCODE -ne 0) {
+        throw "La landing no respondió con runserver."
+    }
+
+    python manage.py test --verbosity 2
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló la suite Django."
+    }
+
+    python manage.py findstatic `
+        css/app.css `
+        js/app.js `
+        img/logo-placeholder.png
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se encontraron los recursos static."
+    }
+
+    python manage.py collectstatic --noinput --clear
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló collectstatic."
+    }
+
+    Write-Host `
+        "=== Verificación completada correctamente ===" `
+        -ForegroundColor Green
+}
+finally {
+    if (Test-Path $VerificationDatabase) {
+        Remove-Item $VerificationDatabase -Force
+    }
+
+    $StaticFilesPath = Join-Path $ProjectRoot "staticfiles"
+    if (Test-Path $StaticFilesPath) {
+        Remove-Item $StaticFilesPath -Recurse -Force
+    }
+
+    $env:DATABASE_URL = $PreviousDatabaseUrl
+    $env:DJANGO_DEBUG = $PreviousDebug
+}

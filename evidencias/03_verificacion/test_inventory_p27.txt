@@ -1,0 +1,15 @@
+apps/accounts/tests/test_admin.py: 3
+apps/accounts/tests/test_auth_and_modes.py: 10
+apps/accounts/tests/test_forms.py: 15
+apps/accounts/tests/test_model_integrity.py: 4
+apps/accounts/tests/test_registration.py: 10
+apps/accounts/tests/test_views.py: 13
+apps/core/tests/test_configuration.py: 6
+apps/core/tests/test_seed_commands.py: 6
+apps/core/tests/test_views.py: 9
+apps/lottery/tests/test_crud.py: 18
+apps/lottery/tests/test_forms.py: 10
+apps/lottery/tests/test_models.py: 26
+apps/vendors/tests/test_models.py: 22
+apps/vendors/tests/test_views.py: 15
+TOTAL_TEST_FUNCTIONS=167

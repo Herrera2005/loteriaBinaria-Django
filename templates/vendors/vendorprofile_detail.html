@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ vendor_profile.user.username }} | Perfil vendedor{% endblock %}
+
+{% block content %}
+<section aria-labelledby="vendor-profile-detail-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 id="vendor-profile-detail-title" class="h2 mb-1">
+                {{ vendor_profile.user.username }}
+            </h1>
+            <p class="text-body-secondary mb-0">
+                Detalle del perfil vendedor y su historia de asignaciones.
+            </p>
+        </div>
+
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-primary"
+                href="{% url 'vendors:vendorprofile_update' vendor_profile.pk %}"
+            >
+                Editar
+            </a>
+            <a
+                class="btn btn-outline-danger"
+                href="{% url 'vendors:vendorprofile_delete' vendor_profile.pk %}"
+            >
+                Eliminar o desactivar
+            </a>
+        </div>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <article class="card h-100 shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Datos del perfil</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Usuario</dt>
+                        <dd class="col-sm-8">{{ vendor_profile.user.username }}</dd>
+
+                        <dt class="col-sm-4">Nombre</dt>
+                        <dd class="col-sm-8">
+                            {{ vendor_profile.user.get_full_name|default:"—" }}
+                        </dd>
+
+                        <dt class="col-sm-4">Correo</dt>
+                        <dd class="col-sm-8">{{ vendor_profile.user.email }}</dd>
+
+                        <dt class="col-sm-4">Documento</dt>
+                        <dd class="col-sm-8">{{ vendor_profile.user.document }}</dd>
+
+                        <dt class="col-sm-4">Estado</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge {% if vendor_profile.status == 'ACTIVE' %}text-bg-success{% elif vendor_profile.status == 'PENDING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                                {{ vendor_profile.get_status_display }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-4">Activado</dt>
+                        <dd class="col-sm-8">
+                            {{ vendor_profile.activated_at|date:"d/m/Y H:i"|default:"—" }}
+                        </dd>
+
+                        <dt class="col-sm-4">Creado</dt>
+                        <dd class="col-sm-8">
+                            {{ vendor_profile.created_at|date:"d/m/Y H:i" }}
+                        </dd>
+                    </dl>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <article class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Asignaciones</h2>
+                </div>
+                <div class="card-body">
+                    {% with assignments=vendor_profile.assignments.all %}
+                        {% if assignments %}
+                            <ul class="list-group list-group-flush">
+                                {% for assignment in assignments %}
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-semibold">
+                                            {{ assignment.request.operation_id }}
+                                        </span>
+                                        <span class="badge text-bg-secondary">
+                                            {{ assignment.get_status_display }}
+                                        </span>
+                                        <span class="d-block small text-body-secondary">
+                                            {{ assignment.assigned_at|date:"d/m/Y H:i" }}
+                                        </span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-body-secondary mb-0">
+                                Este perfil todavía no tiene asignaciones.
+                            </p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </article>
+        </div>
+    </div>
+
+    {% if has_history %}
+        <div class="alert alert-warning mt-4" role="note">
+            Este perfil conserva historia. Una operación de eliminación lo
+            desactivará sin borrar asignaciones ni solicitudes.
+        </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a
+            class="btn btn-outline-secondary"
+            href="{% url 'vendors:vendorprofile_list' %}"
+        >
+            Volver a perfiles
+        </a>
+    </div>
+</section>
+{% endblock %}

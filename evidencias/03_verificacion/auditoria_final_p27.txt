@@ -1,0 +1,9 @@
+AUDITORÍA ESTÁTICA P-27: OK
+- Estructura Accounts/Vendors/Lottery presente
+- Python parseable y sin bytecode entregado
+- Templates base, H1, CSRF y duplicados verificados
+- URLs de Vendors y Lottery integradas
+- Sin localStorage, JSON de negocio ni pages/*.html activos
+- SQLite/MySQL permitidos y PostgreSQL excluido
+- Reglas 4/5/6, cierre 10 min e históricos protegidos localizadas
+- 167 pruebas automatizadas diseñadas

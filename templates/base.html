@@ -1,0 +1,228 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+        name="description"
+        content="Lotería Binaria, simulación académica desarrollada con Django."
+    >
+
+    <title>{% block title %}Lotería Binaria{% endblock %}</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+        crossorigin="anonymous"
+    >
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="d-flex flex-column min-vh-100">
+    {% url "core:home" as home_url %}
+    {% url "accounts:login" as login_url %}
+    {% url "accounts:logout" as logout_url %}
+    {% url "accounts:choose_mode" as choose_mode_url %}
+    {% url "admin:index" as admin_url %}
+
+    <a
+        class="visually-hidden-focusable skip-link"
+        href="#main-content"
+    >
+        Saltar al contenido principal
+    </a>
+
+    <header>
+        <nav
+            class="navbar navbar-expand-xl navbar-dark app-navbar shadow-sm"
+            aria-label="Navegación principal"
+        >
+            <div class="container">
+                <a
+                    class="navbar-brand d-flex align-items-center gap-2"
+                    href="{{ home_url|default:'/' }}"
+                    aria-label="Ir al inicio de Lotería Binaria"
+                >
+                    <img
+                        class="brand-logo-image"
+                        src="{% static 'img/logo-placeholder.png' %}"
+                        alt=""
+                        width="44"
+                        height="44"
+                    >
+                    <span>
+                        <span class="d-block fw-bold lh-1">Lotería Binaria</span>
+                        <small class="brand-subtitle">Simulación académica</small>
+                    </span>
+                </a>
+
+                <button
+                    class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#mainNavigation"
+                    aria-controls="mainNavigation"
+                    aria-label="Abrir navegación"
+                >
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div
+                    class="offcanvas offcanvas-end app-offcanvas"
+                    tabindex="-1"
+                    id="mainNavigation"
+                    aria-labelledby="mainNavigationLabel"
+                >
+                    <div class="offcanvas-header border-bottom border-secondary">
+                        <h2
+                            class="offcanvas-title h5 mb-0"
+                            id="mainNavigationLabel"
+                        >
+                            Navegación
+                        </h2>
+                        <button
+                            type="button"
+                            class="btn-close btn-close-white"
+                            data-bs-dismiss="offcanvas"
+                            aria-label="Cerrar navegación"
+                        ></button>
+                    </div>
+
+                    <div class="offcanvas-body d-flex flex-column flex-xl-row align-items-xl-center">
+                        <ul class="navbar-nav me-xl-auto mb-3 mb-xl-0">
+                            {% if home_url %}
+                                <li class="nav-item">
+                                    <a
+                                        class="nav-link"
+                                        href="{{ home_url }}"
+                                    >
+                                        Inicio
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {# nav_items debe construirse en el backend según rol y modo activo. #}
+                            {% for item in nav_items %}
+                                {% if item.url and item.label %}
+                                    <li class="nav-item">
+                                        <a
+                                            class="nav-link{% if item.active %} active{% endif %}"
+                                            href="{{ item.url }}"
+                                            {% if item.active %}aria-current="page"{% endif %}
+                                        >
+                                            {{ item.label }}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% empty %}
+                                {# No se muestran funciones inexistentes. #}
+                            {% endfor %}
+
+                            {% if request.user.is_authenticated and request.user.is_staff and active_mode_code == "ADMINISTRADOR" and admin_url %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ admin_url }}">
+                                        Administración
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+
+                        <div class="d-flex flex-column flex-xl-row align-items-xl-center gap-2">
+                            {% if request.user.is_authenticated %}
+                                <div class="user-summary text-xl-end me-xl-2">
+                                    <span class="d-block fw-semibold">
+                                        {{ request.user.get_full_name|default:request.user.username }}
+                                    </span>
+
+                                    {% if active_mode %}
+                                        <span class="badge text-bg-warning">
+                                            Modo {{ active_mode }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                {% if choose_mode_url %}
+                                    <a
+                                        class="btn btn-outline-warning btn-sm"
+                                        href="{{ choose_mode_url }}"
+                                    >
+                                        Cambiar modo
+                                    </a>
+                                {% endif %}
+
+                                {% if logout_url %}
+                                    <form
+                                        method="post"
+                                        action="{{ logout_url }}"
+                                        class="d-grid"
+                                        data-confirm-title="Cerrar sesión"
+                                        data-confirm-message="¿Deseas cerrar la sesión actual?"
+                                    >
+                                        {% csrf_token %}
+                                        <button
+                                            type="submit"
+                                            class="btn btn-warning btn-sm"
+                                        >
+                                            Cerrar sesión
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            {% elif login_url %}
+                                <a class="btn btn-warning" href="{{ login_url }}">
+                                    Iniciar sesión
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="academic-notice border-bottom">
+            <div class="container py-2">
+                <p class="mb-0 small text-center">
+                    <strong>Simulación académica:</strong>
+                    no procesa pagos reales ni utiliza tarjetas.
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="flex-grow-1" tabindex="-1">
+        <div class="container py-4 py-lg-5">
+            {% include "includes/_messages.html" %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="app-footer mt-auto">
+        <div class="container py-4">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-md">
+                    <p class="mb-1 fw-semibold">Lotería Binaria</p>
+                    <p class="mb-0 small">
+                        Taller #3 desarrollado con Django, SQLite/MySQL y Bootstrap 5.3.
+                    </p>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <p class="mb-0 small text-md-end">
+                        Uso exclusivamente académico.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    {% include "includes/_confirm_modal.html" %}
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"
+    ></script>
+    <script src="{% static 'js/app.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

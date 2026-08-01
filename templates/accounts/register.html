@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Crear cuenta | Lotería Binaria{% endblock %}
+
+{% block content %}
+    {% url "accounts:login" as login_url %}
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <section class="card shadow-sm" aria-labelledby="register-title">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="mb-4">
+                        <span class="badge text-bg-warning mb-2">
+                            Registro académico
+                        </span>
+                        <h1 id="register-title" class="h2 mb-2">
+                            Crear cuenta
+                        </h1>
+                        <p class="text-body-secondary mb-0">
+                            Completa los datos solicitados. La validación y el
+                            almacenamiento se realizan en Django.
+                        </p>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            <p class="fw-semibold mb-1">
+                                Revisa la información del formulario.
+                            </p>
+                            {% for error in form.non_field_errors %}
+                                <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row g-3">
+                            {% for field in form %}
+                                <div
+                                    class="
+                                        {% if field.field.widget.input_type == 'checkbox' %}
+                                            col-12
+                                        {% else %}
+                                            col-12 col-md-6
+                                        {% endif %}
+                                    "
+                                >
+                                    {% if field.field.widget.input_type == "checkbox" %}
+                                        <div class="form-check mt-2">
+                                            {{ field }}
+                                            <label
+                                                class="form-check-label"
+                                                for="{{ field.id_for_label }}"
+                                            >
+                                                {{ field.label }}
+                                            </label>
+                                        </div>
+                                    {% else %}
+                                        <label
+                                            class="form-label"
+                                            for="{{ field.id_for_label }}"
+                                        >
+                                            {{ field.label }}
+                                            {% if field.field.required %}
+                                                <span
+                                                    class="text-danger"
+                                                    aria-hidden="true"
+                                                >*</span>
+                                            {% endif %}
+                                        </label>
+
+                                        {{ field }}
+                                    {% endif %}
+
+                                    {% if field.help_text %}
+                                        <div class="form-text">
+                                            {{ field.help_text|safe }}
+                                        </div>
+                                    {% endif %}
+
+                                    {% for error in field.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ error }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% empty %}
+                                <div class="col-12">
+                                    <div class="alert alert-warning mb-0" role="alert">
+                                        El formulario de registro todavía no está
+                                        disponible.
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if form.terms_version and form.privacy_version %}
+                            <div class="accordion mt-4" id="legalVersionsAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="termsHeading">
+                                        <button
+                                            class="accordion-button collapsed"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#termsContent"
+                                            aria-expanded="false"
+                                            aria-controls="termsContent"
+                                        >
+                                            {{ form.terms_version.title }}
+                                            — versión {{ form.terms_version.version }}
+                                        </button>
+                                    </h2>
+                                    <div
+                                        id="termsContent"
+                                        class="accordion-collapse collapse"
+                                        aria-labelledby="termsHeading"
+                                        data-bs-parent="#legalVersionsAccordion"
+                                    >
+                                        <div class="accordion-body legal-content">
+                                            {{ form.terms_version.content|linebreaks }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="privacyHeading">
+                                        <button
+                                            class="accordion-button collapsed"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#privacyContent"
+                                            aria-expanded="false"
+                                            aria-controls="privacyContent"
+                                        >
+                                            {{ form.privacy_version.title }}
+                                            — versión {{ form.privacy_version.version }}
+                                        </button>
+                                    </h2>
+                                    <div
+                                        id="privacyContent"
+                                        class="accordion-collapse collapse"
+                                        aria-labelledby="privacyHeading"
+                                        data-bs-parent="#legalVersionsAccordion"
+                                    >
+                                        <div class="accordion-body legal-content">
+                                            {{ form.privacy_version.content|linebreaks }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="alert alert-info mt-4" role="note">
+                            La aceptación, la mayoría de edad y la unicidad del
+                            correo y documento se confirman nuevamente en el servidor.
+                        </div>
+
+                        <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
+                            {% if login_url %}
+                                <a
+                                    class="btn btn-outline-secondary"
+                                    href="{{ login_url }}"
+                                >
+                                    Ya tengo cuenta
+                                </a>
+                            {% endif %}
+
+                            <button type="submit" class="btn btn-primary">
+                                Registrarme
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </div>
+{% endblock %}

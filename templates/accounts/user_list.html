@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Usuarios | Lotería Binaria{% endblock %}
+
+{% block content %}
+<section aria-labelledby="user-list-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 id="user-list-title" class="h2 mb-1">Usuarios</h1>
+            <p class="text-body-secondary mb-0">
+                Consulta, crea y administra cuentas sin borrar su historia.
+            </p>
+        </div>
+
+        <a class="btn btn-primary" href="{% url 'accounts:user_create' %}">
+            Crear usuario
+        </a>
+    </header>
+
+    <form method="get" class="card card-body shadow-sm mb-4" role="search">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg">
+                <label class="form-label" for="user-search">
+                    Buscar por usuario, nombre, correo o documento
+                </label>
+                <input
+                    class="form-control"
+                    type="search"
+                    id="user-search"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="Ej. cliente, correo@example.test o DOC-001"
+                >
+            </div>
+            <div class="col-12 col-sm-auto d-grid">
+                <button class="btn btn-primary" type="submit">Buscar</button>
+            </div>
+            {% if query %}
+                <div class="col-12 col-sm-auto d-grid">
+                    <a class="btn btn-outline-secondary" href="{% url 'accounts:user_list' %}">
+                        Limpiar
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if users %}
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Usuario</th>
+                        <th scope="col">Correo</th>
+                        <th scope="col">Documento</th>
+                        <th scope="col">Roles</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for managed_user in users %}
+                        <tr>
+                            <td>
+                                <span class="fw-semibold">{{ managed_user.username }}</span>
+                                {% if managed_user.get_full_name %}
+                                    <span class="d-block small text-body-secondary">
+                                        {{ managed_user.get_full_name }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ managed_user.email }}</td>
+                            <td>{{ managed_user.document }}</td>
+                            <td>
+                                {% for group in managed_user.groups.all %}
+                                    <span class="badge text-bg-secondary">{{ group.name }}</span>
+                                {% empty %}
+                                    <span class="text-body-secondary">Sin roles</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <span class="badge {% if managed_user.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                                    {{ managed_user.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                    <a
+                                        class="btn btn-sm btn-outline-primary"
+                                        href="{% url 'accounts:user_detail' managed_user.pk %}"
+                                    >
+                                        Ver
+                                    </a>
+                                    <a
+                                        class="btn btn-sm btn-outline-secondary"
+                                        href="{% url 'accounts:user_update' managed_user.pk %}"
+                                    >
+                                        Editar
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Paginación de usuarios">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}"
+                            >
+                                Anterior
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}"
+                            >
+                                Siguiente
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state" role="status">
+            <h2 class="h5">No se encontraron usuarios</h2>
+            <p class="text-body-secondary mb-0">
+                Cambia la búsqueda o crea la primera cuenta administrativa.
+            </p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
