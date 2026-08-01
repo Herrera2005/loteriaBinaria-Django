@@ -98,6 +98,18 @@ elif _database.get("ENGINE") == "django.db.backends.mysql":
     )
 DATABASES = {"default": _database}
 
+# Normaliza rutas relativas de SQLite bajo la raíz del proyecto.
+if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+    sqlite_database_name = str(DATABASES["default"]["NAME"])
+
+    if sqlite_database_name != ":memory:":
+        sqlite_database_path = Path(sqlite_database_name)
+
+        if not sqlite_database_path.is_absolute():
+            DATABASES["default"]["NAME"] = (
+                BASE_DIR / sqlite_database_path
+            ).resolve()
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (
