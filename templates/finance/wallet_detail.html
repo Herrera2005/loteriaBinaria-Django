@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mi wallet | Lotería Binaria{% endblock %}
+
+{% block content %}
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Consulta personal</span>
+            <h1 class="h2 mb-1">Mi wallet</h1>
+            <p class="text-body-secondary mb-0">
+                Saldos REAL y VIRTUAL registrados por el backend para tu cuenta.
+            </p>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row gap-2">
+            <a class="btn btn-primary" href="{% url 'finance:movement_list' %}">
+                Ver movimientos
+            </a>
+            <a class="btn btn-outline-primary" href="{{ dashboard_url }}">
+                Volver al panel
+            </a>
+        </div>
+    </header>
+
+    <div class="alert alert-info" role="note">
+        Esta pantalla es de solo lectura. Los saldos no se editan mediante
+        formularios y ninguna consulta GET crea o modifica wallets.
+    </div>
+
+    {% if missing_currencies %}
+        <div class="alert alert-warning" role="alert">
+            No se encontraron las siguientes wallets para tu cuenta:
+            <strong>{{ missing_currencies|join:", " }}</strong>.
+            Solicita una revisión administrativa; esta página no las crea automáticamente.
+        </div>
+    {% endif %}
+
+    {% if wallet_cards %}
+        <section class="row g-4" aria-label="Wallets propias">
+            {% for item in wallet_cards %}
+                <div class="col-12 col-lg-6">
+                    <article class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                            <h2 class="h4 mb-0">Wallet {{ item.currency_label }}</h2>
+                            {% if item.status == "ACTIVE" %}
+                                <span class="badge text-bg-success">{{ item.status_label }}</span>
+                            {% elif item.status == "SUSPENDED" %}
+                                <span class="badge text-bg-warning">{{ item.status_label }}</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">{{ item.status_label }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12 col-sm-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <p class="text-body-secondary mb-1">Disponible</p>
+                                        <p class="h3 mb-0">{{ item.available_display }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <p class="text-body-secondary mb-1">Reservado</p>
+                                        <p class="h3 mb-0">{{ item.reserved_display }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <dl class="row mb-0">
+                                <dt class="col-6">Total registrado</dt>
+                                <dd class="col-6 text-end fw-semibold">{{ item.total_display }}</dd>
+                                <dt class="col-6">Última actualización</dt>
+                                <dd class="col-6 text-end">
+                                    {{ item.wallet.updated_at|date:"d/m/Y H:i" }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </article>
+                </div>
+            {% endfor %}
+        </section>
+    {% else %}
+        <div class="empty-state" role="status">
+            <h2 class="h4">No hay wallets disponibles</h2>
+            <p class="text-body-secondary mb-0">
+                Tu cuenta no tiene wallets registradas. La consulta no realiza
+                provisiones automáticas ni modifica la base de datos.
+            </p>
+        </div>
+    {% endif %}
+{% endblock %}

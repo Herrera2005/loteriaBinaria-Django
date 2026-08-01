@@ -1,9 +1,10 @@
 # Lotería Binaria — Taller #3 Django
 
 Proyecto académico desarrollado con Django para el Taller #3. El estado de
-esta entrega llega hasta la **preparación P-28A**: P-27 está cerrado y los modelos base de Finance/Core ya están implementados junto con los tres CRUD evaluables de
-`accounts`, `vendors` y `lottery`, sobre SQLite para la primera fase y con
-configuración portable a MySQL para la segunda.
+esta entrega llega hasta el **P-28 oficial**: P-27 y P-28A están cerrados,
+Finance/Core ya ofrecen consultas read-only y los tres CRUD evaluables de
+`accounts`, `vendors` y `lottery` se conservan sobre SQLite para la primera
+fase, con configuración portable a MySQL para la segunda.
 
 ## Autoridad y alcance
 
@@ -30,9 +31,13 @@ Celery, Redis ni microservicios.
 - `core.AuditEvent` append-only y sin secretos.
 - Admin read-only para Wallet, Movement y AuditEvent.
 - Servicio y backfill idempotente para garantizar wallets.
-- 195 pruebas automatizadas diseñadas en el árbol actual.
+- Wallet propia y movimientos propios paginados, sin edición de saldos.
+- Auditoría administrativa list/detail, protegida por modo ADMINISTRADOR.
+- Home y dashboards con datos reales del backend.
+- 219 pruebas automatizadas diseñadas en el árbol actual.
 
-Las vistas y templates read-only de Finance/Core permanecen pendientes para el **P-28 oficial**. La compra de boletos todavía no forma parte de este bloque y no se expone en la interfaz.
+La compra de boletos, recargas, conversiones y compra mayorista todavía no
+forman parte de este bloque y no se exponen como acciones funcionales.
 
 ## Requisitos
 
@@ -94,6 +99,10 @@ El comando solo se permite con `DEBUG=True` y no imprime credenciales.
 | `/vendors/requests/` | solicitudes de conversión read-only |
 | `/lottery/products/` | CRUD de productos de lotería |
 | `/lottery/events/` | CRUD protegido de eventos |
+| `/finance/wallets/` | wallet propia read-only |
+| `/finance/movements/` | movimientos propios filtrables y paginados |
+| `/audit/` | auditoría administrativa read-only |
+| `/audit/<pk>/` | detalle de auditoría read-only |
 | `/admin/` | administración Django para staff |
 
 Las rutas de `vendors` y `lottery` exigen cuenta administrativa activa y modo
@@ -163,8 +172,17 @@ repite toda la suite. No uses `migrate --fake` para ocultar errores.
   `docs/MATRIZ_PRUEBAS_P28A.md`.
 - Matriz vigente:
   `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+- Guía de aplicación P-28 oficial:
+  `docs/GUIA_APLICACION_P28_OFICIAL.md`.
+- Matriz de pruebas P-28 oficial:
+  `docs/MATRIZ_PRUEBAS_P28_OFICIAL.md`.
+- Resultado de implementación P-28 oficial:
+  `docs/RESULTADO_IMPLEMENTACION_P28_OFICIAL.md`.
 
-La preparación P-28A ya cubre modelos, migraciones, admin read-only, provisión de wallets y pruebas. El siguiente bloque es el **P-28 oficial: vistas list/detail de Finance y Core sin CRUD destructivo**. No corresponde avanzar a P-29 ni a compra de boletos antes de cerrar la puerta de salida de P-28.
+P-28 ya cubre consultas seguras de Finance/Core, dashboards con datos reales y
+pruebas de propiedad/permisos. El siguiente bloque es **P-29: navegación e
+integración final sin enlaces muertos**. No corresponde implementar todavía
+recargas, conversiones, compra mayorista ni compra de boletos.
 
 ## Respaldo visual
 

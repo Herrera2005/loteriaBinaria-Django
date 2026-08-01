@@ -92,10 +92,18 @@ class ConfigurationTests(SimpleTestCase):
             "core:client_dashboard": "/dashboard/client/",
             "core:vendor_dashboard": "/dashboard/vendor/",
             "core:admin_dashboard": "/dashboard/admin/",
+            "finance:wallet_detail": "/finance/wallets/",
+            "finance:movement_list": "/finance/movements/",
+            "core:audit_list": "/audit/",
         }
         for name, path in expected.items():
             with self.subTest(name=name):
                 self.assertEqual(reverse(name), path)
+
+        self.assertEqual(
+            reverse("core:audit_detail", kwargs={"pk": 7}),
+            "/audit/7/",
+        )
 
     def test_required_static_files_are_discoverable(self):
         for relative_path in (

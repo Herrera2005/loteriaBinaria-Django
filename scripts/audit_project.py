@@ -73,6 +73,14 @@ REQUIRED_FILES = (
     "templates/base.html",
     "templates/includes/_messages.html",
     "templates/includes/_confirm_modal.html",
+    "templates/core/home.html",
+    "templates/core/audit_list.html",
+    "templates/core/audit_detail.html",
+    "templates/dashboards/client.html",
+    "templates/dashboards/vendor.html",
+    "templates/dashboards/admin.html",
+    "templates/finance/wallet_detail.html",
+    "templates/finance/movement_list.html",
     "templates/vendors/vendorprofile_list.html",
     "templates/vendors/vendorprofile_detail.html",
     "templates/vendors/vendorprofile_form.html",
@@ -96,6 +104,9 @@ REQUIRED_FILES = (
     "docs/referencias/03_Matriz_Trazabilidad_Pruebas_MVP_Django_v1.1.0.md",
     "docs/referencias/04_Diseno_Interfaz_MVP_Django_v1.0.0.md",
     "docs/referencias/05_Auditoria_Coherencia_Interfaz_MVP_Django_v1.0.0.md",
+    "docs/GUIA_APLICACION_P28_OFICIAL.md",
+    "docs/MATRIZ_PRUEBAS_P28_OFICIAL.md",
+    "docs/RESULTADO_IMPLEMENTACION_P28_OFICIAL.md",
     "docs/referencias/Manual_Intercalado_Taller_3_Loteria_Binaria_Django_v4.0.pdf",
     "respaldo_frontend/Proyecto_HerreraNietoCristhian_legacy.zip",
 )
@@ -136,6 +147,18 @@ EXPECTED_URL_NAMES = {
         "event_detail",
         "event_update",
         "event_delete",
+    },
+    "apps/finance/urls.py": {
+        "wallet_detail",
+        "movement_list",
+    },
+    "apps/core/urls.py": {
+        "home",
+        "client_dashboard",
+        "vendor_dashboard",
+        "admin_dashboard",
+        "audit_list",
+        "audit_detail",
     },
 }
 
@@ -455,6 +478,24 @@ def check_scope_and_models(errors: list[str]) -> None:
             "transaccionales"
         )
 
+    finance_views = (
+        ROOT / "apps/finance/views.py"
+    ).read_text(encoding="utf-8")
+    core_views = (
+        ROOT / "apps/core/views.py"
+    ).read_text(encoding="utf-8")
+    for forbidden_view in ("CreateView", "UpdateView", "DeleteView"):
+        if forbidden_view in finance_views:
+            errors.append(
+                "Finance read-only no debe usar "
+                f"{forbidden_view}."
+            )
+        if forbidden_view in core_views:
+            errors.append(
+                "Core AuditEvent read-only no debe usar "
+                f"{forbidden_view}."
+            )
+
 
 
 def check_p28a_models(errors: list[str]) -> None:
@@ -529,6 +570,7 @@ def check_urls(errors: list[str]) -> None:
         "apps.core.urls",
         "apps.vendors.urls",
         "apps.lottery.urls",
+        "apps.finance.urls",
     ):
         if include_path not in config_urls:
             errors.append(
@@ -597,10 +639,10 @@ def check_test_inventory(errors: list[str]) -> int:
             and node.name.startswith("test_")
         )
 
-    if test_count < 160:
+    if test_count < 200:
         errors.append(
-            "Inventario insuficiente para el estado P-27: "
-            f"{test_count}; se esperaban al menos 160 pruebas "
+            "Inventario insuficiente para el estado P-28: "
+            f"{test_count}; se esperaban al menos 200 pruebas "
             "diseñadas"
         )
 
@@ -624,20 +666,20 @@ def main() -> int:
         check_text_controls(errors)
         test_count = check_test_inventory(errors)
     except RuntimeError as exc:
-        print(f"AUDITORÍA ESTÁTICA P-28A: FALLÓ\n- {exc}")
+        print(f"AUDITORÍA ESTÁTICA P-28: FALLÓ\n- {exc}")
         return 1
 
     if errors:
-        print("AUDITORÍA ESTÁTICA P-28A: FALLÓ")
+        print("AUDITORÍA ESTÁTICA P-28: FALLÓ")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print("AUDITORÍA ESTÁTICA P-28A: OK")
+    print("AUDITORÍA ESTÁTICA P-28: OK")
     print("- Estructura Accounts/Vendors/Lottery/Finance/Core presente")
     print("- Python parseable y sin bytecode versionado")
     print("- Templates base, H1, CSRF y duplicados verificados")
-    print("- URLs de Vendors y Lottery integradas")
+    print("- URLs de Core, Finance, Vendors y Lottery integradas")
     print("- Sin localStorage, JSON de negocio ni pages/*.html activos")
     print("- SQLite/MySQL permitidos y PostgreSQL excluido")
     print(
