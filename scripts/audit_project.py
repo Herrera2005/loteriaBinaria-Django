@@ -349,16 +349,23 @@ def check_templates(errors: list[str]) -> None:
     base_path = template_root / "base.html"
     if base_path.is_file():
         base = base_path.read_text(encoding="utf-8")
-        for expected in (
+
+        expected_base_fragments = (
             "bootstrap@5.3",
-            "navbar-expand",
-            "offcanvas",
+            "app-workspace",
+            "app-sidebar",
+            "app-content-column",
+            "offcanvas-xl",
+            "offcanvas-start",
+            "navbar-toggler",
             "{% static 'css/app.css' %}",
             "{% static 'js/app.js' %}",
             "includes/_messages.html",
             "includes/_confirm_modal.html",
             "Simulación académica",
-        ):
+        )
+
+        for expected in expected_base_fragments:
             if expected not in base:
                 errors.append(
                     f"base.html no contiene: {expected}"

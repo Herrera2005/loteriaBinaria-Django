@@ -7,7 +7,7 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
@@ -26,6 +26,19 @@ from .models import AuditEvent
 
 
 AUDIT_EVENTS_PER_PAGE = 20
+
+@require_GET
+def start_redirect(request):
+    """Dirige al inicio público, selector o dashboard según la sesión."""
+
+    if not request.user.is_authenticated:
+        return redirect("core:home")
+
+    active_mode = get_valid_active_mode(request)
+    if active_mode is None:
+        return redirect("accounts:choose_mode")
+
+    return redirect(DASHBOARD_URL_NAMES[active_mode])
 
 
 def _format_minor(amount_minor: int, currency: str, *, signed: bool = False) -> str:

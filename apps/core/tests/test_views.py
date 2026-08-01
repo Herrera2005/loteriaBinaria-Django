@@ -21,6 +21,124 @@ from apps.vendors.models import (
 
 
 class PublicAndDashboardViewTests(TestCase):
+    def test_start_redirects_anonymous_user_to_public_home(self):
+        response = self.client.get(reverse("core:start"))
+
+        self.assertRedirects(
+            response,
+            reverse("core:home"),
+        )
+
+
+    def test_start_redirects_authenticated_user_without_mode_to_selector(self):
+        user = create_user(
+            roles=(CLIENT, VENDOR),
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("core:start"))
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:choose_mode"),
+        )
+
+
+    def test_start_redirects_each_active_mode_to_its_dashboard(self):
+        cases = (
+            (CLIENT, "core:client_dashboard"),
+            (VENDOR, "core:vendor_dashboard"),
+            (ADMINISTRATOR, "core:admin_dashboard"),
+        )
+
+        for mode, expected_route in cases:
+            with self.subTest(mode=mode):
+                self.client.logout()
+
+                user = create_user(
+                    username=f"start_{mode.lower()}",
+                    email=f"start.{mode.lower()}@example.test",
+                    document=f"START-{mode}",
+                    roles=(mode,),
+                )
+
+                self.client.force_login(user)
+
+                session = self.client.session
+                session[ACTIVE_MODE_SESSION_KEY] = mode
+                session.save()
+
+                response = self.client.get(reverse("core:start"))
+
+                self.assertRedirects(
+                    response,
+                    reverse(expected_route),
+                )
+
+
+    def test_navigation_shows_only_links_allowed_for_client_mode(self):
+        user = create_user(
+            username="nav_client",
+            email="nav.client@example.test",
+            document="NAV-CLIENT-001",
+            roles=(CLIENT,),
+            is_staff=True,
+        )
+
+        self.client.force_login(user)
+
+        session = self.client.session
+        session[ACTIVE_MODE_SESSION_KEY] = CLIENT
+        session.save()
+
+        response = self.client.get(
+            reverse("core:client_dashboard"),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(
+            response,
+            reverse("core:client_dashboard"),
+        )
+        self.assertContains(
+            response,
+            reverse("finance:wallet_detail"),
+        )
+        self.assertContains(
+            response,
+            reverse("finance:movement_list"),
+        )
+
+        self.assertNotContains(
+            response,
+            reverse("core:vendor_dashboard"),
+        )
+        self.assertNotContains(
+            response,
+            reverse("core:admin_dashboard"),
+        )
+        self.assertNotContains(
+            response,
+            reverse("core:audit_list"),
+        )
+        self.assertNotContains(
+            response,
+            reverse("accounts:user_list"),
+        )
+        self.assertNotContains(
+            response,
+            reverse("vendors:vendorprofile_list"),
+        )
+        self.assertNotContains(
+            response,
+            reverse("lottery:product_list"),
+        )
+        self.assertNotContains(
+            response,
+            reverse("admin:index"),
+        )
+
     def activate(self, user, mode):
         self.client.force_login(user)
         session = self.client.session

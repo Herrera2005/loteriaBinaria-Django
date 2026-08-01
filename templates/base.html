@@ -1,188 +1,88 @@
 {% load static %}
 <!doctype html>
 <html lang="es">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-        name="description"
-        content="Lotería Binaria, simulación académica desarrollada con Django."
-    >
+    <meta name="description" content="Lotería Binaria, simulación académica desarrollada con Django.">
 
     <title>{% block title %}Lotería Binaria{% endblock %}</title>
 
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-        crossorigin="anonymous"
-    >
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 
     {% block extra_css %}{% endblock %}
 </head>
+
 <body class="d-flex flex-column min-vh-100">
     {% url "core:home" as home_url %}
+    {% url "core:start" as start_url %}
     {% url "accounts:login" as login_url %}
     {% url "accounts:logout" as logout_url %}
     {% url "accounts:choose_mode" as choose_mode_url %}
     {% url "admin:index" as admin_url %}
 
-    <a
-        class="visually-hidden-focusable skip-link"
-        href="#main-content"
-    >
+    <a class="visually-hidden-focusable skip-link" href="#main-content">
         Saltar al contenido principal
     </a>
 
-    <header>
-        <nav
-            class="navbar navbar-expand-xl navbar-dark app-navbar shadow-sm"
-            aria-label="Navegación principal"
-        >
-            <div class="container">
-                <a
-                    class="navbar-brand d-flex align-items-center gap-2"
-                    href="{{ home_url|default:'/' }}"
-                    aria-label="Ir al inicio de Lotería Binaria"
-                >
-                    <img
-                        class="brand-logo-image"
-                        src="{% static 'img/logo-placeholder.png' %}"
-                        alt=""
-                        width="44"
-                        height="44"
-                    >
-                    <span>
+    <header class="app-header">
+        <nav class="navbar navbar-dark app-topbar shadow-sm" aria-label="Cabecera principal">
+            <div class="container-fluid app-topbar-container">
+                <a class="navbar-brand d-flex align-items-center gap-2"
+                    href="{{ start_url|default:home_url|default:'/' }}" aria-label="Ir al inicio de Lotería Binaria">
+                    <img class="brand-logo-image" src="{% static 'img/logo-placeholder.png' %}" alt="" width="44"
+                        height="44">
+                    <span class="brand-copy">
                         <span class="d-block fw-bold lh-1">Lotería Binaria</span>
                         <small class="brand-subtitle">Simulación académica</small>
                     </span>
                 </a>
 
-                <button
-                    class="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#mainNavigation"
-                    aria-controls="mainNavigation"
-                    aria-label="Abrir navegación"
-                >
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    {% if request.user.is_authenticated and active_mode %}
+                    <span class="badge app-mode-badge d-none d-sm-inline-flex">
+                        Modo {{ active_mode }}
+                    </span>
+                    {% endif %}
 
-                <div
-                    class="offcanvas offcanvas-end app-offcanvas"
-                    tabindex="-1"
-                    id="mainNavigation"
-                    aria-labelledby="mainNavigationLabel"
-                >
-                    <div class="offcanvas-header border-bottom border-secondary">
-                        <h2
-                            class="offcanvas-title h5 mb-0"
-                            id="mainNavigationLabel"
-                        >
-                            Navegación
-                        </h2>
-                        <button
-                            type="button"
-                            class="btn-close btn-close-white"
-                            data-bs-dismiss="offcanvas"
-                            aria-label="Cerrar navegación"
-                        ></button>
+                    {% if request.user.is_authenticated %}
+                    <div class="user-summary d-none d-lg-block text-end">
+                        <span class="d-block fw-semibold">
+                            {{ request.user.get_full_name|default:request.user.username }}
+                        </span>
                     </div>
 
-                    <div class="offcanvas-body d-flex flex-column flex-xl-row align-items-xl-center">
-                        <ul class="navbar-nav me-xl-auto mb-3 mb-xl-0">
-                            {% if home_url %}
-                                <li class="nav-item">
-                                    <a
-                                        class="nav-link"
-                                        href="{{ home_url }}"
-                                    >
-                                        Inicio
-                                    </a>
-                                </li>
-                            {% endif %}
+                    {# Sin modo activo todavía no existe sidebar; el cierre queda en la cabecera. #}
+                    {% if not active_mode_code and logout_url %}
+                    <form method="post" action="{{ logout_url }}" class="d-block" data-confirm-title="Cerrar sesión"
+                        data-confirm-message="¿Deseas cerrar la sesión actual?">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            Cerrar sesión
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% elif login_url %}
+                    <a class="btn btn-warning btn-sm" href="{{ login_url }}">
+                        Iniciar sesión
+                    </a>
+                    {% endif %}
 
-                            {# nav_items debe construirse en el backend según rol y modo activo. #}
-                            {% for item in nav_items %}
-                                {% if item.url and item.label %}
-                                    <li class="nav-item">
-                                        <a
-                                            class="nav-link{% if item.active %} active{% endif %}"
-                                            href="{{ item.url }}"
-                                            {% if item.active %}aria-current="page"{% endif %}
-                                        >
-                                            {{ item.label }}
-                                        </a>
-                                    </li>
-                                {% endif %}
-                            {% empty %}
-                                {# No se muestran funciones inexistentes. #}
-                            {% endfor %}
-
-                            {% if request.user.is_authenticated and request.user.is_staff and active_mode_code == "ADMINISTRADOR" and admin_url %}
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ admin_url }}">
-                                        Administración
-                                    </a>
-                                </li>
-                            {% endif %}
-                        </ul>
-
-                        <div class="d-flex flex-column flex-xl-row align-items-xl-center gap-2">
-                            {% if request.user.is_authenticated %}
-                                <div class="user-summary text-xl-end me-xl-2">
-                                    <span class="d-block fw-semibold">
-                                        {{ request.user.get_full_name|default:request.user.username }}
-                                    </span>
-
-                                    {% if active_mode %}
-                                        <span class="badge text-bg-warning">
-                                            Modo {{ active_mode }}
-                                        </span>
-                                    {% endif %}
-                                </div>
-
-                                {% if choose_mode_url %}
-                                    <a
-                                        class="btn btn-outline-warning btn-sm"
-                                        href="{{ choose_mode_url }}"
-                                    >
-                                        Cambiar modo
-                                    </a>
-                                {% endif %}
-
-                                {% if logout_url %}
-                                    <form
-                                        method="post"
-                                        action="{{ logout_url }}"
-                                        class="d-grid"
-                                        data-confirm-title="Cerrar sesión"
-                                        data-confirm-message="¿Deseas cerrar la sesión actual?"
-                                    >
-                                        {% csrf_token %}
-                                        <button
-                                            type="submit"
-                                            class="btn btn-warning btn-sm"
-                                        >
-                                            Cerrar sesión
-                                        </button>
-                                    </form>
-                                {% endif %}
-                            {% elif login_url %}
-                                <a class="btn btn-warning" href="{{ login_url }}">
-                                    Iniciar sesión
-                                </a>
-                            {% endif %}
-                        </div>
-                    </div>
+                    {% if request.user.is_authenticated and active_mode_code %}
+                    <button class="navbar-toggler d-xl-none" type="button" data-bs-toggle="offcanvas"
+                        data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-label="Abrir navegación">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </nav>
 
         <div class="academic-notice border-bottom">
-            <div class="container py-2">
+            <div class="container-fluid px-3 px-lg-4 py-2">
                 <p class="mb-0 small text-center">
                     <strong>Simulación académica:</strong>
                     no procesa pagos reales ni utiliza tarjetas.
@@ -191,38 +91,192 @@
         </div>
     </header>
 
-    <main id="main-content" class="flex-grow-1" tabindex="-1">
-        <div class="container py-4 py-lg-5">
-            {% include "includes/_messages.html" %}
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-
-    <footer class="app-footer mt-auto">
-        <div class="container py-4">
-            <div class="row align-items-center g-3">
-                <div class="col-12 col-md">
-                    <p class="mb-1 fw-semibold">Lotería Binaria</p>
-                    <p class="mb-0 small">
-                        Taller #3 desarrollado con Django, SQLite/MySQL y Bootstrap 5.3.
-                    </p>
+    <div
+        class="app-workspace{% if request.user.is_authenticated and active_mode_code %} app-workspace--dashboard{% endif %}">
+        {% if request.user.is_authenticated and active_mode_code %}
+        <aside class="offcanvas-xl offcanvas-start app-sidebar" tabindex="-1" id="mainNavigation"
+            aria-labelledby="mainNavigationLabel">
+            <div class="offcanvas-header app-sidebar-header d-xl-none">
+                <div>
+                    <span class="badge app-mode-badge mb-2">Modo {{ active_mode }}</span>
+                    <h2 class="offcanvas-title h5 mb-0" id="mainNavigationLabel">
+                        Navegación
+                    </h2>
                 </div>
-                <div class="col-12 col-md-auto">
-                    <p class="mb-0 small text-md-end">
-                        Uso exclusivamente académico.
-                    </p>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                    data-bs-target="#mainNavigation" aria-label="Cerrar navegación"></button>
+            </div>
+
+            <div class="offcanvas-body app-sidebar-body p-0">
+                <div class="app-sidebar-layout">
+                    <div class="app-sidebar-scroll">
+                        <div class="app-sidebar-heading d-none d-xl-block">
+                            <span class="badge app-mode-badge mb-2">
+                                Modo {{ active_mode }}
+                            </span>
+
+                            <p class="mb-0 small text-white-50">
+                                Acciones disponibles
+                            </p>
+                        </div>
+
+                        <nav class="app-sidebar-nav" aria-label="Navegación del modo activo">
+                            <p class="app-sidebar-section-label mb-2">
+                                Módulos
+                            </p>
+
+                            <ul class="nav nav-pills flex-column gap-1 mb-0">
+                                {% for item in nav_items %}
+                                {% if item.url and item.label %}
+                                <li class="nav-item">
+                                    <a
+                                        class="nav-link{% if item.active %} active{% endif %}"
+                                        href="{{ item.url }}"
+                                        {% if item.active %}aria-current="page"{% endif %}
+                                        data-close-navigation
+                                    >
+                                        <span class="app-nav-dot" aria-hidden="true"></span>
+
+                                        <span>{{ item.label }}</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% empty %}
+                                <li class="px-3 py-2 small text-white-50">
+                                    No hay acciones disponibles para este modo.
+                                </li>
+                                {% endfor %}
+
+                                {% if request.user.is_staff and active_mode_code == "ADMINISTRADOR" and admin_url %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ admin_url }}" data-close-navigation>
+                                        <span class="app-nav-dot" aria-hidden="true"></span>
+
+                                        <span>Administración Django</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+
+                        <div class="app-sidebar-help d-none d-xl-block" role="note">
+                            <strong class="d-block mb-1">
+                                Navegación segura
+                            </strong>
+
+                            <span>
+                                Solo se muestran módulos disponibles para el modo activo.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="app-sidebar-session">
+                        <p class="app-sidebar-section-label mb-2">
+                            Sesión actual
+                        </p>
+
+                        <div class="user-summary mb-3">
+                            <span class="d-block fw-semibold text-break">
+                                {{ request.user.get_full_name|default:request.user.username }}
+                            </span>
+
+                            <span class="small text-white-50">
+                                Modo {{ active_mode }}
+                            </span>
+                        </div>
+
+                        {% if choose_mode_url %}
+                        <a class="btn btn-outline-warning w-100 mb-2" href="{{ choose_mode_url }}">
+                            Cambiar modo
+                        </a>
+                        {% endif %}
+
+                        {% if logout_url %}
+                        <form method="post" action="{{ logout_url }}" class="d-grid" data-confirm-title="Cerrar sesión"
+                            data-confirm-message="¿Deseas cerrar la sesión actual?">
+                            {% csrf_token %}
+
+                            <button type="submit" class="btn btn-warning">
+                                Cerrar sesión
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
+        </aside>
+        {% endif %}
+
+        <div class="app-content-column">
+            <main id="main-content" class="app-main flex-grow-1" tabindex="-1">
+                <div
+                    class="{% if request.user.is_authenticated and active_mode_code %}container-fluid app-content-container{% else %}container{% endif %} py-4 py-lg-5">
+                    {% include "includes/_messages.html" %}
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+
+            <footer class="app-footer mt-auto">
+                <div class="container-fluid app-footer-container py-4">
+                    <div class="row g-4 justify-content-between align-items-start">
+                        <div class="col-12 col-lg-6">
+                            <h2 class="h5 mb-2">Lotería Binaria</h2>
+                            <p class="mb-2 small">
+                                Proyecto académico desarrollado con Django,
+                                SQLite/MySQL y Bootstrap 5.3.
+                            </p>
+                            <p class="mb-0 small">
+                                Esta plataforma es una simulación académica:
+                                no procesa pagos reales ni utiliza tarjetas.
+                            </p>
+                        </div>
+
+                        <div class="col-12 col-lg-auto ms-lg-auto text-lg-end">
+                            <h2 class="h6 mb-3">Información de contacto</h2>
+                            <ul class="list-unstyled small mb-0">
+                                <li class="mb-2">
+                                    <strong>Autor:</strong>
+                                    Cristhian Herrera Nieto
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Correo:</strong>
+                                    <a class="footer-link" href="mailto:criaherr@espol.edu.ec">
+                                        criaherr@espol.edu.ec
+                                    </a>
+                                </li>
+                                <li>
+                                    <strong>WhatsApp:</strong>
+                                    <a class="footer-link" href="https://wa.me/593992264129" target="_blank"
+                                        rel="noopener noreferrer">
+                                        Contactar por WhatsApp
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <hr class="border-light opacity-25 my-4">
+
+                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                        <p class="mb-0 small">
+                            &copy; 2026 Cristhian Herrera Nieto. Todos los derechos reservados.
+                        </p>
+                        <p class="mb-0 small text-md-end">
+                            Lotería Binaria — Uso exclusivamente académico.
+                        </p>
+                    </div>
+                </div>
+            </footer>
         </div>
-    </footer>
+    </div>
 
     {% include "includes/_confirm_modal.html" %}
-    <script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
-        crossorigin="anonymous"
-    ></script>
+        crossorigin="anonymous"></script>
     <script src="{% static 'js/app.js' %}" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

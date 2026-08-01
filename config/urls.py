@@ -10,9 +10,24 @@ admin.site.index_title = "Simulación académica"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("accounts/", include("apps.accounts.urls")),
-    path("", include("apps.core.urls")),
-    path("vendors/", include("apps.vendors.urls")),
-    path("lottery/", include("apps.lottery.urls")),
-    path("finance/", include("apps.finance.urls")),
+    path(
+        "accounts/",
+        include("apps.accounts.urls", namespace="accounts"),
+    ),
+    path(
+        "finance/",
+        include("apps.finance.urls", namespace="finance"),
+    ),
+    path(
+        "vendors/",
+        include("apps.vendors.urls", namespace="vendors"),
+    ),
+    path(
+        "lottery/",
+        include("apps.lottery.urls", namespace="lottery"),
+    ),
+    path(
+        "",
+        include("apps.core.urls", namespace="core"),
+    ),
 ]

@@ -91,3 +91,39 @@
         relatedField.focus();
     }
 })();
+
+(() => {
+    "use strict";
+
+    const navigation = document.getElementById("mainNavigation");
+    const navigationToggle = document.querySelector(
+        '[data-bs-target="#mainNavigation"]'
+    );
+    const mobileNavigationQuery = window.matchMedia("(max-width: 1199.98px)");
+
+    if (!navigation || !window.bootstrap) {
+        return;
+    }
+
+    const closeMobileNavigation = () => {
+        if (!mobileNavigationQuery.matches) {
+            return;
+        }
+
+        window.bootstrap.Offcanvas
+            .getOrCreateInstance(navigation)
+            .hide();
+    };
+
+    navigation.querySelectorAll(
+        ".app-sidebar-nav a.nav-link, .app-sidebar-session a"
+    ).forEach((link) => {
+        link.addEventListener("click", closeMobileNavigation);
+    });
+
+    navigation.addEventListener("hidden.bs.offcanvas", () => {
+        if (navigationToggle instanceof HTMLElement) {
+            navigationToggle.focus();
+        }
+    });
+})();
