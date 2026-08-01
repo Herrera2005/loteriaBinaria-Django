@@ -1,105 +1,203 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}
-    {% if object %}Editar evento{% else %}Crear evento{% endif %}
-    | Lotería Binaria
-{% endblock %}
+{% block title %}Eventos de sorteo | Lotería Binaria{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-xl-9">
-        <section
-            class="card shadow-sm"
-            aria-labelledby="event-form-title"
-        >
-            <div class="card-body p-4 p-lg-5">
-                <span class="badge text-bg-warning mb-2">
-                    Modo ADMINISTRADOR
-                </span>
+<section aria-labelledby="event-list-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 id="event-list-title" class="h2 mb-1">
+                Eventos de sorteo
+            </h1>
+            <p class="text-body-secondary mb-0">
+                El cierre se calcula diez minutos antes del sorteo.
+            </p>
+        </div>
 
-                <h1 id="event-form-title" class="h2">
-                    {% if object %}
-                        Editar evento
-                    {% else %}
-                        Crear evento
-                    {% endif %}
-                </h1>
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-outline-primary"
+                href="{% url 'lottery:product_list' %}"
+            >
+                Ver productos
+            </a>
+            <a
+                class="btn btn-primary"
+                href="{% url 'lottery:event_create' %}"
+            >
+                Crear evento
+            </a>
+        </div>
+    </header>
 
-                <p class="text-body-secondary">
-                    El cierre se calcula en el backend diez minutos antes
-                    del sorteo.
-                </p>
-
-                {% if object and object.status != "DRAFT" %}
-                    <div class="alert alert-info" role="note">
-                        El evento ya no está en Borrador. Producto, precio,
-                        premio y fechas permanecen bloqueados.
-                    </div>
-                {% endif %}
-
-                {% if form.non_field_errors %}
-                    <div class="alert alert-danger" role="alert">
-                        {% for error in form.non_field_errors %}
-                            <p class="mb-0">{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                <form method="post" novalidate>
-                    {% csrf_token %}
-
-                    <div class="row g-3">
-                        {% for field in form %}
-                            <div class="{% if field.name == 'cancellation_reason' %}col-12{% else %}col-12 col-md-6{% endif %}">
-                                <label
-                                    class="form-label"
-                                    for="{{ field.id_for_label }}"
-                                >
-                                    {{ field.label }}
-                                </label>
-
-                                {{ field }}
-
-                                {% if field.help_text %}
-                                    <div class="form-text">
-                                        {{ field.help_text }}
-                                    </div>
-                                {% endif %}
-
-                                {% for error in field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ error }}
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
-                        {% if object %}
-                            <a
-                                class="btn btn-outline-secondary"
-                                href="{% url 'lottery:event_detail' object.pk %}"
-                            >
-                                Cancelar
-                            </a>
-                        {% else %}
-                            <a
-                                class="btn btn-outline-secondary"
-                                href="{% url 'lottery:event_list' %}"
-                            >
-                                Cancelar
-                            </a>
-                        {% endif %}
-
-                        <button class="btn btn-primary" type="submit">
-                            Guardar evento
-                        </button>
-                    </div>
-                </form>
+    <form method="get" class="card card-body shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-xl">
+                <label class="form-label" for="event-search">
+                    Buscar
+                </label>
+                <input
+                    class="form-control"
+                    id="event-search"
+                    name="q"
+                    type="search"
+                    value="{{ query }}"
+                    placeholder="Evento o producto"
+                >
             </div>
-        </section>
-    </div>
-</div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <label class="form-label" for="event-product">
+                    Producto
+                </label>
+                <select
+                    class="form-select"
+                    id="event-product"
+                    name="product"
+                >
+                    <option value="">Todos</option>
+                    {% for product in products %}
+                        <option
+                            value="{{ product.pk }}"
+                            {% if selected_product == product.pk|stringformat:"s" %}selected{% endif %}
+                        >
+                            {{ product.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <label class="form-label" for="event-status">
+                    Estado
+                </label>
+                <select
+                    class="form-select"
+                    id="event-status"
+                    name="status"
+                >
+                    <option value="">Todos</option>
+                    {% for value, label in status_choices %}
+                        <option
+                            value="{{ value }}"
+                            {% if selected_status == value %}selected{% endif %}
+                        >
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-auto d-grid">
+                <button class="btn btn-primary" type="submit">
+                    Filtrar
+                </button>
+            </div>
+
+            {% if query or selected_product or selected_status %}
+                <div class="col-12 col-sm-auto d-grid">
+                    <a
+                        class="btn btn-outline-secondary"
+                        href="{% url 'lottery:event_list' %}"
+                    >
+                        Limpiar
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if events %}
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Evento</th>
+                        <th scope="col">Producto</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Cierre</th>
+                        <th scope="col">Sorteo</th>
+                        <th scope="col">Boletos</th>
+                        <th scope="col" class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                        <tr>
+                            <td class="fw-semibold">{{ event.name }}</td>
+                            <td>{{ event.product.name }}</td>
+                            <td>
+                                <span class="badge text-bg-secondary">
+                                    {{ event.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ event.sales_close_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ event.draw_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ event.tickets_count }}</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                    <a
+                                        class="btn btn-sm btn-outline-primary"
+                                        href="{% url 'lottery:event_detail' event.pk %}"
+                                    >
+                                        Ver
+                                    </a>
+                                    <a
+                                        class="btn btn-sm btn-outline-secondary"
+                                        href="{% url 'lottery:event_update' event.pk %}"
+                                    >
+                                        Editar
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Paginación de eventos">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&product={{ selected_product|urlencode }}&status={{ selected_status|urlencode }}&page={{ page_obj.previous_page_number }}"
+                            >
+                                Anterior
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?q={{ query|urlencode }}&product={{ selected_product|urlencode }}&status={{ selected_status|urlencode }}&page={{ page_obj.next_page_number }}"
+                            >
+                                Siguiente
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state" role="status">
+            <h2 class="h5">No se encontraron eventos</h2>
+            <p class="text-body-secondary mb-0">
+                Cambia los filtros o crea el primer evento.
+            </p>
+        </div>
+    {% endif %}
+</section>
 {% endblock %}

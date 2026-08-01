@@ -103,6 +103,7 @@ class DrawEventForm(forms.ModelForm):
         "draw_at",
         "price_minor",
         "prize_minor",
+        "status",
     )
 
     class Meta:
@@ -157,6 +158,10 @@ class DrawEventForm(forms.ModelForm):
             self.instance.pk
             and self.instance.status != DrawEvent.Status.DRAFT
         ):
+            self.fields["status"].help_text = (
+                "Las transiciones posteriores a Borrador requieren una "
+                "acción específica; el CRUD normal conserva el estado."
+            )
             for field_name in self.PROTECTED_AFTER_DRAFT:
                 self._protected_original_values[field_name] = getattr(
                     self.instance,

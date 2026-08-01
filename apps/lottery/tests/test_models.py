@@ -134,6 +134,25 @@ class LotteryProductModelTests(TestCase):
             )
 
 
+    def test_product_with_events_rejects_configuration_change(self):
+        product = create_product()
+        create_event(product=product)
+        product.code = LotteryProduct.Code.DECIMAL
+        product.allowed_symbols = "0123456789"
+        product.selection_count = 5
+
+        with self.assertRaises(ValidationError):
+            product.save()
+
+    def test_product_configuration_rejects_bulk_update(self):
+        product = create_product()
+
+        with self.assertRaises(ValidationError):
+            LotteryProduct.objects.filter(pk=product.pk).update(
+                selection_count=5
+            )
+
+
 class DrawEventModelTests(TestCase):
     def test_close_is_exactly_ten_minutes_before_draw(self):
         event = create_event()
@@ -214,6 +233,32 @@ class DrawEventModelTests(TestCase):
         create_event(product=product)
         with self.assertRaises(models.ProtectedError):
             product.delete()
+
+
+    def test_published_event_rejects_direct_critical_change(self):
+        event = create_event(status=DrawEvent.Status.PUBLISHED)
+        event.price_minor += 1
+
+        with self.assertRaises(ValidationError):
+            event.save()
+
+    def test_published_event_rejects_direct_status_change(self):
+        event = create_event(status=DrawEvent.Status.PUBLISHED)
+        event.status = DrawEvent.Status.SALES_OPEN
+
+        with self.assertRaises(ValidationError):
+            event.save()
+
+    def test_event_rejects_bulk_critical_or_status_update(self):
+        event = create_event(status=DrawEvent.Status.PUBLISHED)
+
+        with self.assertRaises(ValidationError):
+            DrawEvent.objects.filter(pk=event.pk).update(price_minor=999)
+
+        with self.assertRaises(ValidationError):
+            DrawEvent.objects.filter(pk=event.pk).update(
+                status=DrawEvent.Status.DRAFT
+            )
 
 
 class TicketModelTests(TestCase):

@@ -275,6 +275,28 @@ class VendorProfileCrudTests(TestCase):
             ).exists()
         )
 
+    def test_detail_renders_profile_not_request_list(self):
+        profile = create_vendor_profile()
+
+        response = self.client.get(
+            reverse(
+                "vendors:vendorprofile_detail",
+                args=(profile.pk,),
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, profile.user.username)
+        self.assertContains(response, "Datos del perfil")
+        self.assertNotContains(response, "Solicitudes de conversión")
+
+    def test_missing_profile_delete_returns_404(self):
+        response = self.client.get(
+            reverse("vendors:vendorprofile_delete", args=(999999,))
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_sensitive_post_requires_csrf(self):
         profile = create_vendor_profile()
         csrf_client = Client(enforce_csrf_checks=True)

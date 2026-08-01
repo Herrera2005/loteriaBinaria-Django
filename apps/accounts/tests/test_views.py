@@ -267,6 +267,13 @@ class UserCrudTests(TestCase):
         self.admin_user.refresh_from_db()
         self.assertTrue(self.admin_user.is_active)
 
+    def test_missing_user_delete_returns_404(self):
+        response = self.client.get(
+            reverse("accounts:user_delete", args=(999999,))
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_crud_post_requires_csrf(self):
         from django.test import Client
 

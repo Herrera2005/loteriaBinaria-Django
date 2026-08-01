@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
-"""Auditoría estática reproducible del Taller #3.
+"""Auditoría estática reproducible hasta P-27 del Taller #3.
 
-No sustituye `manage.py check` ni la suite Django. Sirve para detectar
-errores de estructura, residuos del frontend legado y templates rotos.
+No sustituye ``manage.py check`` ni la suite Django. Detecta fallos de
+estructura, alcance, templates, seguridad básica y residuos del frontend
+legado antes de ejecutar el proyecto con SQLite.
 """
 
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
 ACTIVE_ROOTS = ("apps", "config", "templates", "static")
+TEXT_SUFFIXES = {".py", ".html", ".css", ".js", ".md", ".txt", ".ps1", ".sh"}
+
 REQUIRED_FILES = (
     "manage.py",
     "config/settings.py",
@@ -23,44 +28,94 @@ REQUIRED_FILES = (
     "apps/accounts/forms.py",
     "apps/accounts/services.py",
     "apps/accounts/views.py",
-    "apps/accounts/tests/test_model_integrity.py",
-    "apps/core/tests/test_configuration.py",
     "apps/accounts/urls.py",
-    "apps/core/views.py",
-    "apps/core/urls.py",
+    "apps/vendors/models.py",
+    "apps/vendors/forms.py",
+    "apps/vendors/services.py",
+    "apps/vendors/views.py",
+    "apps/vendors/urls.py",
+    "apps/vendors/migrations/0001_initial.py",
+    "apps/vendors/tests/test_models.py",
+    "apps/vendors/tests/test_views.py",
+    "apps/lottery/models.py",
+    "apps/lottery/forms.py",
+    "apps/lottery/admin.py",
+    "apps/lottery/services.py",
+    "apps/lottery/views.py",
+    "apps/lottery/urls.py",
+    "apps/lottery/migrations/0001_initial.py",
+    "apps/lottery/tests/test_models.py",
+    "apps/lottery/tests/test_forms.py",
+    "apps/lottery/tests/test_crud.py",
+    "apps/core/context_processors.py",
     "templates/base.html",
     "templates/includes/_messages.html",
+    "templates/includes/_confirm_modal.html",
+    "templates/vendors/vendorprofile_list.html",
+    "templates/vendors/vendorprofile_detail.html",
+    "templates/vendors/vendorprofile_form.html",
+    "templates/vendors/vendorprofile_confirm_delete.html",
+    "templates/vendors/conversionrequest_list.html",
+    "templates/lottery/product_list.html",
+    "templates/lottery/product_detail.html",
+    "templates/lottery/product_form.html",
+    "templates/lottery/product_confirm_delete.html",
+    "templates/lottery/event_list.html",
+    "templates/lottery/event_detail.html",
+    "templates/lottery/event_form.html",
+    "templates/lottery/event_confirm_delete.html",
     "static/css/app.css",
     "static/js/app.js",
-    "scripts/smoke_runserver.py",
-    "docs/ESCALABILIDAD_MANUAL_V4.md",
-    "docs/VERIFICACION_RUNSERVER.md",
     "static/img/logo-placeholder.png",
-    "docs/INFORME_AUDITORIA_INTEGRAL.md",
-    "docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md",
+    "scripts/smoke_runserver.py",
+    "scripts/verify.ps1",
+    "docs/referencias/01_Reglas_Maestras_MVP_Django_v1.1.0.md",
+    "docs/referencias/02_Plan_Tecnico_MVP_Django_v1.1.0.md",
+    "docs/referencias/03_Matriz_Trazabilidad_Pruebas_MVP_Django_v1.1.0.md",
+    "docs/referencias/04_Diseno_Interfaz_MVP_Django_v1.0.0.md",
+    "docs/referencias/05_Auditoria_Coherencia_Interfaz_MVP_Django_v1.0.0.md",
+    "docs/referencias/Manual_Intercalado_Taller_3_Loteria_Binaria_Django_v4.0.pdf",
     "respaldo_frontend/Proyecto_HerreraNietoCristhian_legacy.zip",
 )
+
 FORBIDDEN_PATTERNS = {
     "localStorage": re.compile(r"\blocalStorage\b"),
     "sessionStorage": re.compile(r"\bsessionStorage\b"),
     "fetch JSON": re.compile(r"\bfetch\s*\("),
     "usuarios.json": re.compile(r"usuarios\.json", re.I),
-    "enlace pages/*.html": re.compile(r"(?:href|action)=[\"'][^\"']*pages/[^\"']+\.html", re.I),
+    "enlace pages/*.html": re.compile(
+        r"(?:href|action)=[\"'][^\"']*pages/[^\"']+\.html",
+        re.I,
+    ),
     "CLIENTE_FINANCIERO": re.compile(r"CLIENTE_FINANCIERO"),
-    "credencial demo heredada": re.compile(r"(?<![A-Za-z0-9])123456(?![A-Za-z0-9])"),
+    "credencial demo heredada": re.compile(
+        r"(?<![A-Za-z0-9])123456(?![A-Za-z0-9])"
+    ),
     "porcentaje legado": re.compile(r"(?<!\d)(?:5|15|75)\s*%"),
 }
-LEAF_TEMPLATES = (
-    "templates/403.html",
-    "templates/404.html",
-    "templates/core/home.html",
-    "templates/accounts/login.html",
-    "templates/accounts/register.html",
-    "templates/accounts/choose_mode.html",
-    "templates/dashboards/client.html",
-    "templates/dashboards/vendor.html",
-    "templates/dashboards/admin.html",
-)
+
+EXPECTED_URL_NAMES = {
+    "apps/vendors/urls.py": {
+        "vendorprofile_list",
+        "vendorprofile_create",
+        "vendorprofile_detail",
+        "vendorprofile_update",
+        "vendorprofile_delete",
+        "conversionrequest_list",
+    },
+    "apps/lottery/urls.py": {
+        "product_list",
+        "product_create",
+        "product_detail",
+        "product_update",
+        "product_delete",
+        "event_list",
+        "event_create",
+        "event_detail",
+        "event_update",
+        "event_delete",
+    },
+}
 
 
 def iter_active_files():
@@ -69,7 +124,7 @@ def iter_active_files():
         if not root.exists():
             continue
         for path in root.rglob("*"):
-            if path.is_file() and path.suffix.lower() in {".py", ".html", ".css", ".js"}:
+            if path.is_file() and path.suffix.lower() in TEXT_SUFFIXES:
                 yield path
 
 
@@ -89,6 +144,23 @@ def check_python_syntax(errors: list[str]) -> None:
             errors.append(f"Python inválido en {path.relative_to(ROOT)}: {exc}")
 
 
+def check_generated_residue(errors: list[str]) -> None:
+    for path in ROOT.rglob("*"):
+        if path.is_dir() and path.name == "__pycache__":
+            errors.append(f"Directorio generado incluido: {path.relative_to(ROOT)}")
+        elif path.is_file() and path.suffix == ".pyc":
+            errors.append(f"Bytecode generado incluido: {path.relative_to(ROOT)}")
+
+    for relative in (
+        "db.sqlite3",
+        "verification.sqlite3",
+        ".env",
+        "staticfiles",
+    ):
+        if (ROOT / relative).exists():
+            errors.append(f"Artefacto local no debe entregarse: {relative}")
+
+
 def check_forbidden(errors: list[str]) -> None:
     for path in iter_active_files():
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -100,67 +172,74 @@ def check_forbidden(errors: list[str]) -> None:
 
 
 def check_templates(errors: list[str]) -> None:
-    for relative in LEAF_TEMPLATES:
-        path = ROOT / relative
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        h1_count = len(re.findall(r"<h1\b", text, flags=re.I))
-        if h1_count != 1:
-            errors.append(f"{relative}: se esperaba 1 h1 y se encontraron {h1_count}")
-        if relative not in {"templates/403.html", "templates/404.html"} and '{% extends "base.html" %}' not in text:
-            errors.append(f"{relative}: no extiende base.html")
+    template_root = ROOT / "templates"
+    hashes: dict[str, list[Path]] = defaultdict(list)
 
-    for path in (ROOT / "templates").rglob("*.html"):
+    for path in template_root.rglob("*.html"):
+        relative = path.relative_to(ROOT)
         text = path.read_text(encoding="utf-8")
-        # Aproximación deliberadamente conservadora: cualquier form POST debe
-        # contener CSRF en su propio bloque hasta </form>.
-        for match in re.finditer(r"<form\b[^>]*method=[\"']post[\"'][^>]*>(.*?)</form>", text, flags=re.I | re.S):
-            if "{% csrf_token %}" not in match.group(1):
+        hashes[hashlib.sha256(text.encode("utf-8")).hexdigest()].append(path)
+
+        if re.search(r"{%\s*\n", text):
+            errors.append(f"Tag Django partido por salto de línea en {relative}")
+
+        is_partial = "includes" in path.parts
+        is_base = relative.as_posix() == "templates/base.html"
+        if not is_partial and not is_base:
+            h1_count = len(re.findall(r"<h1\b", text, flags=re.I))
+            if h1_count != 1:
                 errors.append(
-                    f"Formulario POST sin CSRF en {path.relative_to(ROOT)}"
+                    f"{relative}: se esperaba 1 h1 y se encontraron {h1_count}"
                 )
+            if '{% extends "base.html" %}' not in text:
+                errors.append(f"{relative}: no extiende base.html")
+            if "{% load static %}" not in text:
+                errors.append(f"{relative}: no carga static")
 
-    base = (ROOT / "templates/base.html").read_text(encoding="utf-8")
-    for expected in (
-        "{% static 'css/app.css' %}",
-        "{% static 'js/app.js' %}",
-        'includes/_messages.html',
-    ):
-        if expected not in base:
-            errors.append(f"base.html no contiene: {expected}")
+        for match in re.finditer(
+            r"<form\b[^>]*method=[\"']post[\"'][^>]*>(.*?)</form>",
+            text,
+            flags=re.I | re.S,
+        ):
+            if "{% csrf_token %}" not in match.group(1):
+                errors.append(f"Formulario POST sin CSRF en {relative}")
 
+    for paths in hashes.values():
+        if len(paths) > 1:
+            joined = ", ".join(str(path.relative_to(ROOT)) for path in paths)
+            errors.append(f"Templates duplicados byte a byte: {joined}")
 
-def check_legacy_runtime(errors: list[str]) -> None:
-    for relative in ("index.html", "pages"):
-        if (ROOT / relative).exists():
-            errors.append(
-                f"Ruta legado activa en raíz; debe vivir solo en el ZIP de respaldo: {relative}"
-            )
-    if (ROOT / "static/app.css").exists():
-        errors.append("CSS mal ubicado: static/app.css; debe ser static/css/app.css")
-    if (ROOT / "templates/includes/_manages.html").exists():
-        errors.append("Partial con typo: _manages.html; debe ser _messages.html")
+    base_path = template_root / "base.html"
+    if base_path.is_file():
+        base = base_path.read_text(encoding="utf-8")
+        for expected in (
+            "bootstrap@5.3",
+            "navbar-expand",
+            "offcanvas",
+            "{% static 'css/app.css' %}",
+            "{% static 'js/app.js' %}",
+            "includes/_messages.html",
+            "includes/_confirm_modal.html",
+            "Simulación académica",
+        ):
+            if expected not in base:
+                errors.append(f"base.html no contiene: {expected}")
 
 
 def check_runtime_configuration(errors: list[str]) -> None:
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
-    mysql_requirements = (ROOT / "requirements-mysql.txt").read_text(encoding="utf-8").lower()
+    mysql_requirements = (ROOT / "requirements-mysql.txt").read_text(
+        encoding="utf-8"
+    ).lower()
     settings_text = (ROOT / "config/settings.py").read_text(encoding="utf-8").lower()
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8").lower()
 
-    # Es válido documentar que PostgreSQL está prohibido. Lo que no puede
-    # aparecer es una dependencia, URL o backend ejecutable de PostgreSQL.
     for forbidden in ("psycopg", "psycopg-binary"):
         if forbidden in requirements or forbidden in mysql_requirements:
-            errors.append(
-                f"Dependencia runtime prohibida para Taller #3: {forbidden}"
-            )
+            errors.append(f"Dependencia runtime prohibida: {forbidden}")
 
     if "django.db.backends.postgresql" in settings_text:
-        errors.append(
-            "Backend runtime prohibido para Taller #3: django.db.backends.postgresql"
-        )
+        errors.append("Backend PostgreSQL prohibido en settings.py")
 
     for label, text in (
         ("requirements.txt", requirements),
@@ -169,6 +248,82 @@ def check_runtime_configuration(errors: list[str]) -> None:
     ):
         if "postgresql://" in text or "postgres://" in text:
             errors.append(f"URL PostgreSQL prohibida en {label}")
+
+    if "sqlite" not in settings_text or "mysql" not in settings_text:
+        errors.append("settings.py debe admitir SQLite y MySQL explícitamente")
+
+
+def check_scope_and_models(errors: list[str]) -> None:
+    active_text = "\n".join(
+        path.read_text(encoding="utf-8", errors="replace")
+        for path in iter_active_files()
+    )
+    for forbidden in (
+        "FloatField(",
+        "ArrayField(",
+        "JSONField(",
+        "django.contrib.postgres",
+        "celery",
+        "redis",
+        "rest_framework",
+    ):
+        if forbidden.lower() in active_text.lower():
+            errors.append(f"Tecnología/campo fuera de alcance en runtime: {forbidden}")
+
+    lottery_models = (ROOT / "apps/lottery/models.py").read_text(encoding="utf-8")
+    for expected in (
+        'OCTAL = "OCTAL"',
+        'DECIMAL = "DECIMAL"',
+        'HEXADECIMAL = "HEXADECIMAL"',
+        '"allowed_symbols": "01234567"',
+        '"selection_count": 4',
+        '"allowed_symbols": "0123456789"',
+        '"selection_count": 5',
+        '"allowed_symbols": "0123456789ABCDEF"',
+        '"selection_count": 6',
+        "DRAW_CLOSE_OFFSET = timedelta(minutes=10)",
+        "models.BigIntegerField",
+        "models.OneToOneField",
+        "on_delete=models.PROTECT",
+        'fields=("event", "normalized_key")',
+    ):
+        if expected not in lottery_models:
+            errors.append(f"Regla Lottery no localizada en models.py: {expected}")
+
+    forms = (ROOT / "apps/lottery/forms.py").read_text(encoding="utf-8")
+    if "class TicketForm" in forms or "class DrawResultForm" in forms:
+        errors.append("Ticket/DrawResult no deben tener ModelForm genérico")
+
+    services = (ROOT / "apps/lottery/services.py").read_text(encoding="utf-8")
+    if services.count("@transaction.atomic") < 2:
+        errors.append("Las dos eliminaciones Lottery deben ser transaccionales")
+
+
+def check_urls(errors: list[str]) -> None:
+    config_urls = (ROOT / "config/urls.py").read_text(encoding="utf-8")
+    for include_path in (
+        "apps.accounts.urls",
+        "apps.core.urls",
+        "apps.vendors.urls",
+        "apps.lottery.urls",
+    ):
+        if include_path not in config_urls:
+            errors.append(f"config/urls.py no integra {include_path}")
+
+    for relative, expected_names in EXPECTED_URL_NAMES.items():
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        for name in expected_names:
+            if f'name="{name}"' not in text:
+                errors.append(f"Falta URL name={name} en {relative}")
+
+
+def check_legacy_runtime(errors: list[str]) -> None:
+    for relative in ("index.html", "pages"):
+        if (ROOT / relative).exists():
+            errors.append(
+                "Ruta legado activa en raíz; debe vivir solo en respaldo: "
+                f"{relative}"
+            )
 
 
 def check_text_controls(errors: list[str]) -> None:
@@ -179,14 +334,16 @@ def check_text_controls(errors: list[str]) -> None:
         if "__pycache__" in path.parts or path.suffix == ".pyc":
             continue
         data = path.read_bytes()
-        controls = sorted(set(byte for byte in data if byte < 32 and byte not in (9, 10, 13)))
+        controls = sorted(
+            set(byte for byte in data if byte < 32 and byte not in (9, 10, 13))
+        )
         if controls:
             errors.append(
                 f"Caracteres de control en {path.relative_to(ROOT)}: {controls}"
             )
 
 
-def check_test_inventory(errors: list[str]) -> None:
+def check_test_inventory(errors: list[str]) -> int:
     test_count = 0
     for path in ROOT.glob("apps/*/tests/test_*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -196,34 +353,44 @@ def check_test_inventory(errors: list[str]) -> None:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and node.name.startswith("test_")
         )
-    if test_count < 48:
-        errors.append(f"Cobertura diseñada insuficiente: {test_count} pruebas; se esperaban al menos 48")
+
+    if test_count < 160:
+        errors.append(
+            f"Inventario insuficiente para el estado P-27: {test_count}; "
+            "se esperaban al menos 160 pruebas diseñadas"
+        )
+    return test_count
 
 
 def main() -> int:
     errors: list[str] = []
     check_required(errors)
     check_python_syntax(errors)
+    check_generated_residue(errors)
     check_forbidden(errors)
     check_templates(errors)
-    check_legacy_runtime(errors)
     check_runtime_configuration(errors)
+    check_scope_and_models(errors)
+    check_urls(errors)
+    check_legacy_runtime(errors)
     check_text_controls(errors)
-    check_test_inventory(errors)
+    test_count = check_test_inventory(errors)
 
     if errors:
-        print("AUDITORÍA ESTÁTICA: FALLÓ")
+        print("AUDITORÍA ESTÁTICA P-27: FALLÓ")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print("AUDITORÍA ESTÁTICA: OK")
-    print("- Estructura mínima presente")
-    print("- Python parseable")
-    print("- Templates base/H1/CSRF verificados")
-    print("- Sin localStorage, fetch JSON, credenciales demo ni pages/*.html activos")
-    print("- ZIP visual legado preservado fuera del runtime")
-    print("- Configuración sin PostgreSQL y 48 pruebas diseñadas")
+    print("AUDITORÍA ESTÁTICA P-27: OK")
+    print("- Estructura Accounts/Vendors/Lottery presente")
+    print("- Python parseable y sin bytecode entregado")
+    print("- Templates base, H1, CSRF y duplicados verificados")
+    print("- URLs de Vendors y Lottery integradas")
+    print("- Sin localStorage, JSON de negocio ni pages/*.html activos")
+    print("- SQLite/MySQL permitidos y PostgreSQL excluido")
+    print("- Reglas 4/5/6, cierre 10 min e históricos protegidos localizadas")
+    print(f"- {test_count} pruebas automatizadas diseñadas")
     return 0
 
 

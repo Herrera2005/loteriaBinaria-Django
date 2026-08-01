@@ -1,39 +1,148 @@
-{% extends "base.html" %}{% load static %}{% block title %}{{ product.name }}{% endblock %}{% block content %}<section>
-    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
-        <div><span class="badge text-bg-primary">{{ product.code }}</span>
-            <h1 class="h2 mt-2">{{ product.name }}</h1>
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Producto{% endblock %}
+
+{% block content %}
+<section aria-labelledby="product-detail-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-primary mb-2">{{ product.code }}</span>
+            <h1 id="product-detail-title" class="h2 mb-1">
+                {{ product.name }}
+            </h1>
+            <p class="text-body-secondary mb-0">
+                Configuración oficial del producto de lotería.
+            </p>
         </div>
-        <div><a class="btn btn-primary" href="{% url 'lottery:product_update' product.pk %}">Editar</a> <a
-                class="btn btn-outline-danger" href="{% url 'lottery:product_delete' product.pk %}">Eliminar</a></div>
+
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-primary"
+                href="{% url 'lottery:product_update' product.pk %}"
+            >
+                Editar
+            </a>
+            {% if can_delete %}
+                <a
+                    class="btn btn-outline-danger"
+                    href="{% url 'lottery:product_delete' product.pk %}"
+                >
+                    Eliminar
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-5">
+            <article class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Configuración</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6">Código</dt>
+                        <dd class="col-sm-6">{{ product.code }}</dd>
+
+                        <dt class="col-sm-6">Símbolos</dt>
+                        <dd class="col-sm-6">
+                            <code>{{ product.allowed_symbols }}</code>
+                        </dd>
+
+                        <dt class="col-sm-6">Cantidad</dt>
+                        <dd class="col-sm-6">
+                            {{ product.selection_count }} únicos
+                        </dd>
+
+                        <dt class="col-sm-6">Estado</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge {% if product.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                                {% if product.is_active %}Activo{% else %}Inactivo{% endif %}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-6">Eventos</dt>
+                        <dd class="col-sm-6">{{ product.events_count }}</dd>
+                    </dl>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-lg-7">
+            <article class="card shadow-sm">
+                <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                    <h2 class="h5 mb-0">Eventos relacionados</h2>
+                    <a
+                        class="btn btn-sm btn-outline-primary"
+                        href="{% url 'lottery:event_create' %}"
+                    >
+                        Crear evento
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% with events=product.events.all %}
+                        {% if events %}
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Evento</th>
+                                            <th scope="col">Estado</th>
+                                            <th scope="col">Sorteo</th>
+                                            <th scope="col" class="text-end">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for event in events %}
+                                            <tr>
+                                                <td>{{ event.name }}</td>
+                                                <td>
+                                                    <span class="badge text-bg-secondary">
+                                                        {{ event.get_status_display }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ event.draw_at|date:"d/m/Y H:i" }}</td>
+                                                <td class="text-end">
+                                                    <a
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        href="{% url 'lottery:event_detail' event.pk %}"
+                                                    >
+                                                        Ver
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="empty-state" role="status">
+                                <h3 class="h6">Sin eventos relacionados</h3>
+                                <p class="text-body-secondary mb-0">
+                                    Este producto todavía no tiene eventos.
+                                </p>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </article>
+        </div>
     </div>
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-4">Símbolos</dt>
-                <dd class="col-sm-8"><code>{{ product.allowed_symbols }}</code></dd>
-                <dt class="col-sm-4">Selección</dt>
-                <dd class="col-sm-8">{{ product.selection_count }} únicos</dd>
-                <dt class="col-sm-4">Estado</dt>
-                <dd class="col-sm-8">{% if product.is_active %}Activo{% else %}Inactivo{% endif %}</dd>
-            </dl>
+
+    {% if not can_delete %}
+        <div class="alert alert-warning mt-4" role="note">
+            El producto conserva eventos y no puede eliminarse físicamente.
         </div>
-    </div>{% with events=product.events.all %}{% if events %}<div class="alert alert-warning mt-4">Tiene eventos y no
-        puede eliminarse.</div>
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Evento</th>
-                    <th>Estado</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>{% for event in events %}<tr>
-                    <td>{{ event.name }}</td>
-                    <td>{{ event.get_status_display }}</td>
-                    <td><a href="{% url 'lottery:event_detail' event.pk %}">Ver</a></td>
-                </tr>{% endfor %}</tbody>
-        </table>
-    </div>{% endif %}{% endwith %}<a class="btn btn-outline-secondary mt-3"
-        href="{% url 'lottery:product_list' %}">Volver</a>
-</section>{% endblock %}
+    {% endif %}
+
+    <div class="mt-4">
+        <a
+            class="btn btn-outline-secondary"
+            href="{% url 'lottery:product_list' %}"
+        >
+            Volver a productos
+        </a>
+    </div>
+</section>
+{% endblock %}

@@ -1,49 +1,53 @@
-# Matriz de trazabilidad — fase actual corregida
+# Matriz de trazabilidad — estado hasta P-27
 
-## Estados usados
+## Estados
 
 - **IMPLEMENTADA:** existe código correlacionado.
-- **VERIFICADA ESTÁTICAMENTE:** además pasó el auditor estático o compilación.
-- **PENDIENTE EJECUCIÓN DJANGO:** existe prueba automatizada, pero falta
-  ejecutarla en un entorno con dependencias instaladas.
-- **PARCIAL:** la política/base existe, pero el módulo funcional no.
-- **PENDIENTE:** no se implementó y no se expone falsamente.
+- **VERIFICADA ESTÁTICAMENTE:** pasó compilación y auditoría estática.
+- **PENDIENTE SUITE FINAL:** requiere ejecutar `scripts/verify.ps1` en el
+  entorno local con Django instalado.
+- **PARCIAL:** existe la base, pero el flujo pertenece a una fase posterior.
+- **PENDIENTE:** todavía no se implementó ni se expone falsamente.
 
-| Regla / requisito | Implementación | Evidencia diseñada | Estado actual |
+| Regla / requisito | Implementación principal | Evidencia automatizada | Estado |
 |---|---|---|---|
-| SQLite fase 1; MySQL fase 2 | `config/settings.py`, requirements separados, decisión T3-001 | configuración + script limpio | PENDIENTE EJECUCIÓN DJANGO |
-| PostgreSQL excluido | allowlist de motores | subprocess con URL PostgreSQL | PENDIENTE EJECUCIÓN DJANGO |
-| Usuario personalizado | `accounts.User`, `AUTH_USER_MODEL`, migraciones | migración limpia + tests | PENDIENTE EJECUCIÓN DJANGO |
-| Username/email/documento normalizados | model, form y service | registro, login y duplicados case-insensitive | PENDIENTE EJECUCIÓN DJANGO |
-| Mayoría de edad | form + service | menor rechazado | PENDIENTE EJECUCIÓN DJANGO |
-| Términos/privacidad vigentes | models, form, service | ausencia y carrera de versión | PENDIENTE EJECUCIÓN DJANGO |
-| Legal histórico inmutable | modelos, service y seeds | save/update/delete, carrera y rerun de seeds | PENDIENTE EJECUCIÓN DJANGO |
-| Password solo por Django | `create_user`/`set_password` | `check_password` | PENDIENTE EJECUCIÓN DJANGO |
-| Seed demo sin credencial fija | variable de entorno + validadores | tres pruebas del comando | PENDIENTE EJECUCIÓN DJANGO |
-| Roles backend | Groups + `assigned_mode_codes` | login y selector | PENDIENTE EJECUCIÓN DJANGO |
-| Selector solo roles asignados | `ModeSelectionForm`, POST | valor no asignado rechazado | PENDIENTE EJECUCIÓN DJANGO |
-| Modo activo aislado | session + decorador | dashboard incorrecto 403 | PENDIENTE EJECUCIÓN DJANGO |
-| Cuenta suspendida no opera | login form, selector y decorador | login/selector bloqueados | PENDIENTE EJECUCIÓN DJANGO |
-| Logout POST | `LogoutView` restringida | GET 405, POST 302 | PENDIENTE EJECUCIÓN DJANGO |
-| Conteos administrativos protegidos | staff + modo ADMINISTRADOR | no staff recibe `None` y sin cards | PENDIENTE EJECUCIÓN DJANGO |
-| SQLite relativa determinista | `BASE_DIR / NAME` | test de configuración | PENDIENTE EJECUCIÓN DJANGO |
-| Histórico legal protegido | `PROTECT`, admin read-only | admin tests | PENDIENTE EJECUCIÓN DJANGO |
-| CLIENTE completo cuando exista backend | política de modo | multirrol y navegación | PARCIAL |
-| VENDEDOR/ADMIN no compran en esos modos | navegación/templates sin compra | pruebas de dashboard | PENDIENTE EJECUCIÓN DJANGO |
-| Bootstrap 5.3 real | CDN oficial con SRI + componentes | revisión template/manual | VERIFICADA ESTÁTICAMENTE |
-| Responsive común | grid/offcanvas/cards/tables/utilities, 44 px | matriz de cinco anchos | VERIFICADA ESTÁTICAMENTE; manual pendiente |
-| CSRF en POST | middleware + templates | auditor y cliente CSRF | VERIFICADA ESTÁTICAMENTE; Django pendiente |
-| Sin JSON/localStorage/fetch | runtime nuevo + auditor | `audit_project.py` | VERIFICADA ESTÁTICAMENTE |
-| Sin `pages/*.html` activos | solo ZIP de respaldo | `audit_project.py` | VERIFICADA ESTÁTICAMENTE |
-| ZIP visual preservado | `respaldo_frontend/` | hash/inventario + test | VERIFICADA ESTÁTICAMENTE; Django pendiente |
-| Python parseable | todos los `.py` | `compileall` | VERIFICADA ESTÁTICAMENTE |
-| JavaScript parseable | `static/js/app.js` | `node --check` | VERIFICADA ESTÁTICAMENTE |
-| Wallets/movimientos | no implementados | futuros tests de servicios | PENDIENTE |
-| Vendedores/solicitudes | no implementados | futuros tests de flujo/concurrencia MySQL | PENDIENTE |
-| Eventos/boletos/resultados | no implementados | futuros tests de lotería | PENDIENTE |
+| SQLite fase 1; MySQL fase 2 | `config/settings.py`, requirements separados | configuración, migración limpia | IMPLEMENTADA; suite final pendiente |
+| PostgreSQL excluido | allowlist de motores + auditor | configuración y subprocess | VERIFICADA ESTÁTICAMENTE |
+| Usuario personalizado temprano | `accounts.User`, `AUTH_USER_MODEL` | migraciones y tests de integridad | IMPLEMENTADA; suite final pendiente |
+| Registro adulto, términos y privacidad | forms/services/models Accounts | tests de registro, aceptación y carreras | IMPLEMENTADA; suite final pendiente |
+| Roles y modo activo backend | Groups, sesión, decoradores/mixins | tests de login, selector y 403 | IMPLEMENTADA; suite final pendiente |
+| CRUD Accounts | views/urls/forms/templates/services | búsqueda, paginación, C/R/U/D, CSRF, historia | IMPLEMENTADA; suite final pendiente |
+| CRUD VendorProfile | Vendors completo | filtros, paginación, C/R/U/D, 404, CSRF | IMPLEMENTADA; suite final pendiente |
+| ConversionRequest read-only | lista administrativa protegida | GET permitido, POST 405, sin editar/eliminar | IMPLEMENTADA; suite final pendiente |
+| Producto OCTAL | `01234567`, 4 únicos | model/form tests | IMPLEMENTADA; suite final pendiente |
+| Producto DECIMAL | `0123456789`, 5 únicos | model/form tests | IMPLEMENTADA; suite final pendiente |
+| Producto HEXADECIMAL | `0123456789ABCDEF`, 6 únicos | rechazo de longitud 4 y repetidos | IMPLEMENTADA; suite final pendiente |
+| Configuración de producto con eventos protegida | model, form y manager | save y bulk update rechazados | IMPLEMENTADA; suite final pendiente |
+| CRUD LotteryProduct | lista/filtro/detalle/crear/editar/eliminar | permisos, filtro, CSRF, 404 y protección | IMPLEMENTADA; suite final pendiente |
+| Cierre evento = `draw_at - 10 min` | model y form backend | model/form/CRUD tests | IMPLEMENTADA; suite final pendiente |
+| Evento publicado no cambia configuración | model, form y tests | POST manipulado, save y bulk update | IMPLEMENTADA; suite final pendiente |
+| Evento solo se elimina en Borrador sin historia | service transaccional | draft, publicado, ticket y resultado | IMPLEMENTADA; suite final pendiente |
+| CRUD DrawEvent | lista/filtros/paginación/detalle/forms/delete | permisos, filtros, paginación, CSRF, 404 | IMPLEMENTADA; suite final pendiente |
+| Ticket único por evento/combinación | constraint + normalización | IntegrityError y validaciones 4/5/6 | IMPLEMENTADA; suite final pendiente |
+| Ticket histórico no eliminable | manager/model + PROTECT | delete individual y masivo | IMPLEMENTADA; suite final pendiente |
+| DrawResult OneToOne e inmutable | model/manager/admin read-only | segundo resultado, save/update/delete | IMPLEMENTADA; suite final pendiente |
+| Bootstrap 5.3 real | base, navbar/offcanvas, cards, forms, tables | auditoría de templates | VERIFICADA ESTÁTICAMENTE |
+| Responsive 360/390/768/1024/1440 | grid, offcanvas, tablas y CSS complementario | matriz manual | IMPLEMENTADA; comprobación visual pendiente |
+| CSRF en acciones sensibles | middleware + forms POST | auditor y clientes CSRF | VERIFICADA ESTÁTICAMENTE; suite final pendiente |
+| Sin JSON/localStorage/fetch de negocio | runtime nuevo + auditor | búsqueda estática | VERIFICADA ESTÁTICAMENTE |
+| ZIP legado fuera del runtime | `respaldo_frontend/` | inventario/hash | VERIFICADA ESTÁTICAMENTE |
+| Finance read-only | app base todavía sin modelos funcionales cerrados | P-28 | PENDIENTE |
+| Navegación completa por rol | contexto base mínimo | P-29 | PARCIAL |
+| Compra de boletos | no expuesta | fase posterior | PENDIENTE |
+| Migración MySQL | requirements y configuración listos | repetir suite con MySQL | PENDIENTE SEGUNDA FASE |
 
-## Regla de actualización
+## Puerta P-27
 
-Una fila solo pasa a **VERIFICADA** cuando su comando o prueba se ejecuta y la
-evidencia se guarda. La presencia de un template nunca basta para verificar
-una regla de negocio.
+P-27 solo queda **cerrado dinámicamente** cuando:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+termina sin errores y se guardan capturas de productos, eventos, filtros,
+formularios, detalle, bloqueo de edición y bloqueo de eliminación.

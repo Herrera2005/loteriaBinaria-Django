@@ -1,29 +1,125 @@
-{% extends "base.html" %}{% load static %}{% block title %}{{ event.name }}{% endblock %}{% block content %}<section>
-    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
-        <div><span class="badge text-bg-secondary">{{ event.get_status_display }}</span>
-            <h1 class="h2 mt-2">{{ event.name }}</h1>
-            <p>{{ event.product.name }}</p>
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ event.name }} | Evento{% endblock %}
+
+{% block content %}
+<section aria-labelledby="event-detail-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-secondary mb-2">
+                {{ event.get_status_display }}
+            </span>
+            <h1 id="event-detail-title" class="h2 mb-1">
+                {{ event.name }}
+            </h1>
+            <p class="text-body-secondary mb-0">
+                {{ event.product.name }}
+            </p>
         </div>
-        <div><a class="btn btn-primary" href="{% url 'lottery:event_update' event.pk %}">Editar</a> <a
-                class="btn btn-outline-danger" href="{% url 'lottery:event_delete' event.pk %}">Eliminar</a></div>
+
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-primary"
+                href="{% url 'lottery:event_update' event.pk %}"
+            >
+                Editar
+            </a>
+            {% if can_delete %}
+                <a
+                    class="btn btn-outline-danger"
+                    href="{% url 'lottery:event_delete' event.pk %}"
+                >
+                    Eliminar
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <article class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Programación y montos</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Apertura</dt>
+                        <dd class="col-sm-7">
+                            {{ event.sales_open_at|date:"d/m/Y H:i" }}
+                        </dd>
+
+                        <dt class="col-sm-5">Cierre</dt>
+                        <dd class="col-sm-7">
+                            {{ event.sales_close_at|date:"d/m/Y H:i" }}
+                        </dd>
+
+                        <dt class="col-sm-5">Sorteo</dt>
+                        <dd class="col-sm-7">
+                            {{ event.draw_at|date:"d/m/Y H:i" }}
+                        </dd>
+
+                        <dt class="col-sm-5">Precio minor</dt>
+                        <dd class="col-sm-7">{{ event.price_minor }}</dd>
+
+                        <dt class="col-sm-5">Premio fijo minor</dt>
+                        <dd class="col-sm-7">{{ event.prize_minor }}</dd>
+                    </dl>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <article class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Historia relacionada</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-7">Boletos</dt>
+                        <dd class="col-5 text-end">{{ event.tickets_count }}</dd>
+
+                        <dt class="col-7">Resultado</dt>
+                        <dd class="col-5 text-end">
+                            {% if has_result %}
+                                <span class="badge text-bg-success">Publicado</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">Sin resultado</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </article>
+        </div>
     </div>
-    <div class="card">
-        <div class="card-body">
-            <dl class="row">
-                <dt class="col-sm-4">Apertura</dt>
-                <dd class="col-sm-8">{{ event.sales_open_at|date:'d/m/Y H:i' }}</dd>
-                <dt class="col-sm-4">Cierre</dt>
-                <dd class="col-sm-8">{{ event.sales_close_at|date:'d/m/Y H:i' }}</dd>
-                <dt class="col-sm-4">Sorteo</dt>
-                <dd class="col-sm-8">{{ event.draw_at|date:'d/m/Y H:i' }}</dd>
-                <dt class="col-sm-4">Precio minor</dt>
-                <dd class="col-sm-8">{{ event.price_minor }}</dd>
-                <dt class="col-sm-4">Premio minor</dt>
-                <dd class="col-sm-8">{{ event.prize_minor }}</dd>
-            </dl>
+
+    {% if event.status != "DRAFT" %}
+        <div class="alert alert-info mt-4" role="note">
+            El evento ya no está en Borrador. Producto, precio, premio y fechas
+            están protegidos contra cambios desde el CRUD normal.
         </div>
-    </div>{% if event.status != 'DRAFT' %}<div class="alert alert-info mt-3">Producto, precio, premio y fechas están
-        protegidos.</div>{% endif %}{% if not can_delete %}<div class="alert alert-warning mt-3">No cumple condiciones
-        de eliminación.</div>{% endif %}<a class="btn btn-outline-secondary mt-3"
-        href="{% url 'lottery:event_list' %}">Volver</a>
-</section>{% endblock %}
+    {% endif %}
+
+    {% if not can_delete %}
+        <div class="alert alert-warning mt-3" role="note">
+            Este evento no cumple las condiciones de eliminación física.
+        </div>
+    {% endif %}
+
+    {% if event.cancellation_reason %}
+        <div class="alert alert-danger mt-3" role="note">
+            <strong>Motivo de cancelación:</strong>
+            {{ event.cancellation_reason }}
+        </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a
+            class="btn btn-outline-secondary"
+            href="{% url 'lottery:event_list' %}"
+        >
+            Volver a eventos
+        </a>
+    </div>
+</section>
+{% endblock %}

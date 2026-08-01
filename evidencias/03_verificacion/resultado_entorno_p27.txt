@@ -1,0 +1,13 @@
+VERIFICACIÓN EJECUTADA EN EL CONTENEDOR
+- auditoría estática P-27: OK
+- compilación Python: OK
+- estructura de 29 templates: OK
+- 58 URL tags contrastados con namespaces: OK
+- sintaxis JavaScript: OK
+- sintaxis shell: OK
+- inventario AST: 167 funciones de prueba
+
+VERIFICACIÓN DINÁMICA NO EJECUTADA AQUÍ
+El contenedor no contiene Django y su índice aislado no ofreció Django==5.2.16.
+Por tanto, manage.py check, migraciones, runserver y la suite completa deben
+cerrarse en el .venv del proyecto mediante scripts/verify.ps1.

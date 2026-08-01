@@ -1,5 +1,8 @@
 # Informe de auditoría integral, corrección y puerta de salida
 
+> **DOCUMENTO HISTÓRICO:** describe una fase anterior a Vendors/Lottery. Para el estado vigente P-27 consulta `AUDITORIA_P27_2026-08-01.md`, `MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md` y `GUIA_CONTINUACION_DESDE_P27.md`.
+
+
 ## 1. Identificación
 
 - Proyecto: **Lotería Binaria — Taller #3 con Django**.

@@ -1,163 +1,128 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Solicitudes de conversión | Lotería Binaria{% endblock %}
+{% block title %}{{ vendor_profile.user.username }} | Perfil vendedor{% endblock %}
 
 {% block content %}
-<section aria-labelledby="conversion-request-list-title">
+<section aria-labelledby="vendor-profile-detail-title">
     <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
         <div>
-            <span class="badge text-bg-warning mb-2">Solo lectura</span>
-            <h1 id="conversion-request-list-title" class="h2 mb-1">
-                Solicitudes de conversión
+            <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+            <h1 id="vendor-profile-detail-title" class="h2 mb-1">
+                {{ vendor_profile.user.username }}
             </h1>
             <p class="text-body-secondary mb-0">
-                Evidencia del flujo sin formularios para editar estados.
+                Detalle del perfil vendedor y su historia de asignaciones.
             </p>
         </div>
 
+        <div class="d-grid d-sm-flex gap-2">
+            <a
+                class="btn btn-primary"
+                href="{% url 'vendors:vendorprofile_update' vendor_profile.pk %}"
+            >
+                Editar
+            </a>
+            <a
+                class="btn btn-outline-danger"
+                href="{% url 'vendors:vendorprofile_delete' vendor_profile.pk %}"
+            >
+                Eliminar o desactivar
+            </a>
+        </div>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <article class="card h-100 shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Datos del perfil</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Usuario</dt>
+                        <dd class="col-sm-8">{{ vendor_profile.user.username }}</dd>
+
+                        <dt class="col-sm-4">Nombre</dt>
+                        <dd class="col-sm-8">
+                            {{ vendor_profile.user.get_full_name|default:"—" }}
+                        </dd>
+
+                        <dt class="col-sm-4">Correo</dt>
+                        <dd class="col-sm-8">{{ vendor_profile.user.email }}</dd>
+
+                        <dt class="col-sm-4">Documento</dt>
+                        <dd class="col-sm-8">{{ vendor_profile.user.document }}</dd>
+
+                        <dt class="col-sm-4">Estado</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge {% if vendor_profile.status == 'ACTIVE' %}text-bg-success{% elif vendor_profile.status == 'PENDING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                                {{ vendor_profile.get_status_display }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-4">Activado</dt>
+                        <dd class="col-sm-8">
+                            {{ vendor_profile.activated_at|date:"d/m/Y H:i"|default:"—" }}
+                        </dd>
+
+                        <dt class="col-sm-4">Creado</dt>
+                        <dd class="col-sm-8">
+                            {{ vendor_profile.created_at|date:"d/m/Y H:i" }}
+                        </dd>
+                    </dl>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <article class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Asignaciones</h2>
+                </div>
+                <div class="card-body">
+                    {% with assignments=vendor_profile.assignments.all %}
+                        {% if assignments %}
+                            <ul class="list-group list-group-flush">
+                                {% for assignment in assignments %}
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-semibold">
+                                            {{ assignment.request.operation_id }}
+                                        </span>
+                                        <span class="badge text-bg-secondary">
+                                            {{ assignment.get_status_display }}
+                                        </span>
+                                        <span class="d-block small text-body-secondary">
+                                            {{ assignment.assigned_at|date:"d/m/Y H:i" }}
+                                        </span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-body-secondary mb-0">
+                                Este perfil todavía no tiene asignaciones.
+                            </p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </article>
+        </div>
+    </div>
+
+    {% if has_history %}
+        <div class="alert alert-warning mt-4" role="note">
+            Este perfil conserva historia. Una operación de eliminación lo
+            desactivará sin borrar asignaciones ni solicitudes.
+        </div>
+    {% endif %}
+
+    <div class="mt-4">
         <a
             class="btn btn-outline-secondary"
             href="{% url 'vendors:vendorprofile_list' %}"
         >
             Volver a perfiles
         </a>
-    </header>
-
-    <form method="get" class="card card-body shadow-sm mb-4">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-sm-8 col-lg-4">
-                <label class="form-label" for="request-status-filter">
-                    Estado
-                </label>
-                <select
-                    class="form-select"
-                    id="request-status-filter"
-                    name="status"
-                >
-                    <option value="">Todos</option>
-                    {% for value, label in status_choices %}
-                        <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-12 col-sm-auto d-grid">
-                <button class="btn btn-primary" type="submit">Filtrar</button>
-            </div>
-
-            {% if selected_status %}
-                <div class="col-12 col-sm-auto d-grid">
-                    <a
-                        class="btn btn-outline-secondary"
-                        href="{% url 'vendors:conversionrequest_list' %}"
-                    >
-                        Limpiar
-                    </a>
-                </div>
-            {% endif %}
-        </div>
-    </form>
-
-    <div class="alert alert-info" role="note">
-        Los cambios de estado se realizarán posteriormente mediante servicios
-        transaccionales; esta pantalla no presenta botones de edición.
     </div>
-
-    {% if conversion_requests %}
-        <div class="table-responsive shadow-sm rounded">
-            <table class="table table-striped align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th scope="col">Operación</th>
-                        <th scope="col">Cliente</th>
-                        <th scope="col">Monto minor</th>
-                        <th scope="col">Estado</th>
-                        <th scope="col">Vence</th>
-                        <th scope="col">Asignación</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for conversion_request in conversion_requests %}
-                        <tr>
-                            <td>
-                                <code>{{ conversion_request.operation_id }}</code>
-                            </td>
-                            <td>
-                                {{ conversion_request.client.username }}
-                                <span class="d-block small text-body-secondary">
-                                    {{ conversion_request.client.document }}
-                                </span>
-                            </td>
-                            <td>{{ conversion_request.amount_minor }}</td>
-                            <td>
-                                <span class="badge text-bg-secondary">
-                                    {{ conversion_request.get_status_display }}
-                                </span>
-                            </td>
-                            <td>{{ conversion_request.expires_at|date:"d/m/Y H:i" }}</td>
-                            <td>
-                                {% with assignments=conversion_request.assignments.all %}
-                                    {% if assignments %}
-                                        {% for assignment in assignments %}
-                                            <span class="d-block">
-                                                {{ assignment.vendor.user.username }}
-                                                — {{ assignment.get_status_display }}
-                                            </span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="text-body-secondary">Sin asignar</span>
-                                    {% endif %}
-                                {% endwith %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        {% if is_paginated %}
-            <nav class="mt-4" aria-label="Paginación de solicitudes">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a
-                                class="page-link"
-                                href="?status={{ selected_status|urlencode }}&page={{ page_obj.previous_page_number }}"
-                            >
-                                Anterior
-                            </a>
-                        </li>
-                    {% endif %}
-
-                    <li class="page-item active" aria-current="page">
-                        <span class="page-link">
-                            {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-                        </span>
-                    </li>
-
-                    {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a
-                                class="page-link"
-                                href="?status={{ selected_status|urlencode }}&page={{ page_obj.next_page_number }}"
-                            >
-                                Siguiente
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
-        {% endif %}
-    {% else %}
-        <div class="empty-state" role="status">
-            <h2 class="h5">No existen solicitudes para este filtro</h2>
-            <p class="text-body-secondary mb-0">
-                Cuando el flujo cree solicitudes aparecerán aquí en modo lectura.
-            </p>
-        </div>
-    {% endif %}
 </section>
 {% endblock %}

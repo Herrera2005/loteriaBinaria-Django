@@ -7,7 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import (
     CreateView,
@@ -195,10 +195,9 @@ class VendorProfileDeleteDeactivateView(
     template_name = "vendors/vendorprofile_confirm_delete.html"
 
     def get_object(self) -> VendorProfile:
-        return (
-            VendorProfile.objects
-            .select_related("user")
-            .get(pk=self.kwargs["pk"])
+        return get_object_or_404(
+            VendorProfile.objects.select_related("user"),
+            pk=self.kwargs["pk"],
         )
 
     def get(self, request, *args, **kwargs):
@@ -213,8 +212,9 @@ class VendorProfileDeleteDeactivateView(
         )
 
     def post(self, request, *args, **kwargs):
+        vendor_profile = self.get_object()
         result = remove_or_deactivate_vendor_profile(
-            profile_id=self.kwargs["pk"],
+            profile_id=vendor_profile.pk,
         )
 
         if result.physically_deleted:

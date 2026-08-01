@@ -96,6 +96,20 @@ class AccessTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_administrator_without_active_mode_gets_403(self):
+        admin = create_user(
+            username="admin_lottery_no_mode",
+            email="admin-lottery-no-mode@example.test",
+            document="ADM-LOT-NO-MODE",
+            roles=(ADMINISTRATOR,),
+            is_staff=True,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.get(reverse("lottery:product_list"))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_admin_can_open_all_get_views(self):
         admin = create_user(
             username="admin_lottery_access",
@@ -241,6 +255,31 @@ class ProductCrudTests(AdminModeTestCase):
             ).exists()
         )
 
+    def test_product_delete_requires_csrf(self):
+        product = create_product()
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin_user)
+        session = client.session
+        session[ACTIVE_MODE_SESSION_KEY] = ADMINISTRATOR
+        session.save()
+
+        response = client.post(
+            reverse("lottery:product_delete", args=(product.pk,))
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(
+            LotteryProduct.objects.filter(pk=product.pk).exists()
+        )
+
+    def test_missing_product_delete_returns_404(self):
+        response = self.client.get(
+            reverse("lottery:product_delete", args=(999999,))
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+
 
 class EventCrudTests(AdminModeTestCase):
     def valid_data(self, product):
@@ -343,6 +382,40 @@ class EventCrudTests(AdminModeTestCase):
             ),
             original,
         )
+        self.assertEqual(event.status, DrawEvent.Status.PUBLISHED)
+
+    def test_event_list_filters_by_status_and_product(self):
+        octal = create_product()
+        decimal = create_product(LotteryProduct.Code.DECIMAL)
+        matching = create_event(
+            product=octal,
+            name="Evento objetivo",
+            status=DrawEvent.Status.DRAFT,
+        )
+        create_event(
+            product=decimal,
+            name="Evento descartado",
+            status=DrawEvent.Status.PUBLISHED,
+        )
+
+        response = self.client.get(
+            reverse("lottery:event_list"),
+            {
+                "status": DrawEvent.Status.DRAFT,
+                "product": str(octal.pk),
+                "q": "objetivo",
+            },
+        )
+
+        events = list(response.context["events"])
+        self.assertEqual(events, [matching])
+
+    def test_missing_event_delete_returns_404(self):
+        response = self.client.get(
+            reverse("lottery:event_delete", args=(999999,))
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_draft_without_history_can_be_deleted(self):
         event = create_event()

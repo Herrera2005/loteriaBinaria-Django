@@ -1,16 +1,58 @@
-{% extends "base.html" %}{% load static %}{% block title %}Eliminar evento{% endblock %}{% block content %}<div
-    class="row justify-content-center">
-    <div class="col-12 col-lg-7">
-        <section class="card border-danger">
-            <div class="card-body p-4">
-                <h1 class="h2">Eliminar evento</h1>
-                <p><strong>{{ event.name }}</strong></p>{% if can_delete %}<div class="alert alert-danger">Está en
-                    Borrador y no tiene boletos ni resultado.</div>{% else %}<div class="alert alert-warning">Solo se
-                    elimina un Borrador sin boletos ni resultado.</div>{% endif %}<form method="post">{% csrf_token %}<a
-                        class="btn btn-outline-secondary"
-                        href="{% url 'lottery:event_detail' event.pk %}">Cancelar</a><button
-                        class="btn btn-danger">Confirmar</button></form>
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar evento | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8 col-xl-6">
+        <section
+            class="card border-danger shadow-sm"
+            aria-labelledby="event-delete-title"
+        >
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-danger mb-3">Acción sensible</span>
+                <h1 id="event-delete-title" class="h2">
+                    Eliminar evento
+                </h1>
+                <p>Evento: <strong>{{ event.name }}</strong>.</p>
+
+                {% if can_delete %}
+                    <div class="alert alert-danger" role="alert">
+                        Está en Borrador y no tiene boletos ni resultado.
+                        Será eliminado físicamente.
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        La eliminación está bloqueada. Solo se elimina un evento
+                        en Borrador sin boletos ni resultado.
+                    </div>
+                {% endif %}
+
+                <form
+                    method="post"
+                    data-confirm-title="Eliminar evento"
+                    data-confirm-message="Confirma que deseas eliminar este evento en borrador."
+                >
+                    {% csrf_token %}
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2">
+                        <a
+                            class="btn btn-outline-secondary"
+                            href="{% url 'lottery:event_detail' event.pk %}"
+                        >
+                            Cancelar
+                        </a>
+                        <button
+                            class="btn btn-danger"
+                            type="submit"
+                            {% if not can_delete %}disabled{% endif %}
+                        >
+                            Confirmar eliminación
+                        </button>
+                    </div>
+                </form>
             </div>
         </section>
     </div>
-</div>{% endblock %}
+</div>
+{% endblock %}

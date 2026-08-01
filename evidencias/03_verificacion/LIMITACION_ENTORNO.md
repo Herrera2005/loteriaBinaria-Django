@@ -19,7 +19,7 @@ ejecutado:
 - `python manage.py check`;
 - `python manage.py makemigrations --check --dry-run`;
 - `python manage.py migrate`;
-- las 48 pruebas Django;
+- las 167 pruebas Django diseñadas;
 - `findstatic`;
 - `collectstatic`.
 

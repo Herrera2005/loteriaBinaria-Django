@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models.deletion import ProtectedError
 from django.db.models import Q
 from django.http import HttpResponseRedirect
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
@@ -327,7 +327,7 @@ class UserDeleteDeactivateView(
     template_name = "accounts/user_confirm_delete.html"
 
     def get_object(self) -> User:
-        return User.objects.get(pk=self.kwargs["pk"])
+        return get_object_or_404(User, pk=self.kwargs["pk"])
 
     def get(self, request, *args, **kwargs):
         managed_user = self.get_object()
@@ -342,10 +342,9 @@ class UserDeleteDeactivateView(
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        managed_user = (
-            User.objects
-            .select_for_update()
-            .get(pk=self.kwargs["pk"])
+        managed_user = get_object_or_404(
+            User.objects.select_for_update(),
+            pk=self.kwargs["pk"],
         )
 
         if managed_user.pk == request.user.pk:

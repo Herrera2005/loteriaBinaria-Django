@@ -39,6 +39,24 @@ class ImmutableResultQuerySet(HistoricalLotteryQuerySet):
         )
 
 
+class LotteryProductQuerySet(models.QuerySet):
+    """Evita alterar en masa la configuración oficial del producto."""
+
+    PROTECTED_FIELDS = {
+        "code",
+        "allowed_symbols",
+        "selection_count",
+    }
+
+    def update(self, **kwargs):
+        if self.PROTECTED_FIELDS.intersection(kwargs):
+            raise ValidationError(
+                "La configuración oficial del producto no se actualiza "
+                "mediante QuerySet.update()."
+            )
+        return super().update(**kwargs)
+
+
 class LotteryProduct(models.Model):
     """Configuración oficial de Octal, Decimal o Hexadecimal."""
 
@@ -46,6 +64,12 @@ class LotteryProduct(models.Model):
         OCTAL = "OCTAL", "Octal"
         DECIMAL = "DECIMAL", "Decimal"
         HEXADECIMAL = "HEXADECIMAL", "Hexadecimal"
+
+    IMMUTABLE_WITH_EVENTS_FIELDS = (
+        "code",
+        "allowed_symbols",
+        "selection_count",
+    )
 
     PRODUCT_RULES = {
         Code.OCTAL: {
@@ -61,6 +85,7 @@ class LotteryProduct(models.Model):
             "selection_count": 6,
         },
     }
+
 
     id = models.BigAutoField(primary_key=True)
     code = models.CharField(
@@ -80,6 +105,8 @@ class LotteryProduct(models.Model):
     is_active = models.BooleanField("activo", default=True, db_index=True)
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("actualizado", auto_now=True)
+
+    objects = LotteryProductQuerySet.as_manager()
 
     class Meta:
         ordering = ("id",)
@@ -112,8 +139,33 @@ class LotteryProduct(models.Model):
         verbose_name = "producto de lotería"
         verbose_name_plural = "productos de lotería"
 
+    def _validate_persisted_immutability(self) -> None:
+        if not self.pk or not self.events.exists():
+            return
+
+        original = (
+            type(self).objects
+            .filter(pk=self.pk)
+            .only(*self.IMMUTABLE_WITH_EVENTS_FIELDS)
+            .first()
+        )
+        if original is None:
+            return
+
+        changed_fields = [
+            field_name
+            for field_name in self.IMMUTABLE_WITH_EVENTS_FIELDS
+            if getattr(self, field_name) != getattr(original, field_name)
+        ]
+        if changed_fields:
+            raise ValidationError(
+                "Un producto con eventos no permite cambiar su código, "
+                "símbolos ni cardinalidad."
+            )
+
     def clean(self) -> None:
         super().clean()
+        self._validate_persisted_immutability()
 
         rule = self.PRODUCT_RULES.get(self.code)
         if rule is None:
@@ -151,8 +203,36 @@ class LotteryProduct(models.Model):
                 {"code": "El tipo de producto no es válido."}
             ) from exc
 
+    def save(self, *args, **kwargs) -> None:
+        self._validate_persisted_immutability()
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return self.name
+
+
+class DrawEventQuerySet(models.QuerySet):
+    """Bloquea actualizaciones masivas de la configuración crítica."""
+
+    PROTECTED_FIELDS = {
+        "product",
+        "product_id",
+        "sales_open_at",
+        "sales_close_at",
+        "draw_at",
+        "price_minor",
+        "prize_minor",
+        "status",
+        "cancellation_reason",
+    }
+
+    def update(self, **kwargs):
+        if self.PROTECTED_FIELDS.intersection(kwargs):
+            raise ValidationError(
+                "La configuración crítica del evento no se actualiza "
+                "mediante QuerySet.update()."
+            )
+        return super().update(**kwargs)
 
 
 class DrawEvent(models.Model):
@@ -167,6 +247,14 @@ class DrawEvent(models.Model):
         RESULT_SET = "RESULT_SET", "Resultado fijado"
         FINISHED = "FINISHED", "Finalizado"
         CANCELLED = "CANCELLED", "Cancelado"
+
+    IMMUTABLE_AFTER_DRAFT_FIELDS = (
+        "product_id",
+        "sales_open_at",
+        "draw_at",
+        "price_minor",
+        "prize_minor",
+    )
 
     id = models.BigAutoField(primary_key=True)
     product = models.ForeignKey(
@@ -203,6 +291,8 @@ class DrawEvent(models.Model):
     )
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("actualizado", auto_now=True)
+
+    objects = DrawEventQuerySet.as_manager()
 
     class Meta:
         ordering = ("draw_at", "id")
@@ -243,8 +333,53 @@ class DrawEvent(models.Model):
             return None
         return draw_at - DRAW_CLOSE_OFFSET
 
+    def _persisted_original(self):
+        if not self.pk:
+            return None
+        return (
+            type(self).objects
+            .filter(pk=self.pk)
+            .only(
+                "status",
+                "product",
+                "sales_open_at",
+                "draw_at",
+                "price_minor",
+                "prize_minor",
+            )
+            .first()
+        )
+
+    def _validate_persisted_immutability(self) -> None:
+        original = self._persisted_original()
+        if original is None or original.status == self.Status.DRAFT:
+            return
+
+        changed_fields = [
+            field_name
+            for field_name in self.IMMUTABLE_AFTER_DRAFT_FIELDS
+            if getattr(self, field_name) != getattr(original, field_name)
+        ]
+        if changed_fields:
+            labels = ", ".join(changed_fields)
+            raise ValidationError(
+                "Un evento publicado o posterior no permite cambiar: "
+                f"{labels}."
+            )
+
+        if self.status != original.status:
+            raise ValidationError(
+                {
+                    "status": (
+                        "El estado de un evento que dejó Borrador solo "
+                        "puede cambiar mediante una acción específica."
+                    )
+                }
+            )
+
     def clean(self) -> None:
         super().clean()
+        self._validate_persisted_immutability()
 
         if self.draw_at is not None:
             expected_close = self.calculate_sales_close_at(self.draw_at)
@@ -296,6 +431,8 @@ class DrawEvent(models.Model):
             )
 
     def save(self, *args, **kwargs) -> None:
+        self._validate_persisted_immutability()
+
         if self.draw_at is not None:
             self.sales_close_at = self.calculate_sales_close_at(self.draw_at)
 
