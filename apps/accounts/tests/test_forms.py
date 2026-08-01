@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.accounts.forms import (
+    ProfileUpdateForm,
     TermsVersionForm,
     UserAdminChangeForm,
     UserAdminCreationForm,
@@ -340,3 +341,82 @@ class TermsVersionFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("content", form.errors)
+
+
+
+class ProfileUpdateFormTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="perfil_actual",
+            email="perfil@example.test",
+            document="PERFIL-001",
+            phone="0991111111",
+            birth_date=adult_birth_date(),
+            first_name="Perfil",
+            last_name="Actual",
+            password=VALID_PASSWORD,
+        )
+
+    def payload(self, **overrides):
+        data = {
+            "username": self.user.username,
+            "email": self.user.email,
+            "document": self.user.document,
+            "phone": self.user.phone,
+            "birth_date": self.user.birth_date,
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+        }
+        data.update(overrides)
+        return data
+
+    def test_profile_form_updates_and_normalizes_personal_data(self):
+        form = ProfileUpdateForm(
+            instance=self.user,
+            data=self.payload(
+                username=" PERFIL_NUEVO ",
+                email=" NUEVO@EXAMPLE.TEST ",
+                document=" perfil-002 ",
+                phone=" 0992222222 ",
+                first_name="Nombre",
+                last_name="Actualizado",
+            ),
+        )
+
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        user = form.save()
+
+        self.assertEqual(user.username, "perfil_nuevo")
+        self.assertEqual(user.email, "nuevo@example.test")
+        self.assertEqual(user.document, "PERFIL-002")
+        self.assertEqual(user.phone, "0992222222")
+        self.assertEqual(user.first_name, "Nombre")
+        self.assertEqual(user.last_name, "Actualizado")
+
+    def test_profile_form_rejects_identity_owned_by_another_user(self):
+        User.objects.create_user(
+            username="otra_cuenta",
+            email="otra@example.test",
+            document="OTRA-001",
+            birth_date=adult_birth_date(),
+            password=VALID_PASSWORD,
+        )
+
+        form = ProfileUpdateForm(
+            instance=self.user,
+            data=self.payload(email="OTRA@EXAMPLE.TEST"),
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    def test_profile_form_does_not_expose_privilege_fields(self):
+        form = ProfileUpdateForm(instance=self.user)
+
+        self.assertNotIn("status", form.fields)
+        self.assertNotIn("is_active", form.fields)
+        self.assertNotIn("is_staff", form.fields)
+        self.assertNotIn("is_superuser", form.fields)
+        self.assertNotIn("groups", form.fields)
+        self.assertNotIn("user_permissions", form.fields)
+        self.assertNotIn("password", form.fields)

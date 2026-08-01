@@ -489,6 +489,33 @@ a.card:focus-visible {
     max-height: 100dvh;
 }
 
+.app-mode-link {
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        filter 160ms ease;
+}
+
+.app-mode-link:hover {
+    color: var(--bs-dark);
+    text-decoration: none;
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.2);
+}
+
+.app-mode-link:focus-visible {
+    color: var(--bs-dark);
+    outline: 3px solid rgba(255, 255, 255, 0.92);
+    outline-offset: 3px;
+}
+
+.app-mode-link:active {
+    transform: translateY(0);
+}
+
 @media (max-width: 1199.98px) {
     .app-sidebar {
         --bs-offcanvas-width: min(22rem, 92vw);

@@ -22,6 +22,7 @@
     {% url "accounts:login" as login_url %}
     {% url "accounts:logout" as logout_url %}
     {% url "accounts:choose_mode" as choose_mode_url %}
+    {% url "accounts:profile" as profile_url %}
     {% url "admin:index" as admin_url %}
 
     <a class="visually-hidden-focusable skip-link" href="#main-content">
@@ -43,17 +44,27 @@
 
                 <div class="d-flex align-items-center gap-2 ms-auto">
                     {% if request.user.is_authenticated and active_mode %}
+                    {% if can_switch_mode and choose_mode_url %}
+                    <a class="badge app-mode-badge app-mode-link d-none d-sm-inline-flex" href="{{ choose_mode_url }}"
+                        title="Cambiar modo de trabajo" aria-label="Modo {{ active_mode }}. Cambiar modo de trabajo">
+                        Modo {{ active_mode }}
+                    </a>
+                    {% else %}
                     <span class="badge app-mode-badge d-none d-sm-inline-flex">
                         Modo {{ active_mode }}
                     </span>
                     {% endif %}
+                    {% endif %}
 
                     {% if request.user.is_authenticated %}
-                    <div class="user-summary d-none d-lg-block text-end">
+                    {% if profile_url %}
+                    <a class="user-summary d-none d-lg-block text-end text-decoration-none" href="{{ profile_url }}"
+                        aria-label="Abrir mi perfil">
                         <span class="d-block fw-semibold">
                             {{ request.user.get_full_name|default:request.user.username }}
                         </span>
-                    </div>
+                    </a>
+                    {% endif %}
 
                     {# Sin modo activo todavía no existe sidebar; el cierre queda en la cabecera. #}
                     {% if not active_mode_code and logout_url %}
@@ -98,7 +109,16 @@
             aria-labelledby="mainNavigationLabel">
             <div class="offcanvas-header app-sidebar-header d-xl-none">
                 <div>
-                    <span class="badge app-mode-badge mb-2">Modo {{ active_mode }}</span>
+                    {% if can_switch_mode and choose_mode_url %}
+                    <a class="badge app-mode-badge app-mode-link mb-2" href="{{ choose_mode_url }}"
+                        title="Cambiar modo de trabajo" aria-label="Modo {{ active_mode }}. Cambiar modo de trabajo">
+                        Modo {{ active_mode }}
+                    </a>
+                    {% else %}
+                    <span class="badge app-mode-badge mb-2">
+                        Modo {{ active_mode }}
+                    </span>
+                    {% endif %}
                     <h2 class="offcanvas-title h5 mb-0" id="mainNavigationLabel">
                         Navegación
                     </h2>
@@ -111,9 +131,17 @@
                 <div class="app-sidebar-layout">
                     <div class="app-sidebar-scroll">
                         <div class="app-sidebar-heading d-none d-xl-block">
+                            {% if can_switch_mode and choose_mode_url %}
+                            <a class="badge app-mode-badge app-mode-link mb-2" href="{{ choose_mode_url }}"
+                                title="Cambiar modo de trabajo"
+                                aria-label="Modo {{ active_mode }}. Cambiar modo de trabajo">
+                                Modo {{ active_mode }}
+                            </a>
+                            {% else %}
                             <span class="badge app-mode-badge mb-2">
                                 Modo {{ active_mode }}
                             </span>
+                            {% endif %}
 
                             <p class="mb-0 small text-white-50">
                                 Acciones disponibles
@@ -129,10 +157,10 @@
                                 {% for item in nav_items %}
                                 {% if item.url and item.label %}
                                 <li class="nav-item">
-                                    <a
-                                        class="nav-link{% if item.active %} active{% endif %}"
-                                        href="{{ item.url }}"
-                                        {% if item.active %}aria-current="page"{% endif %}
+                                    <a 
+                                        class="nav-link{% if item.active %} active{% endif %}" 
+                                        href="{{ item.url }}" 
+                                        {%if item.active %}aria-current="page" {% endif %} 
                                         data-close-navigation
                                     >
                                         <span class="app-nav-dot" aria-hidden="true"></span>
@@ -175,7 +203,9 @@
                             Sesión actual
                         </p>
 
-                        <div class="user-summary mb-3">
+                        {% if profile_url %}
+                        <a class="app-sidebar-user d-block mb-3" href="{{ profile_url }}" aria-label="Abrir mi perfil"
+                            data-close-navigation>
                             <span class="d-block fw-semibold text-break">
                                 {{ request.user.get_full_name|default:request.user.username }}
                             </span>
@@ -183,7 +213,8 @@
                             <span class="small text-white-50">
                                 Modo {{ active_mode }}
                             </span>
-                        </div>
+                        </a>
+                        {% endif %}
 
                         {% if choose_mode_url %}
                         <a class="btn btn-outline-warning w-100 mb-2" href="{{ choose_mode_url }}">

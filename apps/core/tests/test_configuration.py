@@ -89,6 +89,8 @@ class ConfigurationTests(SimpleTestCase):
             "accounts:logout": "/accounts/logout/",
             "accounts:register": "/accounts/register/",
             "accounts:choose_mode": "/accounts/mode/",
+            "accounts:profile": "/accounts/profile/",
+            "accounts:profile_edit": "/accounts/profile/edit/",
             "core:client_dashboard": "/dashboard/client/",
             "core:vendor_dashboard": "/dashboard/vendor/",
             "core:admin_dashboard": "/dashboard/admin/",

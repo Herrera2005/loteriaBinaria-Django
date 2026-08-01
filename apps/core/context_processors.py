@@ -7,6 +7,7 @@ from apps.accounts.roles import (
     ADMINISTRATOR,
     CLIENT,
     DASHBOARD_URL_NAMES,
+    ROLE_CODES,
     ROLE_PRESENTATION,
     VENDOR,
 )
@@ -60,7 +61,14 @@ def navigation(request):
             "active_mode": None,
             "active_mode_code": None,
             "nav_items": [],
+            "can_switch_mode": False,
         }
+
+    assigned_mode_count = request.user.groups.filter(
+        name__in=ROLE_CODES,
+    ).count()
+
+    can_switch_mode = assigned_mode_count > 1
 
     active_mode = get_valid_active_mode(request)
     if not active_mode:
@@ -68,6 +76,7 @@ def navigation(request):
             "active_mode": None,
             "active_mode_code": None,
             "nav_items": [],
+            "can_switch_mode": can_switch_mode,
         }
 
     current_url_name = getattr(
@@ -95,4 +104,5 @@ def navigation(request):
             )
             for label, url_name in definitions
         ],
+        "can_switch_mode": can_switch_mode,
     }

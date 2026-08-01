@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar mi perfil | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-9">
+        <section class="card shadow-sm" aria-labelledby="profile-form-title">
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-warning mb-2">Cuenta personal</span>
+                <h1 id="profile-form-title" class="h2 mb-2">Editar mi perfil</h1>
+                <p class="text-body-secondary">
+                    El usuario, correo y documento deben ser únicos en el sistema.
+                    Tus roles, estado y permisos no se modifican desde esta pantalla.
+                </p>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                    {% if field.field.required %}
+                                        <span class="text-danger" aria-hidden="true">*</span>
+                                    {% endif %}
+                                </label>
+
+                                {{ field }}
+
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text|safe }}</div>
+                                {% endif %}
+
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="alert alert-info mt-4" role="note">
+                        La contraseña, los roles, el estado de la cuenta y los permisos se administran por flujos separados.
+                    </div>
+
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
+                        <a class="btn btn-outline-secondary" href="{% url 'accounts:profile' %}">
+                            Cancelar
+                        </a>
+                        <button class="btn btn-primary" type="submit">
+                            Guardar cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -321,6 +321,41 @@ class UserAdminChangeForm(
         )
 
 
+class ProfileUpdateForm(
+    BootstrapValidationMixin,
+    UserIdentityValidationMixin,
+    forms.ModelForm,
+):
+    """Edición del perfil propio sin exponer privilegios ni contraseña."""
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "email",
+            "document",
+            "phone",
+            "birth_date",
+            "first_name",
+            "last_name",
+        )
+        widgets = {
+            "birth_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["birth_date"].widget.attrs["max"] = (
+            age_cutoff().isoformat()
+        )
+        self.fields["username"].widget.attrs["autocomplete"] = "username"
+        self.fields["email"].widget.attrs["autocomplete"] = "email"
+        self.fields["phone"].widget.attrs["autocomplete"] = "tel"
+        self.fields["first_name"].widget.attrs["autocomplete"] = "given-name"
+        self.fields["last_name"].widget.attrs["autocomplete"] = "family-name"
+        _apply_bootstrap_widgets(self)
+
+
 class TermsVersionForm(forms.ModelForm):
     """CRUD legal con preservación del contenido que ya fue aceptado."""
 

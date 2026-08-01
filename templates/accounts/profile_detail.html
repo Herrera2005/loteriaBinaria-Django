@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mi perfil | Lotería Binaria{% endblock %}
+
+{% block content %}
+<section aria-labelledby="profile-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Cuenta personal</span>
+            <h1 id="profile-title" class="h2 mb-1">Mi perfil</h1>
+            <p class="text-body-secondary mb-0">
+                Consulta y administra tus datos personales registrados.
+            </p>
+        </div>
+
+        <a class="btn btn-primary" href="{% url 'accounts:profile_edit' %}">
+            Editar información
+        </a>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <article class="card h-100 shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Información personal</h2>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Nombre de usuario</dt>
+                        <dd class="col-sm-8">{{ profile_user.username }}</dd>
+
+                        <dt class="col-sm-4">Nombres</dt>
+                        <dd class="col-sm-8">{{ profile_user.first_name|default:"—" }}</dd>
+
+                        <dt class="col-sm-4">Apellidos</dt>
+                        <dd class="col-sm-8">{{ profile_user.last_name|default:"—" }}</dd>
+
+                        <dt class="col-sm-4">Correo</dt>
+                        <dd class="col-sm-8">
+                            <a href="mailto:{{ profile_user.email }}">
+                                {{ profile_user.email }}
+                            </a>
+                        </dd>
+
+                        <dt class="col-sm-4">Documento</dt>
+                        <dd class="col-sm-8">{{ profile_user.document }}</dd>
+
+                        <dt class="col-sm-4">Teléfono</dt>
+                        <dd class="col-sm-8">{{ profile_user.phone|default:"—" }}</dd>
+
+                        <dt class="col-sm-4">Nacimiento</dt>
+                        <dd class="col-sm-8">{{ profile_user.birth_date|date:"d/m/Y" }}</dd>
+
+                        <dt class="col-sm-4">Estado</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge {% if profile_user.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                                {{ profile_user.get_status_display }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-4">Cuenta creada</dt>
+                        <dd class="col-sm-8">{{ profile_user.created_at|date:"d/m/Y H:i" }}</dd>
+                    </dl>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <article class="card mb-4 shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Roles asignados</h2>
+                </div>
+                <div class="card-body">
+                    {% for group in profile_user.groups.all %}
+                        <span class="badge text-bg-primary me-1 mb-1">{{ group.name }}</span>
+                    {% empty %}
+                        <p class="text-body-secondary mb-0">No tienes roles asignados.</p>
+                    {% endfor %}
+
+                    <p class="small text-body-secondary mt-3 mb-0">
+                        Los roles y permisos solo pueden modificarse desde la administración autorizada.
+                    </p>
+                </div>
+            </article>
+
+            <article class="card shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Aceptaciones legales</h2>
+                </div>
+                <div class="card-body">
+                    {% for acceptance in profile_user.terms_acceptances.all %}
+                        <div class="border-bottom pb-2 mb-2">
+                            <span class="fw-semibold">{{ acceptance.terms_version }}</span>
+                            <span class="d-block small text-body-secondary">
+                                {{ acceptance.accepted_at|date:"d/m/Y H:i" }}
+                            </span>
+                        </div>
+                    {% empty %}
+                        <p class="text-body-secondary mb-0">
+                            No existen aceptaciones registradas.
+                        </p>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}

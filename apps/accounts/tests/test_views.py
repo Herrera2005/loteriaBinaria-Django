@@ -292,3 +292,125 @@ class UserCrudTests(TestCase):
         self.assertFalse(
             User.objects.filter(username="nuevo_usuario").exists()
         )
+
+
+
+class ProfileViewTests(TestCase):
+    def setUp(self):
+        self.user = create_user(
+            username="perfil_cliente",
+            email="perfil.cliente@example.test",
+            document="PERFIL-CLIENTE",
+            roles=(CLIENT,),
+        )
+
+    def profile_payload(self, **overrides):
+        data = {
+            "username": self.user.username,
+            "email": self.user.email,
+            "document": self.user.document,
+            "phone": self.user.phone,
+            "birth_date": self.user.birth_date.isoformat(),
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+        }
+        data.update(overrides)
+        return data
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        profile_url = reverse("accounts:profile")
+
+        response = self.client.get(profile_url)
+
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={profile_url}",
+        )
+
+    def test_authenticated_user_only_sees_own_profile(self):
+        other = create_user(
+            username="perfil_ajeno",
+            email="ajeno@example.test",
+            document="PERFIL-AJENO",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("accounts:profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["profile_user"], self.user)
+        self.assertContains(response, self.user.email)
+        self.assertNotContains(response, other.email)
+
+    def test_profile_update_changes_only_allowed_personal_fields(self):
+        original_status = self.user.status
+        original_is_staff = self.user.is_staff
+        original_groups = list(
+            self.user.groups.values_list("pk", flat=True)
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(
+                username=" perfil_actualizado ",
+                email=" PERFIL.ACTUALIZADO@EXAMPLE.TEST ",
+                document=" perfil-actualizado ",
+                phone=" 0993333333 ",
+                first_name="Nombre",
+                last_name="Actualizado",
+                status=User.Status.DISABLED,
+                is_staff="on",
+                groups=[],
+            ),
+        )
+
+        self.assertRedirects(response, reverse("accounts:profile"))
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "perfil_actualizado")
+        self.assertEqual(
+            self.user.email,
+            "perfil.actualizado@example.test",
+        )
+        self.assertEqual(self.user.document, "PERFIL-ACTUALIZADO")
+        self.assertEqual(self.user.phone, "0993333333")
+        self.assertEqual(self.user.status, original_status)
+        self.assertEqual(self.user.is_staff, original_is_staff)
+        self.assertEqual(
+            list(self.user.groups.values_list("pk", flat=True)),
+            original_groups,
+        )
+
+    def test_profile_update_rejects_duplicate_email(self):
+        create_user(
+            username="perfil_duplicado",
+            email="duplicado@example.test",
+            document="PERFIL-DUPLICADO",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(email="DUPLICADO@EXAMPLE.TEST"),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "email",
+            "Ya existe una cuenta con este correo.",
+        )
+
+    def test_profile_post_requires_csrf(self):
+        from django.test import Client
+
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+
+        response = csrf_client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(first_name="Sin CSRF"),
+        )
+
+        self.assertEqual(response.status_code, 403)

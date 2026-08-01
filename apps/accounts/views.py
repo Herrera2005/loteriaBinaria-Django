@@ -28,6 +28,7 @@ from .access import (
 )
 from .forms import (
     ModeSelectionForm,
+    ProfileUpdateForm,
     RegistrationForm,
     TallerAuthenticationForm,
     UserAdminChangeForm,
@@ -136,6 +137,47 @@ def choose_mode(request):
         "accounts/choose_mode.html",
         {"form": form, "assigned_modes": assigned_modes},
     )
+
+
+class ProfileDetailView(LoginRequiredMixin, DetailView):
+    """Muestra únicamente el perfil del usuario autenticado."""
+
+    model = User
+    template_name = "accounts/profile_detail.html"
+    context_object_name = "profile_user"
+
+    def get_object(self, queryset=None):
+        return (
+            User.objects
+            .prefetch_related(
+                "groups",
+                "terms_acceptances__terms_version",
+            )
+            .get(pk=self.request.user.pk)
+        )
+
+
+class ProfileUpdateView(LoginRequiredMixin, UpdateView):
+    """Permite editar solo los datos personales del usuario autenticado."""
+
+    model = User
+    form_class = ProfileUpdateForm
+    template_name = "accounts/profile_form.html"
+    context_object_name = "profile_user"
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_success_url(self):
+        return reverse("accounts:profile")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Tu información personal se actualizó correctamente.",
+        )
+        return response
 
 
 class AdministratorModeRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):

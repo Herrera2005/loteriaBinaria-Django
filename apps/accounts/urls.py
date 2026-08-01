@@ -12,6 +12,12 @@ urlpatterns = [
     path("logout/", views.AccountLogoutView.as_view(), name="logout"),
     path("register/", views.register, name="register"),
     path("mode/", views.choose_mode, name="choose_mode"),
+    path("profile/", views.ProfileDetailView.as_view(), name="profile"),
+    path(
+        "profile/edit/",
+        views.ProfileUpdateView.as_view(),
+        name="profile_edit",
+    ),
     path("users/", views.UserListView.as_view(), name="user_list"),
     path("users/create/", views.UserCreateView.as_view(), name="user_create"),
     path(
