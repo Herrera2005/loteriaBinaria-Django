@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load static %}{% block title %}Eliminar evento{% endblock %}{% block content %}<div
+    class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+        <section class="card border-danger">
+            <div class="card-body p-4">
+                <h1 class="h2">Eliminar evento</h1>
+                <p><strong>{{ event.name }}</strong></p>{% if can_delete %}<div class="alert alert-danger">Está en
+                    Borrador y no tiene boletos ni resultado.</div>{% else %}<div class="alert alert-warning">Solo se
+                    elimina un Borrador sin boletos ni resultado.</div>{% endif %}<form method="post">{% csrf_token %}<a
+                        class="btn btn-outline-secondary"
+                        href="{% url 'lottery:event_detail' event.pk %}">Cancelar</a><button
+                        class="btn btn-danger">Confirmar</button></form>
+            </div>
+        </section>
+    </div>
+</div>{% endblock %}

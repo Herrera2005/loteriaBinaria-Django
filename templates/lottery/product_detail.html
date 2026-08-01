@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load static %}{% block title %}{{ product.name }}{% endblock %}{% block content %}<section>
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+        <div><span class="badge text-bg-primary">{{ product.code }}</span>
+            <h1 class="h2 mt-2">{{ product.name }}</h1>
+        </div>
+        <div><a class="btn btn-primary" href="{% url 'lottery:product_update' product.pk %}">Editar</a> <a
+                class="btn btn-outline-danger" href="{% url 'lottery:product_delete' product.pk %}">Eliminar</a></div>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Símbolos</dt>
+                <dd class="col-sm-8"><code>{{ product.allowed_symbols }}</code></dd>
+                <dt class="col-sm-4">Selección</dt>
+                <dd class="col-sm-8">{{ product.selection_count }} únicos</dd>
+                <dt class="col-sm-4">Estado</dt>
+                <dd class="col-sm-8">{% if product.is_active %}Activo{% else %}Inactivo{% endif %}</dd>
+            </dl>
+        </div>
+    </div>{% with events=product.events.all %}{% if events %}<div class="alert alert-warning mt-4">Tiene eventos y no
+        puede eliminarse.</div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Evento</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>{% for event in events %}<tr>
+                    <td>{{ event.name }}</td>
+                    <td>{{ event.get_status_display }}</td>
+                    <td><a href="{% url 'lottery:event_detail' event.pk %}">Ver</a></td>
+                </tr>{% endfor %}</tbody>
+        </table>
+    </div>{% endif %}{% endwith %}<a class="btn btn-outline-secondary mt-3"
+        href="{% url 'lottery:product_list' %}">Volver</a>
+</section>{% endblock %}

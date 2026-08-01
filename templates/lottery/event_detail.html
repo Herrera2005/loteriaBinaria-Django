@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load static %}{% block title %}{{ event.name }}{% endblock %}{% block content %}<section>
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+        <div><span class="badge text-bg-secondary">{{ event.get_status_display }}</span>
+            <h1 class="h2 mt-2">{{ event.name }}</h1>
+            <p>{{ event.product.name }}</p>
+        </div>
+        <div><a class="btn btn-primary" href="{% url 'lottery:event_update' event.pk %}">Editar</a> <a
+                class="btn btn-outline-danger" href="{% url 'lottery:event_delete' event.pk %}">Eliminar</a></div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-4">Apertura</dt>
+                <dd class="col-sm-8">{{ event.sales_open_at|date:'d/m/Y H:i' }}</dd>
+                <dt class="col-sm-4">Cierre</dt>
+                <dd class="col-sm-8">{{ event.sales_close_at|date:'d/m/Y H:i' }}</dd>
+                <dt class="col-sm-4">Sorteo</dt>
+                <dd class="col-sm-8">{{ event.draw_at|date:'d/m/Y H:i' }}</dd>
+                <dt class="col-sm-4">Precio minor</dt>
+                <dd class="col-sm-8">{{ event.price_minor }}</dd>
+                <dt class="col-sm-4">Premio minor</dt>
+                <dd class="col-sm-8">{{ event.prize_minor }}</dd>
+            </dl>
+        </div>
+    </div>{% if event.status != 'DRAFT' %}<div class="alert alert-info mt-3">Producto, precio, premio y fechas están
+        protegidos.</div>{% endif %}{% if not can_delete %}<div class="alert alert-warning mt-3">No cumple condiciones
+        de eliminación.</div>{% endif %}<a class="btn btn-outline-secondary mt-3"
+        href="{% url 'lottery:event_list' %}">Volver</a>
+</section>{% endblock %}
