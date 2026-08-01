@@ -34,6 +34,7 @@ python manage.py makemigrations --check --dry-run
 python manage.py migrate --noinput
 python manage.py showmigrations
 python manage.py seed_baseline
+python manage.py backfill_wallets
 python scripts/smoke_runserver.py
 python manage.py test --verbosity 2
 python manage.py findstatic css/app.css js/app.js img/logo-placeholder.png

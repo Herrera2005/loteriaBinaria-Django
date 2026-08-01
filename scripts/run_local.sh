@@ -7,6 +7,7 @@ echo "=== Lotería Binaria - inicio local SQLite ==="
 python manage.py check
 python manage.py migrate --noinput
 python manage.py seed_baseline
+python manage.py backfill_wallets
 echo "Abre http://127.0.0.1:8000/"
 echo "Detén el servidor con Ctrl+C."
 python manage.py runserver

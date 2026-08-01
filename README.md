@@ -1,7 +1,7 @@
 # Lotería Binaria — Taller #3 Django
 
 Proyecto académico desarrollado con Django para el Taller #3. El estado de
-esta entrega llega hasta **P-27**: tres CRUD evaluables implementados en
+esta entrega llega hasta la **preparación P-28A**: P-27 está cerrado y los modelos base de Finance/Core ya están implementados junto con los tres CRUD evaluables de
 `accounts`, `vendors` y `lottery`, sobre SQLite para la primera fase y con
 configuración portable a MySQL para la segunda.
 
@@ -25,10 +25,14 @@ Celery, Redis ni microservicios.
 - CRUD administrativo de productos y eventos de lotería.
 - `Ticket` y `DrawResult` protegidos como historia y sin CRUD genérico.
 - Bootstrap 5.3 real con identidad azul profundo/dorada.
-- 167 pruebas automatizadas diseñadas en el árbol actual.
+- `finance.Wallet` con monedas REAL/VIRTUAL y saldos disponibles/reservados.
+- `finance.Movement` append-only, correlacionado por `operation_id`.
+- `core.AuditEvent` append-only y sin secretos.
+- Admin read-only para Wallet, Movement y AuditEvent.
+- Servicio y backfill idempotente para garantizar wallets.
+- 195 pruebas automatizadas diseñadas en el árbol actual.
 
-`finance` permanece pendiente para **P-28**. La compra de boletos todavía no
-forma parte de P-27 y no se expone en la interfaz.
+Las vistas y templates read-only de Finance/Core permanecen pendientes para el **P-28 oficial**. La compra de boletos todavía no forma parte de este bloque y no se expone en la interfaz.
 
 ## Requisitos
 
@@ -47,6 +51,7 @@ Copy-Item .env.example .env
 python manage.py migrate
 python manage.py seed_baseline
 python manage.py createsuperuser
+python manage.py backfill_wallets
 python manage.py runserver
 ```
 
@@ -150,12 +155,16 @@ repite toda la suite. No uses `migrate --fake` para ocultar errores.
   `docs/AUDITORIA_P27_2026-08-01.md`.
 - Guía operativa para validar y continuar:
   `docs/GUIA_CONTINUACION_DESDE_P27.md`.
+- Decisión de modelos y catálogos P-28A:
+  `docs/DECISION_P28A_MODELOS_FINANCE_AUDITORIA.md`.
+- Guía de aplicación y comprobación P-28A:
+  `docs/GUIA_APLICACION_P28A.md`.
+- Matriz de pruebas P-28A:
+  `docs/MATRIZ_PRUEBAS_P28A.md`.
 - Matriz vigente:
   `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
 
-El siguiente bloque del manual es **P-28: Finance y Core sin CRUD
-destructivo**. No corresponde avanzar a P-29 ni a compra de boletos antes de
-cerrar la puerta de salida de P-27.
+La preparación P-28A ya cubre modelos, migraciones, admin read-only, provisión de wallets y pruebas. El siguiente bloque es el **P-28 oficial: vistas list/detail de Finance y Core sin CRUD destructivo**. No corresponde avanzar a P-29 ni a compra de boletos antes de cerrar la puerta de salida de P-28.
 
 ## Respaldo visual
 

@@ -1,53 +1,56 @@
-# Matriz de trazabilidad — estado hasta P-27
+# Matriz de trazabilidad — estado hasta preparación P-28A
 
 ## Estados
 
 - **IMPLEMENTADA:** existe código correlacionado.
-- **VERIFICADA ESTÁTICAMENTE:** pasó compilación y auditoría estática.
-- **PENDIENTE SUITE FINAL:** requiere ejecutar `scripts/verify.ps1` en el
-  entorno local con Django instalado.
-- **PARCIAL:** existe la base, pero el flujo pertenece a una fase posterior.
-- **PENDIENTE:** todavía no se implementó ni se expone falsamente.
+- **VERIFICADA:** el usuario confirmó suite verde hasta P-27.
+- **PENDIENTE PRUEBA LOCAL P-28A:** código generado; falta ejecutar migraciones y suite en la `.venv` del proyecto.
+- **PARCIAL:** existe base técnica, pero la interfaz o flujo pertenece a una fase posterior.
+- **PENDIENTE:** no implementado ni expuesto falsamente.
 
-| Regla / requisito | Implementación principal | Evidencia automatizada | Estado |
+| Regla / requisito | Implementación principal | Evidencia | Estado |
 |---|---|---|---|
-| SQLite fase 1; MySQL fase 2 | `config/settings.py`, requirements separados | configuración, migración limpia | IMPLEMENTADA; suite final pendiente |
-| PostgreSQL excluido | allowlist de motores + auditor | configuración y subprocess | VERIFICADA ESTÁTICAMENTE |
-| Usuario personalizado temprano | `accounts.User`, `AUTH_USER_MODEL` | migraciones y tests de integridad | IMPLEMENTADA; suite final pendiente |
-| Registro adulto, términos y privacidad | forms/services/models Accounts | tests de registro, aceptación y carreras | IMPLEMENTADA; suite final pendiente |
-| Roles y modo activo backend | Groups, sesión, decoradores/mixins | tests de login, selector y 403 | IMPLEMENTADA; suite final pendiente |
-| CRUD Accounts | views/urls/forms/templates/services | búsqueda, paginación, C/R/U/D, CSRF, historia | IMPLEMENTADA; suite final pendiente |
-| CRUD VendorProfile | Vendors completo | filtros, paginación, C/R/U/D, 404, CSRF | IMPLEMENTADA; suite final pendiente |
-| ConversionRequest read-only | lista administrativa protegida | GET permitido, POST 405, sin editar/eliminar | IMPLEMENTADA; suite final pendiente |
-| Producto OCTAL | `01234567`, 4 únicos | model/form tests | IMPLEMENTADA; suite final pendiente |
-| Producto DECIMAL | `0123456789`, 5 únicos | model/form tests | IMPLEMENTADA; suite final pendiente |
-| Producto HEXADECIMAL | `0123456789ABCDEF`, 6 únicos | rechazo de longitud 4 y repetidos | IMPLEMENTADA; suite final pendiente |
-| Configuración de producto con eventos protegida | model, form y manager | save y bulk update rechazados | IMPLEMENTADA; suite final pendiente |
-| CRUD LotteryProduct | lista/filtro/detalle/crear/editar/eliminar | permisos, filtro, CSRF, 404 y protección | IMPLEMENTADA; suite final pendiente |
-| Cierre evento = `draw_at - 10 min` | model y form backend | model/form/CRUD tests | IMPLEMENTADA; suite final pendiente |
-| Evento publicado no cambia configuración | model, form y tests | POST manipulado, save y bulk update | IMPLEMENTADA; suite final pendiente |
-| Evento solo se elimina en Borrador sin historia | service transaccional | draft, publicado, ticket y resultado | IMPLEMENTADA; suite final pendiente |
-| CRUD DrawEvent | lista/filtros/paginación/detalle/forms/delete | permisos, filtros, paginación, CSRF, 404 | IMPLEMENTADA; suite final pendiente |
-| Ticket único por evento/combinación | constraint + normalización | IntegrityError y validaciones 4/5/6 | IMPLEMENTADA; suite final pendiente |
-| Ticket histórico no eliminable | manager/model + PROTECT | delete individual y masivo | IMPLEMENTADA; suite final pendiente |
-| DrawResult OneToOne e inmutable | model/manager/admin read-only | segundo resultado, save/update/delete | IMPLEMENTADA; suite final pendiente |
-| Bootstrap 5.3 real | base, navbar/offcanvas, cards, forms, tables | auditoría de templates | VERIFICADA ESTÁTICAMENTE |
-| Responsive 360/390/768/1024/1440 | grid, offcanvas, tablas y CSS complementario | matriz manual | IMPLEMENTADA; comprobación visual pendiente |
-| CSRF en acciones sensibles | middleware + forms POST | auditor y clientes CSRF | VERIFICADA ESTÁTICAMENTE; suite final pendiente |
-| Sin JSON/localStorage/fetch de negocio | runtime nuevo + auditor | búsqueda estática | VERIFICADA ESTÁTICAMENTE |
-| ZIP legado fuera del runtime | `respaldo_frontend/` | inventario/hash | VERIFICADA ESTÁTICAMENTE |
-| Finance read-only | app base todavía sin modelos funcionales cerrados | P-28 | PENDIENTE |
+| SQLite fase 1; MySQL fase 2 | `config/settings.py`, requirements separados | configuración y suite P-27 | VERIFICADA |
+| PostgreSQL excluido | allowlist de motores + auditor | test subprocess | VERIFICADA |
+| Usuario personalizado temprano | `accounts.User`, `AUTH_USER_MODEL` | migraciones y tests | VERIFICADA |
+| Registro, términos, roles y modos | Accounts | suite P-27 | VERIFICADA |
+| Tres CRUD evaluables | Accounts, Vendors, Lottery | 167 pruebas P-27 | VERIFICADA |
+| Bootstrap 5.3, CSRF y navegación por modo | base/templates/contexto | suite y auditor P-27 | VERIFICADA; responsive manual vigente |
+| OCTAL 4, DECIMAL 5, HEXADECIMAL 6 | Lottery | model/form/CRUD | VERIFICADA |
+| Cierre de evento 10 minutos antes | Lottery model/form | pruebas P-27 | VERIFICADA |
+| Ticket y resultado históricos | managers/model/admin | pruebas P-27 | VERIFICADA |
+| Wallet única por usuario y moneda | `finance.Wallet` | constraint y tests P28A-WAL | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Saldos disponibles/reservados no negativos | checks + validators | P28A-WAL-006/007/008 | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Montos `BigIntegerField` `_minor` | Wallet/Movement | inspección de campos | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Provisión REAL/VIRTUAL idempotente | `ensure_user_wallets`, señal y backfill | tests de servicio/comando | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Movement append-only | model/queryset/admin | save/update/delete/bulk tests | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Movimientos correlacionados | `operation_id` indexado no único | dos efectos misma operación | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| AuditEvent append-only | core model/queryset/admin | tests de inmutabilidad | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Auditoría sin secretos | validación de metadata | rechazo de token/secret | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Admin financiero/auditoría read-only | admin mixins | pruebas de permisos | IMPLEMENTADA; PENDIENTE PRUEBA LOCAL P-28A |
+| Wallet propia y movimientos paginados | vistas/templates P-28 | todavía no creados | PENDIENTE |
+| Auditoría administrativa list/detail | vistas/templates P-28 | todavía no creados | PENDIENTE |
 | Navegación completa por rol | contexto base mínimo | P-29 | PARCIAL |
+| Operaciones financieras | futuros servicios POST | P-34 | PENDIENTE |
 | Compra de boletos | no expuesta | fase posterior | PENDIENTE |
-| Migración MySQL | requirements y configuración listos | repetir suite con MySQL | PENDIENTE SEGUNDA FASE |
+| Migración MySQL | configuración lista | repetir suite | PENDIENTE SEGUNDA FASE |
 
-## Puerta P-27
-
-P-27 solo queda **cerrado dinámicamente** cuando:
+## Puerta P-28A
 
 ```powershell
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py showmigrations finance core
+python manage.py sqlmigrate finance 0001
+python manage.py sqlmigrate core 0001
+python manage.py migrate
+python manage.py backfill_wallets
+python manage.py backfill_wallets
+python manage.py test apps.finance.tests.test_models -v 2
+python manage.py test apps.core.tests.test_models -v 2
+python manage.py test -v 2
+python scripts/audit_project.py
 .\scripts\verify.ps1
 ```
 
-termina sin errores y se guardan capturas de productos, eventos, filtros,
-formularios, detalle, bloqueo de edición y bloqueo de eliminación.
+P-28 oficial comienza únicamente cuando toda esta puerta termina en verde.

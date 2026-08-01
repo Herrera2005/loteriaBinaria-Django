@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
@@ -50,6 +50,11 @@ try {
     python manage.py seed_baseline
     if ($LASTEXITCODE -ne 0) {
         throw "Falló seed_baseline."
+    }
+
+    python manage.py backfill_wallets
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falló backfill_wallets."
     }
 
     python scripts/smoke_runserver.py

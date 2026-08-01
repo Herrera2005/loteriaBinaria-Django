@@ -1,37 +1,50 @@
-# Plan siguiente desde P-27
+# Plan siguiente desde la preparación P-28A
 
-## Primero: cerrar P-27
+## Estado actual
 
-1. Mantener la rama actual y crear un respaldo antes de sustituir archivos.
-2. Instalar dependencias de `requirements.txt` en el entorno virtual.
-3. Ejecutar `scripts/verify.ps1` sobre SQLite limpia.
-4. Corregir cualquier fallo real sin saltar pruebas ni usar `--fake`.
-5. Probar manualmente Accounts, Vendors y Lottery.
-6. Verificar responsive en 360, 390, 768, 1024 y 1440 px.
-7. Guardar capturas y salida de consola.
-8. Hacer commit de cierre P-27.
+P-27 está cerrado. La preparación P-28A incorpora:
 
-## Después: P-28, no P-29 todavía
+- `finance.Wallet` por usuario y moneda REAL/VIRTUAL;
+- `finance.Movement` append-only;
+- `core.AuditEvent` append-only;
+- admin read-only;
+- servicio idempotente `ensure_user_wallets`;
+- señal al asignar roles;
+- migración y backfill de usuarios existentes;
+- pruebas de modelos, inmutabilidad y permisos de admin.
+
+## Primero: validar P-28A en SQLite
+
+1. Aplicar los archivos sobre la rama `feature/taller3-p28-finance-core`.
+2. Revisar las migraciones generadas para SQLite/MySQL portable.
+3. Ejecutar migraciones.
+4. Ejecutar `backfill_wallets` dos veces y comprobar idempotencia.
+5. Ejecutar las pruebas específicas y la regresión completa.
+6. Confirmar `No changes detected`.
+7. Hacer commit antes de iniciar vistas.
+
+## Después: P-28 oficial, no P-29 todavía
 
 Implementar únicamente consultas seguras de Finance/Core:
 
-1. revisar modelos reales de `finance` y `core`;
-2. wallet propia y movimientos paginados en solo lectura;
-3. auditoría administrativa en solo lectura;
-4. ninguna edición directa de balance;
-5. recargas/conversiones simuladas solo por POST y servicio transaccional;
-6. pruebas de propiedad y permisos;
-7. ejecutar `python manage.py test apps.finance apps.core`.
+1. wallet propia read-only;
+2. movimientos propios paginados;
+3. auditoría administrativa list/detail read-only;
+4. dashboards con datos reales del backend;
+5. ninguna edición directa de balance;
+6. ninguna recarga o conversión en esta primera entrega visual;
+7. pruebas de propiedad, autenticación, modo y paginación;
+8. Bootstrap 5.3 y responsive en cinco anchos.
 
-## Orden obligatorio para reglas sensibles
+## Orden obligatorio para reglas sensibles futuras
 
-1. modelos portables y migraciones;
-2. formularios/validadores;
-3. servicios con `transaction.atomic`;
-4. pruebas de éxito, rechazo y rollback;
-5. vistas y URLs;
-6. templates Bootstrap;
+1. modelo y migración;
+2. servicio con `transaction.atomic`;
+3. pruebas de éxito, rechazo, idempotencia y rollback;
+4. formulario POST con CSRF;
+5. vista y URL;
+6. template Bootstrap;
 7. prueba manual y responsive;
 8. actualización de matriz.
 
-No crear botones, saldos, timers ni compra de boletos sin backend persistente.
+No crear botones, saldos ficticios, timers ni compra de boletos sin backend persistente.

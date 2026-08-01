@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auditoría estática reproducible hasta P-27 del Taller #3.
+"""Auditoría estática reproducible hasta P-28A del Taller #3.
 
 No sustituye ``manage.py check`` ni la suite Django. Detecta fallos de
 estructura, alcance, templates, seguridad básica y residuos del frontend
@@ -58,6 +58,18 @@ REQUIRED_FILES = (
     "apps/lottery/tests/test_forms.py",
     "apps/lottery/tests/test_crud.py",
     "apps/core/context_processors.py",
+    "apps/core/models.py",
+    "apps/core/admin.py",
+    "apps/core/migrations/0001_initial.py",
+    "apps/core/tests/test_models.py",
+    "apps/finance/models.py",
+    "apps/finance/admin.py",
+    "apps/finance/apps.py",
+    "apps/finance/services.py",
+    "apps/finance/signals.py",
+    "apps/finance/migrations/0001_initial.py",
+    "apps/finance/management/commands/backfill_wallets.py",
+    "apps/finance/tests/test_models.py",
     "templates/base.html",
     "templates/includes/_messages.html",
     "templates/includes/_confirm_modal.html",
@@ -141,22 +153,38 @@ BINARY_SUFFIXES = {
 
 
 def tracked_relative_paths() -> list[Path]:
+    """Usa Git cuando existe y permite auditar un ZIP limpio sin ``.git``."""
+
     result = subprocess.run(
         ["git", "ls-files", "-z"],
         cwd=ROOT,
         capture_output=True,
         check=False,
     )
-    if result.returncode != 0:
-        raise RuntimeError(
-            "No se pudo obtener el inventario de archivos versionados con Git."
-        )
+    if result.returncode == 0 and result.stdout:
+        return [
+            Path(item.decode("utf-8"))
+            for item in result.stdout.split(b"\0")
+            if item
+        ]
 
-    return [
-        Path(item.decode("utf-8"))
-        for item in result.stdout.split(b"\0")
-        if item
-    ]
+    excluded_directories = {
+        ".git",
+        ".venv",
+        "venv",
+        "env",
+        "node_modules",
+        "staticfiles",
+    }
+    relative_paths = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(ROOT)
+        if any(part in excluded_directories for part in relative.parts):
+            continue
+        relative_paths.append(relative)
+    return sorted(relative_paths, key=lambda item: item.as_posix())
 
 
 def tracked_files() -> list[Path]:
@@ -428,6 +456,69 @@ def check_scope_and_models(errors: list[str]) -> None:
         )
 
 
+
+def check_p28a_models(errors: list[str]) -> None:
+    finance_models = (
+        ROOT / "apps/finance/models.py"
+    ).read_text(encoding="utf-8")
+    core_models = (
+        ROOT / "apps/core/models.py"
+    ).read_text(encoding="utf-8")
+    finance_services = (
+        ROOT / "apps/finance/services.py"
+    ).read_text(encoding="utf-8")
+
+    for expected in (
+        "class Wallet(models.Model)",
+        "class Movement(models.Model)",
+        "available_minor = models.BigIntegerField",
+        "reserved_minor = models.BigIntegerField",
+        "amount_minor = models.BigIntegerField",
+        "balance_after_minor = models.BigIntegerField",
+        "fin_wallet_user_curr_uq",
+        "on_delete=models.PROTECT",
+        "HistoricalMovementQuerySet",
+    ):
+        if expected not in finance_models:
+            errors.append(
+                f"Regla P-28A Finance no localizada: {expected}"
+            )
+
+    for expected in (
+        "@transaction.atomic",
+        "def ensure_user_wallets",
+        "Wallet.Currency.REAL",
+        "Wallet.Currency.VIRTUAL",
+        "get_or_create",
+    ):
+        if expected not in finance_services:
+            errors.append(
+                f"Servicio P-28A no localizado: {expected}"
+            )
+
+    for expected in (
+        "class AuditEvent(models.Model)",
+        "HistoricalAuditQuerySet",
+        "on_delete=models.PROTECT",
+        "resource_type",
+        "resource_id",
+        "metadata = models.TextField",
+    ):
+        if expected not in core_models:
+            errors.append(
+                f"Regla P-28A AuditEvent no localizada: {expected}"
+            )
+
+    for forbidden in (
+        "models.FloatField(",
+        "models.DecimalField(",
+        "models.JSONField(",
+    ):
+        if forbidden in finance_models or forbidden in core_models:
+            errors.append(
+                f"Campo prohibido en P-28A: {forbidden}"
+            )
+
 def check_urls(errors: list[str]) -> None:
     config_urls = (
         ROOT / "config/urls.py"
@@ -527,30 +618,31 @@ def main() -> int:
         check_templates(errors)
         check_runtime_configuration(errors)
         check_scope_and_models(errors)
+        check_p28a_models(errors)
         check_urls(errors)
         check_legacy_runtime(errors)
         check_text_controls(errors)
         test_count = check_test_inventory(errors)
     except RuntimeError as exc:
-        print(f"AUDITORÍA ESTÁTICA P-27: FALLÓ\n- {exc}")
+        print(f"AUDITORÍA ESTÁTICA P-28A: FALLÓ\n- {exc}")
         return 1
 
     if errors:
-        print("AUDITORÍA ESTÁTICA P-27: FALLÓ")
+        print("AUDITORÍA ESTÁTICA P-28A: FALLÓ")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print("AUDITORÍA ESTÁTICA P-27: OK")
-    print("- Estructura Accounts/Vendors/Lottery presente")
+    print("AUDITORÍA ESTÁTICA P-28A: OK")
+    print("- Estructura Accounts/Vendors/Lottery/Finance/Core presente")
     print("- Python parseable y sin bytecode versionado")
     print("- Templates base, H1, CSRF y duplicados verificados")
     print("- URLs de Vendors y Lottery integradas")
     print("- Sin localStorage, JSON de negocio ni pages/*.html activos")
     print("- SQLite/MySQL permitidos y PostgreSQL excluido")
     print(
-        "- Reglas 4/5/6, cierre 10 min e históricos "
-        "protegidos localizadas"
+        "- Reglas 4/5/6, cierre 10 min, wallets e históricos "
+        "protegidos localizados"
     )
     print(
         f"- {test_count} pruebas automatizadas diseñadas"

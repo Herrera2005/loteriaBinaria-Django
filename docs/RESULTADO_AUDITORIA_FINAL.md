@@ -1,20 +1,35 @@
-# Resultado vigente de auditoría hasta P-27
+# Resultado vigente de auditoría — preparación P-28A
 
-El resultado vigente está documentado en:
+## Base confirmada
+
+El usuario confirmó que la puerta completa de P-27 pasó todas sus pruebas antes de iniciar P-28A.
+
+## Estado del paquete P-28A
+
+- modelos `Wallet`, `Movement` y `AuditEvent` implementados;
+- migraciones iniciales incluidas;
+- admin read-only;
+- servicio, señal y backfill idempotentes;
+- 28 pruebas nuevas;
+- inventario total: 195 pruebas diseñadas;
+- auditor estático ampliado a P-28A;
+- vistas, URLs y templates financieros no implementados intencionalmente.
+
+## Verificación realizada al preparar el paquete
+
+- compilación Python de archivos nuevos: correcta;
+- análisis AST: correcto;
+- restricciones y nombres revisados para portabilidad SQLite/MySQL;
+- frontend legado revisado únicamente como referencia visual.
+
+## Verificación pendiente en el equipo del usuario
+
+La suite Django P-28A debe ejecutarse en la `.venv` local con Django 5.2.16. La secuencia exacta está en:
 
 ```text
-docs/AUDITORIA_P27_2026-08-01.md
+docs/GUIA_APLICACION_P28A.md
 ```
 
-Resumen:
+## Siguiente paso autorizado
 
-- nota inicial del ZIP recibido: **7.9/10**;
-- nota corregida provisional: **9.4/10**;
-- 167 pruebas diseñadas;
-- auditoría estática P-27 en verde;
-- suite Django completa pendiente de ejecución local mediante
-  `scripts/verify.ps1`;
-- siguiente paso permitido después de cerrar esa puerta: **P-28**.
-
-No se debe interpretar esta nota como evidencia dinámica hasta guardar la
-salida completa de la suite y las capturas responsive.
+Después de la puerta P-28A: P-28 oficial, limitado a wallet propia, movimientos paginados, auditoría administrativa y dashboard con datos reales, todo read-only.
