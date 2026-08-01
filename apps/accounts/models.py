@@ -56,15 +56,32 @@ class User(AbstractUser):
 
     def clean(self) -> None:
         super().clean()
+
         self.username = self.normalize_username_value(self.username)
         self.email = self.normalize_email_value(self.email)
         self.document = self.normalize_document_value(self.document)
         self.phone = (self.phone or "").strip()
-        if not self.document:
+
+        if self.status == self.Status.ACTIVE and not self.is_active:
             raise ValidationError(
-                {"document": "El documento no puede quedar vacío."}
+                {
+                    "is_active": (
+                        "Un usuario con estado Activo debe tener acceso "
+                        "habilitado."
+                    )
+                }
             )
 
+        if self.status != self.Status.ACTIVE and self.is_active:
+            raise ValidationError(
+                {
+                    "is_active": (
+                        "Un usuario suspendido, bloqueado o desactivado no "
+                        "puede mantener acceso habilitado."
+                    )
+                }
+            )
+        
     def save(self, *args, **kwargs) -> None:
         # Cubre createsuperuser, admin y escrituras directas por ORM.
         self.username = self.normalize_username_value(self.username)

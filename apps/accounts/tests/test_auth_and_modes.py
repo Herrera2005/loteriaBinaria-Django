@@ -44,7 +44,10 @@ class AuthenticationAndModeTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Seleccione una opción válida")
+        self.assertContains(
+            response,
+            "no es una de las opciones disponibles",
+        )
         self.assertNotIn(ACTIVE_MODE_SESSION_KEY, self.client.session)
 
     def test_mode_change_is_post_and_redirects_to_matching_dashboard(self):

@@ -8,7 +8,7 @@ from django.utils import timezone
 from apps.accounts.models import TermsVersion, User
 
 
-VALID_PASSWORD = "AcademicPass#2026"
+VALID_PASSWORD = "T3cn0l0g1@"
 
 
 def adult_birth_date(years: int = 25) -> date:

@@ -50,14 +50,24 @@ class RegistrationViewTests(TestCase):
 
     def test_minor_is_rejected(self):
         birth_date = timezone.localdate() - timedelta(days=365 * 17)
+
         response = self.client.post(
             self.url,
-            self.payload(birth_date=birth_date.isoformat()),
+            self.payload(
+                birth_date=birth_date.isoformat(),
+            ),
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Debes ser mayor de edad")
-        self.assertFalse(User.objects.filter(username="cliente_nuevo").exists())
+        self.assertContains(
+            response,
+            "debe ser mayor de edad",
+        )
+        self.assertFalse(
+            User.objects.filter(
+                username="cliente_nuevo",
+            ).exists()
+        )
 
     def test_case_insensitive_duplicate_email_is_rejected(self):
         User.objects.create_user(

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar o desactivar usuario | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8 col-xl-6">
+        <section class="card border-danger shadow-sm" aria-labelledby="user-delete-title">
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-danger mb-3">Acción sensible</span>
+                <h1 id="user-delete-title" class="h2">
+                    Eliminar o desactivar usuario
+                </h1>
+
+                <p>
+                    Vas a procesar la cuenta
+                    <strong>{{ managed_user.username }}</strong>.
+                </p>
+
+                {% if has_history %}
+                    <div class="alert alert-warning" role="alert">
+                        La cuenta tiene historia relacionada. No se eliminará:
+                        quedará con estado <strong>Desactivado</strong> y sin acceso.
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger" role="alert">
+                        La cuenta no tiene historia relacionada y podrá eliminarse
+                        físicamente. Esta acción no se puede deshacer.
+                    </div>
+                {% endif %}
+
+                {% if managed_user == request.user %}
+                    <div class="alert alert-danger" role="alert">
+                        No puedes ejecutar esta operación sobre tu propia cuenta.
+                    </div>
+                {% elif managed_user.is_superuser %}
+                    <div class="alert alert-danger" role="alert">
+                        Los superusuarios están protegidos en este CRUD.
+                    </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2">
+                        <a
+                            class="btn btn-outline-secondary"
+                            href="{% url 'accounts:user_detail' managed_user.pk %}"
+                        >
+                            Cancelar
+                        </a>
+                        <button
+                            class="btn btn-danger"
+                            type="submit"
+                            {% if managed_user == request.user or managed_user.is_superuser %}disabled{% endif %}
+                        >
+                            {% if has_history %}Desactivar cuenta{% else %}Eliminar cuenta{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
