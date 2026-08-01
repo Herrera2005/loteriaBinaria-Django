@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Solicitudes de conversión | Lotería Binaria{% endblock %}
+
+{% block content %}
+<section aria-labelledby="conversion-request-list-title">
+    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <span class="badge text-bg-warning mb-2">Solo lectura</span>
+            <h1 id="conversion-request-list-title" class="h2 mb-1">
+                Solicitudes de conversión
+            </h1>
+            <p class="text-body-secondary mb-0">
+                Evidencia del flujo sin formularios para editar estados.
+            </p>
+        </div>
+
+        <a
+            class="btn btn-outline-secondary"
+            href="{% url 'vendors:vendorprofile_list' %}"
+        >
+            Volver a perfiles
+        </a>
+    </header>
+
+    <form method="get" class="card card-body shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-sm-8 col-lg-4">
+                <label class="form-label" for="request-status-filter">
+                    Estado
+                </label>
+                <select
+                    class="form-select"
+                    id="request-status-filter"
+                    name="status"
+                >
+                    <option value="">Todos</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-auto d-grid">
+                <button class="btn btn-primary" type="submit">Filtrar</button>
+            </div>
+
+            {% if selected_status %}
+                <div class="col-12 col-sm-auto d-grid">
+                    <a
+                        class="btn btn-outline-secondary"
+                        href="{% url 'vendors:conversionrequest_list' %}"
+                    >
+                        Limpiar
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="alert alert-info" role="note">
+        Los cambios de estado se realizarán posteriormente mediante servicios
+        transaccionales; esta pantalla no presenta botones de edición.
+    </div>
+
+    {% if conversion_requests %}
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Operación</th>
+                        <th scope="col">Cliente</th>
+                        <th scope="col">Monto minor</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Vence</th>
+                        <th scope="col">Asignación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conversion_request in conversion_requests %}
+                        <tr>
+                            <td>
+                                <code>{{ conversion_request.operation_id }}</code>
+                            </td>
+                            <td>
+                                {{ conversion_request.client.username }}
+                                <span class="d-block small text-body-secondary">
+                                    {{ conversion_request.client.document }}
+                                </span>
+                            </td>
+                            <td>{{ conversion_request.amount_minor }}</td>
+                            <td>
+                                <span class="badge text-bg-secondary">
+                                    {{ conversion_request.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ conversion_request.expires_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% with assignments=conversion_request.assignments.all %}
+                                    {% if assignments %}
+                                        {% for assignment in assignments %}
+                                            <span class="d-block">
+                                                {{ assignment.vendor.user.username }}
+                                                — {{ assignment.get_status_display }}
+                                            </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-body-secondary">Sin asignar</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Paginación de solicitudes">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?status={{ selected_status|urlencode }}&page={{ page_obj.previous_page_number }}"
+                            >
+                                Anterior
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a
+                                class="page-link"
+                                href="?status={{ selected_status|urlencode }}&page={{ page_obj.next_page_number }}"
+                            >
+                                Siguiente
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state" role="status">
+            <h2 class="h5">No existen solicitudes para este filtro</h2>
+            <p class="text-body-secondary mb-0">
+                Cuando el flujo cree solicitudes aparecerán aquí en modo lectura.
+            </p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

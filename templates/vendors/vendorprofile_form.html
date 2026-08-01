@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if object %}Editar perfil vendedor{% else %}Crear perfil vendedor{% endif %} | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-9 col-xl-7">
+        <section class="card shadow-sm" aria-labelledby="vendor-form-title">
+            <div class="card-body p-4 p-lg-5">
+                <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+                <h1 id="vendor-form-title" class="h2 mb-2">
+                    {% if object %}Editar perfil vendedor{% else %}Crear perfil vendedor{% endif %}
+                </h1>
+                <p class="text-body-secondary">
+                    El usuario debe conservar una cuenta activa y el rol VENDEDOR.
+                </p>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="col-12">
+                                <label class="form-label" for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                    {% if field.field.required %}
+                                        <span class="text-danger" aria-hidden="true">*</span>
+                                    {% endif %}
+                                </label>
+
+                                {{ field }}
+
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ error }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="alert alert-info mt-4" role="note">
+                        Las solicitudes y asignaciones se gestionan mediante flujo
+                        transaccional; este formulario solo administra el perfil.
+                    </div>
+
+                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
+                        {% if object %}
+                            <a
+                                class="btn btn-outline-secondary"
+                                href="{% url 'vendors:vendorprofile_detail' object.pk %}"
+                            >
+                                Cancelar
+                            </a>
+                        {% else %}
+                            <a
+                                class="btn btn-outline-secondary"
+                                href="{% url 'vendors:vendorprofile_list' %}"
+                            >
+                                Cancelar
+                            </a>
+                        {% endif %}
+
+                        <button class="btn btn-primary" type="submit">
+                            Guardar perfil
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
