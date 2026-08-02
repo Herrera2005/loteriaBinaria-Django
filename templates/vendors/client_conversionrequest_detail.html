@@ -10,7 +10,21 @@
         <h1 class="h2 mb-1">Detalle de solicitud</h1>
         <p class="text-body-secondary mb-0">Conversión REAL → VIRTUAL mediante vendedor.</p>
     </div>
-    <a class="btn btn-outline-secondary" href="{% url 'vendors:client_conversionrequest_list' %}">Volver a mis solicitudes</a>
+    <div class="d-flex flex-column flex-sm-row gap-2">
+        {% if can_cancel %}
+            <form
+                method="post"
+                data-confirm-title="Cancelar solicitud"
+                data-confirm-message="El REAL reservado volverá a tu saldo disponible. Esta solicitud ya no podrá ser atendida."
+            >
+                {% csrf_token %}
+                <button class="btn btn-outline-danger" type="submit">
+                    Cancelar solicitud
+                </button>
+            </form>
+        {% endif %}
+        <a class="btn btn-outline-secondary" href="{% url 'vendors:client_conversionrequest_list' %}">Volver a mis solicitudes</a>
+    </div>
 </header>
 
 <div class="row g-4">
@@ -31,8 +45,19 @@
     <aside class="col-12 col-xl-5">
         <div class="alert alert-info h-100 mb-0" role="note">
             <h2 class="h5">Qué ocurre ahora</h2>
-            <p>El monto permanece reservado. Todavía no se acredita VIRTUAL.</p>
-            <p class="mb-0">En el siguiente bloque, un vendedor elegible podrá tomar y completar la solicitud.</p>
+            {% if conversion_request.status == "PENDING" %}
+                <p>El monto permanece reservado. Todavía no se acredita VIRTUAL.</p>
+                <p class="mb-0">Puedes cancelarla antes de que un vendedor la tome o antes de que venza.</p>
+            {% elif conversion_request.status == "IN_PROGRESS" %}
+                <p>Un vendedor ya reservó el VIRTUAL necesario.</p>
+                <p class="mb-0">La solicitud ya no puede cancelarse desde el Cliente; debe completarse, liberarse o expirar.</p>
+            {% elif conversion_request.status == "CANCELLED" %}
+                <p class="mb-0">La solicitud fue cancelada y el REAL reservado volvió a disponible.</p>
+            {% elif conversion_request.status == "EXPIRED" %}
+                <p class="mb-0">La solicitud expiró y las reservas fueron liberadas por el proceso de vencimientos.</p>
+            {% else %}
+                <p class="mb-0">La solicitud llegó a un estado final. Revisa Billeteras y movimientos para consultar el resultado.</p>
+            {% endif %}
         </div>
     </aside>
 </div>

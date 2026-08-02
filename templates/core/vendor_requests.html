@@ -114,19 +114,36 @@
                                 <td>{{ row.assignment.assigned_at|date:"d/m/Y H:i" }}</td>
                                 <td class="text-end">
                                     {% if row.can_complete %}
-                                        <form
-                                            method="post"
-                                            class="d-inline"
-                                            data-confirm-title="Completar solicitud"
-                                            data-confirm-message="Se entregará el VIRTUAL reservado al Cliente y recibirás el REAL reservado. Esta acción no se puede deshacer."
-                                        >
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="complete">
-                                            <input type="hidden" name="assignment_id" value="{{ row.assignment.pk }}">
-                                            <button class="btn btn-success btn-sm" type="submit">
-                                                Completar solicitud
-                                            </button>
-                                        </form>
+                                        <div class="d-flex flex-column flex-lg-row justify-content-end gap-2">
+                                            <form
+                                                method="post"
+                                                class="d-inline"
+                                                data-confirm-title="Completar solicitud"
+                                                data-confirm-message="Se entregará el VIRTUAL reservado al Cliente y recibirás el REAL reservado. Esta acción no se puede deshacer."
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="complete">
+                                                <input type="hidden" name="assignment_id" value="{{ row.assignment.pk }}">
+                                                <button class="btn btn-success btn-sm" type="submit">
+                                                    Completar
+                                                </button>
+                                            </form>
+                                            {% if row.can_release %}
+                                                <form
+                                                    method="post"
+                                                    class="d-inline"
+                                                    data-confirm-title="Liberar asignación"
+                                                    data-confirm-message="El VIRTUAL reservado volverá a disponible. El REAL del Cliente seguirá reservado y la solicitud podrá tomarla otro vendedor."
+                                                >
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="release">
+                                                    <input type="hidden" name="assignment_id" value="{{ row.assignment.pk }}">
+                                                    <button class="btn btn-outline-danger btn-sm" type="submit">
+                                                        Liberar
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
                                     {% elif row.assignment.status == "COMPLETED" %}
                                         <span class="text-success small fw-semibold">Liquidada</span>
                                     {% else %}

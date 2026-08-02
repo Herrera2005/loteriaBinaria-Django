@@ -479,3 +479,319 @@ def complete_conversion_request(
 
     return assignment, True
 
+
+@transaction.atomic
+def release_conversion_assignment(
+    *,
+    vendor,
+    assignment_id: int,
+) -> tuple[ConversionAssignment, bool]:
+    """Libera una asignación activa antes del vencimiento.
+
+    El VIRTUAL que este MVP reserva al tomar la solicitud vuelve a disponible.
+    El REAL del Cliente permanece reservado y la solicitud regresa a PENDING
+    para que otro vendedor elegible pueda tomarla.
+    """
+
+    profile = _active_vendor_profile(vendor)
+    now = timezone.now()
+
+    try:
+        assignment = (
+            ConversionAssignment.objects
+            .select_for_update()
+            .select_related("request", "vendor")
+            .get(pk=assignment_id)
+        )
+    except ConversionAssignment.DoesNotExist as exc:
+        raise ValidationError("La asignación no existe.") from exc
+
+    if assignment.vendor_id != profile.pk:
+        raise ValidationError("La asignación no pertenece a este vendedor.")
+
+    conversion_request = (
+        ConversionRequest.objects
+        .select_for_update()
+        .get(pk=assignment.request_id)
+    )
+
+    if (
+        assignment.status == ConversionAssignment.Status.RELEASED
+        and conversion_request.status == ConversionRequest.Status.PENDING
+    ):
+        return assignment, False
+
+    if assignment.status != ConversionAssignment.Status.ACTIVE:
+        raise ValidationError("La asignación ya no está activa.")
+    if conversion_request.status != ConversionRequest.Status.IN_PROGRESS:
+        raise ValidationError("La solicitud ya no está en proceso.")
+    if conversion_request.expires_at <= now:
+        raise ValidationError(
+            "La solicitud ya venció; debe procesarse mediante expiración."
+        )
+
+    try:
+        vendor_virtual = (
+            Wallet.objects
+            .select_for_update()
+            .get(user=vendor, currency=Wallet.Currency.VIRTUAL)
+        )
+    except Wallet.DoesNotExist as exc:
+        raise ValidationError("La wallet VIRTUAL requerida no existe.") from exc
+
+    amount = conversion_request.amount_minor
+    if vendor_virtual.status != Wallet.Status.ACTIVE:
+        raise ValidationError("La wallet VIRTUAL no está activa.")
+    if vendor_virtual.reserved_minor < amount:
+        raise ValidationError("El VIRTUAL reservado del vendedor es insuficiente.")
+
+    vendor_virtual.reserved_minor -= amount
+    vendor_virtual.available_minor += amount
+    vendor_virtual.save(
+        update_fields=("available_minor", "reserved_minor", "updated_at")
+    )
+
+    Movement.objects.create(
+        wallet=vendor_virtual,
+        operation_id=conversion_request.operation_id,
+        type=Movement.Type.CONVERSION_REQUEST,
+        direction=Movement.Direction.CREDIT,
+        amount_minor=amount,
+        balance_after_minor=vendor_virtual.available_minor,
+        description="Liberación de VIRTUAL reservado al devolver la solicitud.",
+    )
+
+    assignment.status = ConversionAssignment.Status.RELEASED
+    assignment.released_at = now
+    assignment.save(update_fields=("status", "released_at"))
+
+    conversion_request.status = ConversionRequest.Status.PENDING
+    conversion_request.save(update_fields=("status", "updated_at"))
+
+    return assignment, True
+
+
+@transaction.atomic
+def cancel_conversion_request(
+    *,
+    client,
+    request_id: int,
+) -> tuple[ConversionRequest, bool]:
+    """Cancela una solicitud pendiente propia y devuelve el REAL reservado."""
+
+    if (
+        not client.is_active
+        or client.status != User.Status.ACTIVE
+        or not client.groups.filter(name=CLIENT).exists()
+    ):
+        raise ValidationError("Se requiere una cuenta CLIENTE activa.")
+
+    now = timezone.now()
+
+    try:
+        conversion_request = (
+            ConversionRequest.objects
+            .select_for_update()
+            .get(pk=request_id, client=client)
+        )
+    except ConversionRequest.DoesNotExist as exc:
+        raise ValidationError("La solicitud no existe o no pertenece al Cliente.") from exc
+
+    if conversion_request.status == ConversionRequest.Status.CANCELLED:
+        return conversion_request, False
+    if conversion_request.status != ConversionRequest.Status.PENDING:
+        raise ValidationError("Solo puede cancelarse una solicitud pendiente.")
+    if conversion_request.expires_at <= now:
+        raise ValidationError(
+            "La solicitud ya venció; debe procesarse mediante expiración."
+        )
+    if ConversionAssignment.objects.filter(
+        request=conversion_request,
+        status=ConversionAssignment.Status.ACTIVE,
+    ).exists():
+        raise ValidationError("La solicitud tiene una asignación activa.")
+
+    try:
+        client_real = (
+            Wallet.objects
+            .select_for_update()
+            .get(user=client, currency=Wallet.Currency.REAL)
+        )
+    except Wallet.DoesNotExist as exc:
+        raise ValidationError("La wallet REAL requerida no existe.") from exc
+
+    amount = conversion_request.amount_minor
+    if client_real.status != Wallet.Status.ACTIVE:
+        raise ValidationError("La wallet REAL no está activa.")
+    if client_real.reserved_minor < amount:
+        raise ValidationError("El REAL reservado del Cliente es insuficiente.")
+
+    client_real.reserved_minor -= amount
+    client_real.available_minor += amount
+    client_real.save(
+        update_fields=("available_minor", "reserved_minor", "updated_at")
+    )
+
+    Movement.objects.create(
+        wallet=client_real,
+        operation_id=conversion_request.operation_id,
+        type=Movement.Type.CONVERSION_REQUEST,
+        direction=Movement.Direction.CREDIT,
+        amount_minor=amount,
+        balance_after_minor=client_real.available_minor,
+        description="Devolución de REAL reservado por solicitud cancelada.",
+    )
+
+    conversion_request.status = ConversionRequest.Status.CANCELLED
+    conversion_request.completed_at = now
+    conversion_request.save(
+        update_fields=("status", "completed_at", "updated_at")
+    )
+
+    return conversion_request, True
+
+
+def _expire_conversion_request(*, request_id: int, now) -> bool:
+    """Expira una solicitud concreta con bloqueo e idempotencia."""
+
+    with transaction.atomic():
+        try:
+            conversion_request = (
+                ConversionRequest.objects
+                .select_for_update()
+                .select_related("client")
+                .get(pk=request_id)
+            )
+        except ConversionRequest.DoesNotExist:
+            return False
+
+        if conversion_request.status in ConversionRequest.TERMINAL_STATUSES:
+            return False
+        if conversion_request.expires_at > now:
+            return False
+        if conversion_request.status not in {
+            ConversionRequest.Status.PENDING,
+            ConversionRequest.Status.IN_PROGRESS,
+        }:
+            return False
+
+        amount = conversion_request.amount_minor
+        client_real = (
+            Wallet.objects
+            .select_for_update()
+            .get(
+                user_id=conversion_request.client_id,
+                currency=Wallet.Currency.REAL,
+            )
+        )
+        if client_real.reserved_minor < amount:
+            raise ValidationError("El REAL reservado del Cliente es insuficiente.")
+
+        active_assignment = (
+            ConversionAssignment.objects
+            .select_for_update()
+            .select_related("vendor__user")
+            .filter(
+                request=conversion_request,
+                status=ConversionAssignment.Status.ACTIVE,
+            )
+            .first()
+        )
+
+        movement_rows = []
+        if active_assignment is not None:
+            vendor_virtual = (
+                Wallet.objects
+                .select_for_update()
+                .get(
+                    user_id=active_assignment.vendor.user_id,
+                    currency=Wallet.Currency.VIRTUAL,
+                )
+            )
+            if vendor_virtual.reserved_minor < amount:
+                raise ValidationError(
+                    "El VIRTUAL reservado del Vendedor es insuficiente."
+                )
+
+            vendor_virtual.reserved_minor -= amount
+            vendor_virtual.available_minor += amount
+            vendor_virtual.save(
+                update_fields=(
+                    "available_minor",
+                    "reserved_minor",
+                    "updated_at",
+                )
+            )
+            movement_rows.append(
+                Movement(
+                    wallet=vendor_virtual,
+                    operation_id=conversion_request.operation_id,
+                    type=Movement.Type.CONVERSION_REQUEST,
+                    direction=Movement.Direction.CREDIT,
+                    amount_minor=amount,
+                    balance_after_minor=vendor_virtual.available_minor,
+                    description=(
+                        "Liberación de VIRTUAL reservado por solicitud expirada."
+                    ),
+                )
+            )
+            active_assignment.status = ConversionAssignment.Status.EXPIRED
+            active_assignment.released_at = now
+            active_assignment.save(update_fields=("status", "released_at"))
+
+        client_real.reserved_minor -= amount
+        client_real.available_minor += amount
+        client_real.save(
+            update_fields=("available_minor", "reserved_minor", "updated_at")
+        )
+        movement_rows.append(
+            Movement(
+                wallet=client_real,
+                operation_id=conversion_request.operation_id,
+                type=Movement.Type.CONVERSION_REQUEST,
+                direction=Movement.Direction.CREDIT,
+                amount_minor=amount,
+                balance_after_minor=client_real.available_minor,
+                description="Devolución de REAL reservado por solicitud expirada.",
+            )
+        )
+        Movement.objects.bulk_create(movement_rows)
+
+        conversion_request.status = ConversionRequest.Status.EXPIRED
+        conversion_request.completed_at = now
+        conversion_request.save(
+            update_fields=("status", "completed_at", "updated_at")
+        )
+        return True
+
+
+def process_expired_conversion_requests(*, now=None) -> int:
+    """Procesa solicitudes vencidas de forma idempotente.
+
+    Este Taller no tiene una wallet técnica de plataforma configurada. Por eso
+    el comando aplica la rama segura soportada por los modelos actuales:
+    libera todas las reservas y marca la solicitud como EXPIRED.
+    """
+
+    effective_now = now or timezone.now()
+    request_ids = list(
+        ConversionRequest.objects
+        .filter(
+            status__in=(
+                ConversionRequest.Status.PENDING,
+                ConversionRequest.Status.IN_PROGRESS,
+            ),
+            expires_at__lte=effective_now,
+        )
+        .order_by("id")
+        .values_list("id", flat=True)
+    )
+
+    processed = 0
+    for request_id in request_ids:
+        if _expire_conversion_request(
+            request_id=request_id,
+            now=effective_now,
+        ):
+            processed += 1
+    return processed

@@ -27,6 +27,7 @@ from apps.vendors.services import (
     assign_conversion_request,
     complete_conversion_request,
     eligible_conversion_requests,
+    release_conversion_assignment,
 )
 
 from .models import AuditEvent
@@ -320,6 +321,12 @@ def vendor_dashboard(request):
                     == ConversionRequest.Status.IN_PROGRESS
                     and assignment.request.expires_at > timezone.now()
                 ),
+                "can_release": (
+                    assignment.status == ConversionAssignment.Status.ACTIVE
+                    and assignment.request.status
+                    == ConversionRequest.Status.IN_PROGRESS
+                    and assignment.request.expires_at > timezone.now()
+                ),
             }
             for assignment in assignments[:5]
         ]
@@ -381,6 +388,26 @@ def vendor_requests(request):
                         request,
                         f"La asignación #{assignment.pk} ya estaba completada.",
                     )
+            elif action == "release":
+                assignment_id = int(request.POST.get("assignment_id", ""))
+                assignment, released_now = release_conversion_assignment(
+                    vendor=request.user,
+                    assignment_id=assignment_id,
+                )
+                if released_now:
+                    messages.success(
+                        request,
+                        (
+                            "Asignación liberada. El VIRTUAL volvió a tu "
+                            "saldo disponible y la solicitud quedó disponible "
+                            "para otro vendedor."
+                        ),
+                    )
+                else:
+                    messages.info(
+                        request,
+                        f"La asignación #{assignment.pk} ya estaba liberada.",
+                    )
             elif action == "take":
                 request_id = int(request.POST.get("request_id", ""))
                 assignment = assign_conversion_request(
@@ -406,7 +433,7 @@ def vendor_requests(request):
             )
             messages.error(request, message)
 
-        if action == "complete":
+        if action in {"complete", "release"}:
             return redirect(f'{reverse("core:vendor_requests")}?tab=mine')
         return redirect("core:vendor_requests")
 
@@ -447,6 +474,12 @@ def vendor_requests(request):
                 "request_status_label": assignment.request.get_status_display(),
                 "assignment_status_label": assignment.get_status_display(),
                 "can_complete": (
+                    assignment.status == ConversionAssignment.Status.ACTIVE
+                    and assignment.request.status
+                    == ConversionRequest.Status.IN_PROGRESS
+                    and assignment.request.expires_at > timezone.now()
+                ),
+                "can_release": (
                     assignment.status == ConversionAssignment.Status.ACTIVE
                     and assignment.request.status
                     == ConversionRequest.Status.IN_PROGRESS
