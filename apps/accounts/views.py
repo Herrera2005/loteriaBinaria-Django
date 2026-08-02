@@ -11,12 +11,10 @@ from django.contrib.auth.views import (
     redirect_to_login,
 )
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
-from django.db.models.deletion import ProtectedError
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
@@ -39,6 +37,10 @@ from .roles import (
     ADMINISTRATOR,
     DASHBOARD_URL_NAMES,
     ROLE_PRESENTATION,
+)
+from .services import (
+    delete_or_deactivate_user,
+    user_has_related_history,
 )
 
 
@@ -328,39 +330,6 @@ class UserUpdateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, Upd
         return response
 
 
-def _has_related_history(user: User) -> bool:
-    """Detecta relaciones históricas reales sin acoplarse a apps futuras."""
-    for relation in user._meta.related_objects:
-        if relation.many_to_many:
-            continue
-
-        accessor_name = relation.get_accessor_name()
-
-        if relation.one_to_one:
-            try:
-                getattr(user, accessor_name)
-            except relation.related_model.DoesNotExist:
-                continue
-            return True
-
-        related_manager = getattr(user, accessor_name, None)
-        if related_manager is not None and related_manager.exists():
-            return True
-
-    return False
-
-
-def _deactivate_user(user: User) -> None:
-    user.status = User.Status.DISABLED
-    user.is_active = False
-    user.save(
-        update_fields=(
-            "status",
-            "is_active",
-            "updated_at",
-        )
-    )
-
 
 class UserDeleteDeactivateView(
     AdministratorModeRequiredMixin,
@@ -369,7 +338,10 @@ class UserDeleteDeactivateView(
     template_name = "accounts/user_confirm_delete.html"
 
     def get_object(self) -> User:
-        return get_object_or_404(User, pk=self.kwargs["pk"])
+        return get_object_or_404(
+            User,
+            pk=self.kwargs["pk"],
+        )
 
     def get(self, request, *args, **kwargs):
         managed_user = self.get_object()
@@ -378,66 +350,47 @@ class UserDeleteDeactivateView(
             self.template_name,
             {
                 "managed_user": managed_user,
-                "has_history": _has_related_history(managed_user),
+                "has_history": user_has_related_history(managed_user),
             },
         )
 
-    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        managed_user = get_object_or_404(
-            User.objects.select_for_update(),
-            pk=self.kwargs["pk"],
-        )
+        managed_user = self.get_object()
 
-        if managed_user.pk == request.user.pk:
-            messages.error(
-                request,
-                "No puedes eliminar ni desactivar tu propia cuenta desde esta operación.",
+        try:
+            result = delete_or_deactivate_user(
+                actor=request.user,
+                target_id=managed_user.pk,
             )
+        except ValidationError as exc:
+            message = (
+                exc.messages[0]
+                if getattr(exc, "messages", None)
+                else str(exc)
+            )
+            messages.error(request, message)
             return redirect(
                 "accounts:user_detail",
                 pk=managed_user.pk,
             )
 
-        if managed_user.is_superuser:
-            messages.error(
-                request,
-                "Los superusuarios no se eliminan ni desactivan desde este CRUD.",
-            )
-            return redirect(
-                "accounts:user_detail",
-                pk=managed_user.pk,
-            )
-
-        if _has_related_history(managed_user):
-            _deactivate_user(managed_user)
+        if result.action == "deactivated":
             messages.warning(
                 request,
                 (
-                    f"El usuario {managed_user.username} conserva historia "
-                    "relacionada y fue desactivado sin eliminar sus registros."
+                    f"El usuario {result.username} conserva historia "
+                    "relacionada y fue desactivado sin eliminar sus "
+                    "registros."
                 ),
             )
         else:
-            username = managed_user.username
-            try:
-                managed_user.delete()
-            except ProtectedError:
-                _deactivate_user(managed_user)
-                messages.warning(
-                    request,
-                    (
-                        f"El usuario {username} recibió historia relacionada "
-                        "durante la operación y fue desactivado sin eliminarla."
-                    ),
-                )
-            else:
-                messages.success(
-                    request,
-                    (
-                        f"El usuario {username} fue eliminado físicamente "
-                        "porque no tenía historia."
-                    ),
-                )
+            messages.success(
+                request,
+                (
+                    f"El usuario {result.username} fue eliminado "
+                    "físicamente porque no tenía historia."
+                ),
+            )
 
         return redirect("accounts:user_list")
+
