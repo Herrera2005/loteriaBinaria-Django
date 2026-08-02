@@ -304,7 +304,10 @@ def check_templates(errors: list[str]) -> None:
                 f"Tag Django partido por salto de línea en {relative}"
             )
 
-        is_partial = "includes" in path.parts
+        is_partial = (
+            "includes" in path.parts
+            or path.name.startswith("_")
+        )
         is_base = relative.as_posix() == "templates/base.html"
 
         if not is_partial and not is_base:

@@ -81,6 +81,41 @@
                 </div>
             </article>
 
+            {% if has_vendor_role %}
+                <article class="card mb-4 shadow-sm">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Perfil vendedor</h2>
+                    </div>
+                    <div class="card-body">
+                        {% if vendor_profile %}
+                            <p class="mb-3">
+                                Estado:
+                                <span class="badge {% if vendor_profile.status == 'ACTIVE' %}text-bg-success{% elif vendor_profile.status == 'PENDING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                                    {{ vendor_profile.get_status_display }}
+                                </span>
+                            </p>
+                            <a
+                                class="btn btn-outline-primary"
+                                href="{% url 'vendors:vendorprofile_detail' vendor_profile.pk %}"
+                            >
+                                Ver perfil vendedor
+                            </a>
+                        {% else %}
+                            <div class="alert alert-warning mb-3" role="alert">
+                                El rol VENDEDOR permite seleccionar ese modo,
+                                pero la cuenta todavía no posee un perfil vendedor.
+                            </div>
+                            <a
+                                class="btn btn-primary"
+                                href="{% url 'vendors:vendorprofile_create' %}"
+                            >
+                                Crear perfil vendedor
+                            </a>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endif %}
+
             <article class="card shadow-sm">
                 <div class="card-header">
                     <h2 class="h5 mb-0">Aceptaciones legales</h2>

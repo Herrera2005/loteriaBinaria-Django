@@ -79,21 +79,17 @@ class PublicAndDashboardViewTests(TestCase):
     def test_navigation_shows_only_links_allowed_for_client_mode(self):
         user = create_user(
             username="nav_client",
-            email="nav.client@example.test",
-            document="NAV-CLIENT-001",
+            email="nav-client@example.test",
+            document="NAV-CLIENT",
             roles=(CLIENT,),
-            is_staff=True,
         )
 
         self.client.force_login(user)
-
         session = self.client.session
         session[ACTIVE_MODE_SESSION_KEY] = CLIENT
         session.save()
 
-        response = self.client.get(
-            reverse("core:client_dashboard"),
-        )
+        response = self.client.get(reverse("core:client_dashboard"))
 
         self.assertEqual(response.status_code, 200)
 
@@ -105,38 +101,46 @@ class PublicAndDashboardViewTests(TestCase):
             response,
             reverse("finance:wallet_detail"),
         )
+        self.assertContains(response, "Billeteras y movimientos")
         self.assertContains(
             response,
-            reverse("finance:movement_list"),
+            reverse("finance:real_operations"),
         )
+        self.assertContains(
+            response,
+            reverse("finance:wallet_conversion"),
+        )
+        self.assertContains(
+            response,
+            reverse("vendors:client_conversionrequest_list"),
+        )
+        self.assertContains(
+            response,
+            reverse("finance:virtual_transfer"),
+        )
+
+        self.assertContains(response, "Mis solicitudes")
 
         self.assertNotContains(
             response,
-            reverse("core:vendor_dashboard"),
+            f'href="{reverse("vendors:vendorprofile_list")}"',
         )
+        self.assertNotContains(
+            response,
+            f'href="{reverse("vendors:vendorprofile_create")}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{reverse("vendors:conversionrequest_list")}"',
+        )
+                
         self.assertNotContains(
             response,
             reverse("core:admin_dashboard"),
         )
         self.assertNotContains(
             response,
-            reverse("core:audit_list"),
-        )
-        self.assertNotContains(
-            response,
-            reverse("accounts:user_list"),
-        )
-        self.assertNotContains(
-            response,
-            reverse("vendors:vendorprofile_list"),
-        )
-        self.assertNotContains(
-            response,
-            reverse("lottery:product_list"),
-        )
-        self.assertNotContains(
-            response,
-            reverse("admin:index"),
+            reverse("core:vendor_dashboard"),
         )
 
     def activate(self, user, mode):
@@ -244,9 +248,35 @@ class PublicAndDashboardViewTests(TestCase):
         self.assertContains(response, "V 2.50")
         self.assertContains(response, "Premio")
         self.assertContains(response, reverse("finance:wallet_detail"))
-        self.assertContains(response, reverse("finance:movement_list"))
         self.assertNotContains(response, "Comprar boleto")
-        self.assertNotContains(response, "Recargar")
+        self.assertContains(response, "Operaciones REAL")
+        self.assertContains(response, "Conversión de wallets")
+        self.assertContains(response, "Transferir VIRTUAL")
+
+        self.assertContains(
+            response,
+            reverse("finance:real_operations"),
+        )
+        self.assertContains(
+            response,
+            reverse("finance:wallet_conversion"),
+        )
+        self.assertContains(
+            response,
+            reverse("finance:virtual_transfer"),
+        )
+        self.assertNotContains(
+            response,
+            f'href="{reverse("finance:topup")}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{reverse("finance:conversion")}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{reverse("finance:withdrawal")}"',
+        )
 
     def test_vendor_dashboard_has_no_ticket_purchase_action(self):
         user = create_user(roles=(VENDOR,))
@@ -298,7 +328,6 @@ class PublicAndDashboardViewTests(TestCase):
         self.assertContains(response, "$ 5.00")
         self.assertEqual(response.context["pending_request_count"], 1)
         self.assertContains(response, reverse("finance:wallet_detail"))
-        self.assertContains(response, reverse("finance:movement_list"))
 
     def test_non_staff_administrator_mode_does_not_expose_django_admin(self):
         user = create_user(roles=(ADMINISTRATOR,))

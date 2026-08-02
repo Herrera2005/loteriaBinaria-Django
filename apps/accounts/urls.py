@@ -5,6 +5,13 @@ from django.urls import path
 from . import views
 
 
+"""Rutas del módulo accounts."""
+
+from django.urls import path
+
+from . import views
+
+
 app_name = "accounts"
 
 urlpatterns = [
@@ -21,7 +28,7 @@ urlpatterns = [
         views.AccountPasswordChangeDoneView.as_view(),
         name="password_change_done",
     ),
-    path("mode/", views.choose_mode, name="choose_mode"),
+    path("mode/", views.change_mode, name="choose_mode"),
     path("profile/", views.ProfileDetailView.as_view(), name="profile"),
     path(
         "profile/edit/",

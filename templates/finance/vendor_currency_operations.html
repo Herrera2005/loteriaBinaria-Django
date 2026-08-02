@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Monedas e inventario | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-warning mb-2">Modo VENDEDOR</span>
+    <h1 class="h2 mb-2">Monedas e inventario</h1>
+    <p class="text-body-secondary mb-0">
+        Compra inventario VIRTUAL o convierte VIRTUAL disponible a REAL.
+    </p>
+</header>
+
+{% include "finance/_wallet_summary.html" %}
+
+<section class="card shadow-sm" aria-labelledby="vendor-currency-options-title">
+    <div class="card-body p-4">
+        <h2 id="vendor-currency-options-title" class="visually-hidden">
+            Opciones de monedas del vendedor
+        </h2>
+
+        <nav class="nav nav-tabs mb-4" aria-label="Monedas e inventario">
+            <a class="nav-link {% if active_tab == 'wholesale' %}active{% endif %}"
+               href="{% url 'finance:vendor_currency_operations' %}?tab=wholesale"
+               {% if active_tab == "wholesale" %}aria-current="page"{% endif %}>
+                REAL → VIRTUAL
+            </a>
+            <a class="nav-link {% if active_tab == 'virtual-to-real' %}active{% endif %}"
+               href="{% url 'finance:vendor_currency_operations' %}?tab=virtual-to-real"
+               {% if active_tab == "virtual-to-real" %}aria-current="page"{% endif %}>
+                VIRTUAL → REAL
+            </a>
+        </nav>
+
+        {% if active_tab == "virtual-to-real" %}
+            <h2 class="h3">Convertir VIRTUAL a REAL</h2>
+            <p class="text-body-secondary">
+                Se debita el monto VIRTUAL completo, se acredita el 90 % en REAL
+                y el 10 % se registra como comisión.
+            </p>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {{ conversion_form.operation_id }}
+                {% if conversion_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ conversion_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ conversion_form.amount.id_for_label }}">
+                        Monto VIRTUAL
+                    </label>
+                    {{ conversion_form.amount }}
+                    {% for error in conversion_form.amount.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="action" value="virtual-to-real">
+                <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="{{ dashboard_url }}">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Confirmar conversión</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                <div>
+                    <h2 class="h3 mb-2">Compra mayorista</h2>
+                    <p class="text-body-secondary mb-0">
+                        Compra inventario convirtiendo REAL a VIRTUAL. Cada V 1.00 cuesta
+                        exactamente $ 0.90 REAL y el monto debe ingresarse en unidades completas.
+                    </p>
+                </div>
+                <a class="btn btn-outline-primary align-self-lg-start"
+                   href="{% url 'finance:vendor_inventory' %}">
+                    Ver mi inventario
+                </a>
+            </div>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {{ purchase_form.operation_id }}
+                {% if purchase_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ purchase_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ purchase_form.amount.id_for_label }}">
+                        {{ purchase_form.amount.label }}
+                    </label>
+                    {{ purchase_form.amount }}
+                    {% if purchase_form.amount.help_text %}
+                        <div class="form-text">{{ purchase_form.amount.help_text }}</div>
+                    {% endif %}
+                    {% for error in purchase_form.amount.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="action" value="wholesale">
+                <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="{{ dashboard_url }}">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Comprar inventario</button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

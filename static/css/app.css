@@ -126,6 +126,35 @@ svg {
     min-height: 2.75rem;
 }
 
+
+.app-navigation-toggle {
+    flex: 0 0 auto;
+    margin-right: 0.25rem;
+}
+
+@media (max-width: 575.98px) {
+    .app-topbar-container {
+        gap: 0.5rem;
+    }
+
+    .navbar-brand {
+        margin-right: auto;
+    }
+
+    .brand-logo-image {
+        width: 2.35rem;
+        height: 2.35rem;
+    }
+
+    .brand-copy .fw-bold {
+        font-size: 0.95rem;
+    }
+
+    .brand-subtitle {
+        display: none;
+    }
+}
+
 .user-summary {
     min-width: 0;
     color: rgba(255, 255, 255, 0.94);

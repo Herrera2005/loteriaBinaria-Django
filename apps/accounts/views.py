@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
     PasswordChangeDoneView,
     PasswordChangeView,
-    redirect_to_login,
 )
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
@@ -32,14 +31,15 @@ from .forms import (
     RegistrationForm,
     TallerAuthenticationForm,
     TallerPasswordChangeForm,
-    UserAdminChangeForm,
-    UserAdminCreationForm,
+    UserBusinessChangeForm,
+    UserBusinessCreationForm,
 )
+from .mixins import AdministratorModeRequiredMixin
 from .models import User
 from .roles import (
-    ADMINISTRATOR,
     DASHBOARD_URL_NAMES,
     ROLE_PRESENTATION,
+    VENDOR,
 )
 from .services import (
     delete_or_deactivate_user,
@@ -164,7 +164,7 @@ def register(request):
 
 
 @require_http_methods(["GET", "POST"])
-def choose_mode(request):
+def change_mode(request):
     if not request.user.is_authenticated:
         return redirect("accounts:login")
     if not request.user.is_active or request.user.status != User.Status.ACTIVE:
@@ -249,37 +249,6 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 
-class AdministratorModeRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Exige cuenta activa, staff, rol y modo ADMINISTRADOR vigente."""
-
-    raise_exception = True
-
-    def test_func(self) -> bool:
-        user = self.request.user
-        if not user.is_authenticated:
-            return False
-        return (
-            user.is_active
-            and user.status == User.Status.ACTIVE
-            and user.is_staff
-            and ADMINISTRATOR in assigned_mode_codes(user)
-            and get_valid_active_mode(self.request) == ADMINISTRATOR
-        )
-    
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-
-        raise PermissionDenied(
-            "Se requiere una cuenta administrativa activa y el modo "
-            "ADMINISTRADOR."
-        )
-
-
 class UserListView(AdministratorModeRequiredMixin, ListView):
     model = User
     template_name = "accounts/user_list.html"
@@ -315,10 +284,28 @@ class UserDetailView(AdministratorModeRequiredMixin, DetailView):
     context_object_name = "managed_user"
 
     def get_queryset(self):
-        return User.objects.prefetch_related(
-            "groups",
-            "terms_acceptances__terms_version",
+        return (
+            User.objects
+            .select_related("vendor_profile")
+            .prefetch_related(
+                "groups",
+                "terms_acceptances__terms_version",
+            )
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        managed_user = context["managed_user"]
+        context["has_vendor_role"] = managed_user.groups.filter(
+            name=VENDOR
+        ).exists()
+
+        try:
+            context["vendor_profile"] = managed_user.vendor_profile
+        except ObjectDoesNotExist:
+            context["vendor_profile"] = None
+
+        return context
 
 
 class CrudBootstrapFormMixin:
@@ -327,9 +314,10 @@ class CrudBootstrapFormMixin:
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
 
-        if not self.request.user.is_superuser:
-            form.fields.pop("is_superuser", None)
-            form.fields.pop("user_permissions", None)
+        # El panel visual administra roles de negocio. Los permisos
+        # individuales y el superusuario permanecen en Django Admin.
+        form.fields.pop("is_superuser", None)
+        form.fields.pop("user_permissions", None)
 
         for field in form.fields.values():
             widget = field.widget
@@ -352,7 +340,7 @@ class CrudBootstrapFormMixin:
 
 class UserCreateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, CreateView):
     model = User
-    form_class = UserAdminCreationForm
+    form_class = UserBusinessCreationForm
     template_name = "accounts/user_form.html"
 
     def get_success_url(self):
@@ -372,7 +360,7 @@ class UserCreateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, Cre
 
 class UserUpdateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, UpdateView):
     model = User
-    form_class = UserAdminChangeForm
+    form_class = UserBusinessChangeForm
     template_name = "accounts/user_form.html"
     context_object_name = "managed_user"
 

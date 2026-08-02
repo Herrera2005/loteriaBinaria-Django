@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from django import forms
+import uuid
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -124,3 +126,35 @@ class VendorProfileForm(forms.ModelForm):
                 )
 
         return cleaned_data
+
+
+class ConversionRequestCreateForm(forms.Form):
+    """Captura un monto REAL sin usar float y una clave idempotente."""
+
+    amount = forms.DecimalField(
+        label="Monto REAL a convertir",
+        min_value=Decimal("0.01"),
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0.01",
+                "inputmode": "decimal",
+            }
+        ),
+        help_text=(
+            "El monto se reservará en tu wallet REAL hasta que la "
+            "solicitud se complete, cancele o expire."
+        ),
+    )
+    operation_id = forms.UUIDField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial.setdefault("operation_id", uuid.uuid4())
+
+    def amount_minor(self) -> int:
+        return int(self.cleaned_data["amount"] * 100)

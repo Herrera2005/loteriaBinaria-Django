@@ -2,16 +2,22 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from django import forms
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.utils import timezone
 
 from apps.accounts.forms import (
     ProfileUpdateForm,
+    RegistrationForm,
     TermsVersionForm,
     UserAdminChangeForm,
     UserAdminCreationForm,
+    UserBusinessChangeForm,
+    UserBusinessCreationForm,
 )
 from apps.accounts.models import TermsAcceptance, TermsVersion, User
+from apps.accounts.roles import ADMINISTRATOR, CLIENT, ROLE_CODES, VENDOR
 from apps.accounts.services import age_cutoff
 
 
@@ -43,6 +49,129 @@ def user_form_data(**overrides):
     }
     data.update(overrides)
     return data
+
+
+class BirthDateWidgetTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="fecha_existente",
+            email="fecha@example.test",
+            document="FECHA-001",
+            birth_date=adult_birth_date(),
+            password=VALID_PASSWORD,
+        )
+
+    def assert_uses_iso_date_widget(self, form):
+        field = form.fields["birth_date"]
+
+        self.assertIsInstance(field.widget, forms.DateInput)
+        self.assertEqual(field.widget.format, "%Y-%m-%d")
+        self.assertEqual(field.input_formats, ("%Y-%m-%d",))
+        self.assertEqual(field.widget.input_type, "date")
+        self.assertEqual(
+            field.error_messages["required"],
+            "La fecha de nacimiento es obligatoria.",
+        )
+
+    def test_all_account_date_forms_use_html5_iso_format(self):
+        forms_to_check = (
+            RegistrationForm(),
+            UserAdminCreationForm(),
+            UserAdminChangeForm(instance=self.user),
+            UserBusinessCreationForm(),
+            UserBusinessChangeForm(instance=self.user),
+            ProfileUpdateForm(instance=self.user),
+        )
+
+        for account_form in forms_to_check:
+            with self.subTest(form=account_form.__class__.__name__):
+                self.assert_uses_iso_date_widget(account_form)
+
+    def test_existing_birth_date_is_rendered_instead_of_appearing_empty(self):
+        expected_value = f'value="{self.user.birth_date.isoformat()}"'
+        forms_to_check = (
+            UserAdminChangeForm(instance=self.user),
+            UserBusinessChangeForm(instance=self.user),
+            ProfileUpdateForm(instance=self.user),
+        )
+
+        for account_form in forms_to_check:
+            with self.subTest(form=account_form.__class__.__name__):
+                self.assertIn(
+                    expected_value,
+                    str(account_form["birth_date"]),
+                )
+
+
+class BusinessRoleFormTests(TestCase):
+    def setUp(self):
+        self.groups = {
+            role_code: Group.objects.create(name=role_code)
+            for role_code in ROLE_CODES
+        }
+        self.other_group = Group.objects.create(name="GRUPO_TECNICO")
+
+    def test_visual_form_uses_only_canonical_role_checkboxes(self):
+        form = UserBusinessCreationForm()
+
+        self.assertIsInstance(
+            form.fields["groups"].widget,
+            forms.CheckboxSelectMultiple,
+        )
+        self.assertEqual(
+            list(form.fields["groups"].queryset.values_list("name", flat=True)),
+            list(ROLE_CODES),
+        )
+        self.assertNotIn("user_permissions", form.fields)
+        self.assertNotIn("is_superuser", form.fields)
+
+    def test_noncanonical_group_cannot_be_assigned_from_visual_form(self):
+        form = UserBusinessCreationForm(
+            data=user_form_data(groups=[self.other_group.pk])
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("groups", form.errors)
+
+    def test_administrator_role_requires_staff_in_visual_form(self):
+        form = UserBusinessCreationForm(
+            data=user_form_data(
+                groups=[self.groups[ADMINISTRATOR].pk],
+                is_staff=False,
+            )
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("is_staff", form.errors)
+
+    def test_vendor_role_can_be_saved_before_separate_profile_creation(self):
+        form = UserBusinessCreationForm(
+            data=user_form_data(
+                groups=[self.groups[VENDOR].pk],
+            )
+        )
+
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        user = form.save()
+        self.assertTrue(user.groups.filter(name=VENDOR).exists())
+        self.assertFalse(hasattr(user, "vendor_profile"))
+
+    def test_client_and_vendor_roles_can_coexist(self):
+        form = UserBusinessCreationForm(
+            data=user_form_data(
+                groups=[
+                    self.groups[CLIENT].pk,
+                    self.groups[VENDOR].pk,
+                ],
+            )
+        )
+
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        user = form.save()
+        self.assertEqual(
+            set(user.groups.values_list("name", flat=True)),
+            {CLIENT, VENDOR},
+        )
 
 
 class UserAdminCreationFormTests(TestCase):

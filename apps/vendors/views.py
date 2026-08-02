@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_GET
 from django.views.generic import (
     CreateView,
     DetailView,
@@ -19,6 +22,7 @@ from django.views.generic import (
 
 from apps.accounts.access import assigned_mode_codes, get_valid_active_mode
 from apps.accounts.models import User
+from apps.accounts.policies import can_use_client_functions
 from apps.accounts.roles import ADMINISTRATOR
 
 from .forms import VendorProfileForm
@@ -282,3 +286,80 @@ class ConversionRequestReadOnlyListView(
             }
         )
         return context
+
+
+def _client_mode_required(view_func):
+    """Exige cuenta operativa, rol CLIENTE y modo CLIENTE."""
+
+    @login_required
+    def wrapped(request, *args, **kwargs):
+        if not can_use_client_functions(request):
+            raise PermissionDenied(
+                "Esta operación requiere una cuenta activa en modo CLIENTE."
+            )
+        return view_func(request, *args, **kwargs)
+
+    return wrapped
+
+
+def _format_real_minor(amount_minor: int) -> str:
+    major, minor = divmod(abs(int(amount_minor)), 100)
+    return f"$ {major:,}.{minor:02d}"
+
+
+@_client_mode_required
+@require_GET
+def client_conversionrequest_list(request):
+    """Lista exclusivamente las solicitudes del Cliente autenticado."""
+
+    queryset = (
+        ConversionRequest.objects
+        .filter(client=request.user)
+        .order_by("-created_at", "-id")
+    )
+    paginator = Paginator(queryset, 15)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    rows = [
+        {
+            "request": item,
+            "amount_display": _format_real_minor(item.amount_minor),
+            "status_label": item.get_status_display(),
+        }
+        for item in page_obj.object_list
+    ]
+
+    return render(
+        request,
+        "vendors/client_conversionrequest_list.html",
+        {
+            "request_rows": rows,
+            "page_obj": page_obj,
+            "is_paginated": page_obj.has_other_pages(),
+        },
+    )
+
+
+@_client_mode_required
+@require_GET
+def client_conversionrequest_detail(request, pk):
+    """Muestra una solicitud solo cuando pertenece al Cliente actual."""
+
+    conversion_request = get_object_or_404(
+        ConversionRequest.objects.prefetch_related(
+            "assignments__vendor__user"
+        ),
+        pk=pk,
+        client=request.user,
+    )
+
+    return render(
+        request,
+        "vendors/client_conversionrequest_detail.html",
+        {
+            "conversion_request": conversion_request,
+            "amount_display": _format_real_minor(
+                conversion_request.amount_minor
+            ),
+        },
+    )

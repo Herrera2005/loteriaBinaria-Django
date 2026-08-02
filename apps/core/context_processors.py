@@ -2,12 +2,11 @@
 
 from django.urls import reverse
 
-from apps.accounts.access import get_valid_active_mode
+from apps.accounts.policies import assigned_role_codes, get_active_mode
 from apps.accounts.roles import (
     ADMINISTRATOR,
     CLIENT,
     DASHBOARD_URL_NAMES,
-    ROLE_CODES,
     ROLE_PRESENTATION,
     VENDOR,
 )
@@ -16,18 +15,23 @@ from apps.accounts.roles import (
 MODE_NAVIGATION = {
     CLIENT: (
         ("Panel Cliente", "core:client_dashboard"),
-        ("Mis billeteras", "finance:wallet_detail"),
-        ("Mis movimientos", "finance:movement_list"),
+        ("Billeteras y movimientos", "finance:wallet_detail"),
+        ("Operaciones REAL", "finance:real_operations"),
+        ("Conversión de wallets", "finance:wallet_conversion"),
+        ("Mis solicitudes", "vendors:client_conversionrequest_list"),
+        ("Transferir VIRTUAL", "finance:virtual_transfer"),
     ),
     VENDOR: (
         ("Panel Vendedor", "core:vendor_dashboard"),
-        ("Mis billeteras", "finance:wallet_detail"),
-        ("Mis movimientos", "finance:movement_list"),
+        ("Operaciones REAL", "finance:vendor_real_operations"),
+        ("Monedas e inventario", "finance:vendor_currency_operations"),
+        ("Mi inventario", "finance:vendor_inventory"),
+        ("Solicitudes", "core:vendor_requests"),
+        ("Billeteras y movimientos", "finance:wallet_detail"),
     ),
     ADMINISTRATOR: (
         ("Panel Administrador", "core:admin_dashboard"),
-        ("Mis billeteras", "finance:wallet_detail"),
-        ("Mis movimientos", "finance:movement_list"),
+        ("Billeteras y movimientos", "finance:wallet_detail"),
         ("Auditoría", "core:audit_list"),
     ),
 }
@@ -64,13 +68,10 @@ def navigation(request):
             "can_switch_mode": False,
         }
 
-    assigned_mode_count = request.user.groups.filter(
-        name__in=ROLE_CODES,
-    ).count()
-
+    assigned_mode_count = len(assigned_role_codes(request.user))
     can_switch_mode = assigned_mode_count > 1
 
-    active_mode = get_valid_active_mode(request)
+    active_mode = get_active_mode(request)
     if not active_mode:
         return {
             "active_mode": None,
@@ -79,12 +80,7 @@ def navigation(request):
             "can_switch_mode": can_switch_mode,
         }
 
-    current_url_name = getattr(
-        request.resolver_match,
-        "view_name",
-        None,
-    )
-
+    current_url_name = getattr(request.resolver_match, "view_name", None)
     definitions = list(MODE_NAVIGATION[active_mode])
 
     if active_mode == ADMINISTRATOR and request.user.is_staff:
@@ -93,15 +89,9 @@ def navigation(request):
     return {
         "active_mode": ROLE_PRESENTATION[active_mode]["label"],
         "active_mode_code": active_mode,
-        "active_dashboard_url": reverse(
-            DASHBOARD_URL_NAMES[active_mode]
-        ),
+        "active_dashboard_url": reverse(DASHBOARD_URL_NAMES[active_mode]),
         "nav_items": [
-            _navigation_item(
-                label,
-                url_name,
-                current_url_name,
-            )
+            _navigation_item(label, url_name, current_url_name)
             for label, url_name in definitions
         ],
         "can_switch_mode": can_switch_mode,

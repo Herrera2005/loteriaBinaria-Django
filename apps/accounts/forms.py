@@ -14,10 +14,12 @@ from django.contrib.auth.forms import (
     UserChangeForm,
     UserCreationForm,
 )
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
+from django.db.models import Case, IntegerField, When
 
 from .models import TermsVersion, User
-from .roles import ROLE_PRESENTATION
+from .roles import ADMINISTRATOR, ROLE_CODES, ROLE_PRESENTATION
 from .services import (
     RegistrationData,
     age_cutoff,
@@ -38,13 +40,111 @@ def _apply_bootstrap_widgets(form: forms.Form) -> None:
     """Aplica clases Bootstrap sin convertir el navegador en fuente de verdad."""
     for field in form.fields.values():
         widget = field.widget
-        if isinstance(widget, forms.CheckboxInput):
+        if isinstance(widget, (forms.CheckboxInput, forms.CheckboxSelectMultiple)):
             css_class = "form-check-input"
         elif isinstance(widget, forms.Select):
             css_class = "form-select"
         else:
             css_class = "form-control"
         _append_css_class(widget, css_class)
+
+
+BIRTH_DATE_INPUT_FORMAT = "%Y-%m-%d"
+
+
+def _birth_date_widget() -> forms.DateInput:
+    """Renderiza fechas HTML5 en ISO para evitar campos visualmente vacíos."""
+    return forms.DateInput(
+        format=BIRTH_DATE_INPUT_FORMAT,
+        attrs={"type": "date"},
+    )
+
+
+def _configure_birth_date_field(form: forms.Form) -> None:
+    """Alinea renderizado, lectura y mensajes del input date HTML5."""
+    field = form.fields["birth_date"]
+
+    field.input_formats = (BIRTH_DATE_INPUT_FORMAT,)
+    field.widget.format = BIRTH_DATE_INPUT_FORMAT
+    field.widget.input_type = "date"
+    field.widget.attrs["max"] = age_cutoff().isoformat()
+
+    field.error_messages["required"] = (
+        "La fecha de nacimiento es obligatoria."
+    )
+    field.error_messages["invalid"] = (
+        "Ingresa una fecha de nacimiento válida."
+    )
+
+def _canonical_role_queryset():
+    """Limita el panel visual a los tres Groups canónicos y su orden."""
+    ordering = Case(
+        *(
+            When(name=role_code, then=position)
+            for position, role_code in enumerate(ROLE_CODES)
+        ),
+        default=len(ROLE_CODES),
+        output_field=IntegerField(),
+    )
+    return Group.objects.filter(name__in=ROLE_CODES).order_by(ordering)
+
+
+class BusinessRoleFormMixin:
+    """Configura el panel visual sin exponer permisos técnicos individuales."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # El panel visual administra roles de negocio, no permisos técnicos
+        # individuales ni la condición de superusuario de Django.
+        self.fields.pop("user_permissions", None)
+        self.fields.pop("is_superuser", None)
+
+        groups = self.fields.get("groups")
+        if groups is not None:
+            groups.label = "Roles de negocio"
+            groups.required = False
+
+            # Primero se asigna el widget y después el queryset.
+            # Al establecer el queryset, Django sincroniza sus opciones
+            # con el CheckboxSelectMultiple nuevo.
+            groups.widget = forms.CheckboxSelectMultiple()
+            groups.queryset = _canonical_role_queryset()
+
+            groups.help_text = (
+                "Selecciona únicamente CLIENTE, VENDEDOR y/o "
+                "ADMINISTRADOR. El modo activo se elige después al iniciar "
+                "sesión. El rol VENDEDOR no crea por sí solo el perfil "
+                "vendedor."
+            )
+        is_staff = self.fields.get("is_staff")
+        if is_staff is not None:
+            is_staff.label = "Acceso administrativo habilitado (staff)"
+            is_staff.help_text = (
+                "En la implementación actual debe estar marcado junto con "
+                "el rol ADMINISTRADOR para usar los CRUD visuales de "
+                "Usuarios, Vendedores y Lotería. No convierte la cuenta en "
+                "superusuario."
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        groups = cleaned_data.get("groups")
+        selected_roles = {group.name for group in groups} if groups else set()
+
+        if (
+            ADMINISTRATOR in selected_roles
+            and not cleaned_data.get("is_staff")
+        ):
+            self.add_error(
+                "is_staff",
+                (
+                    "El rol ADMINISTRADOR requiere Acceso administrativo "
+                    "habilitado en la implementación actual."
+                ),
+            )
+
+        return cleaned_data
 
 
 class BootstrapValidationMixin:
@@ -231,7 +331,7 @@ class RegistrationForm(
             "accept_privacy",
         )
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": _birth_date_widget(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -240,9 +340,7 @@ class RegistrationForm(
         self.privacy_version = current_terms_version(
             TermsVersion.Kind.PRIVACY
         )
-        self.fields["birth_date"].widget.attrs["max"] = (
-            age_cutoff().isoformat()
-        )
+        _configure_birth_date_field(self)
         self.fields["email"].widget.attrs["autocomplete"] = "email"
         self.fields["username"].widget.attrs["autocomplete"] = "username"
         self.fields["password1"].widget.attrs["autocomplete"] = (
@@ -320,14 +418,12 @@ class UserAdminCreationForm(
             "user_permissions",
         )
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": _birth_date_widget(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["birth_date"].widget.attrs["max"] = (
-            age_cutoff().isoformat()
-        )
+        _configure_birth_date_field(self)
 
 
 class UserAdminChangeForm(
@@ -355,14 +451,26 @@ class UserAdminChangeForm(
             "user_permissions",
         )
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": _birth_date_widget(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["birth_date"].widget.attrs["max"] = (
-            age_cutoff().isoformat()
-        )
+        _configure_birth_date_field(self)
+
+
+class UserBusinessCreationForm(
+    BusinessRoleFormMixin,
+    UserAdminCreationForm,
+):
+    """Alta desde el panel visual con roles canónicos y sin permisos directos."""
+
+
+class UserBusinessChangeForm(
+    BusinessRoleFormMixin,
+    UserAdminChangeForm,
+):
+    """Edición visual sin permisos individuales ni superusuario."""
 
 
 class ProfileUpdateForm(
@@ -384,14 +492,12 @@ class ProfileUpdateForm(
             "last_name",
         )
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": _birth_date_widget(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["birth_date"].widget.attrs["max"] = (
-            age_cutoff().isoformat()
-        )
+        _configure_birth_date_field(self)
         self.fields["username"].widget.attrs["autocomplete"] = "username"
         self.fields["email"].widget.attrs["autocomplete"] = "email"
         self.fields["phone"].widget.attrs["autocomplete"] = "tel"

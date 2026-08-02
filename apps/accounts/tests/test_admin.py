@@ -27,6 +27,19 @@ class ProtectedAdminTests(TestCase):
         model_admin = CustomUserAdmin(User, self.site)
         self.assertFalse(model_admin.has_delete_permission(self.request))
 
+    def test_user_change_form_renders_birth_date_in_iso_format(self):
+        model_admin = CustomUserAdmin(User, self.site)
+        form_class = model_admin.get_form(
+            self.request,
+            obj=self.request.user,
+        )
+        form = form_class(instance=self.request.user)
+
+        self.assertIn(
+            f'value="{self.request.user.birth_date.isoformat()}"',
+            str(form["birth_date"]),
+        )
+
     def test_acceptance_is_read_only(self):
         model_admin = TermsAcceptanceAdmin(TermsAcceptance, self.site)
         self.assertFalse(model_admin.has_add_permission(self.request))

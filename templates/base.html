@@ -32,6 +32,13 @@
     <header class="app-header">
         <nav class="navbar navbar-dark app-topbar shadow-sm" aria-label="Cabecera principal">
             <div class="container-fluid app-topbar-container">
+                {% if request.user.is_authenticated and active_mode_code %}
+                <button class="navbar-toggler d-xl-none app-navigation-toggle" type="button" data-bs-toggle="offcanvas"
+                    data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-label="Abrir navegación">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                {% endif %}
+
                 <a class="navbar-brand d-flex align-items-center gap-2"
                     href="{{ start_url|default:home_url|default:'/' }}" aria-label="Ir al inicio de Lotería Binaria">
                     <img class="brand-logo-image" src="{% static 'img/logo-placeholder.png' %}" alt="" width="44"
@@ -82,12 +89,6 @@
                     </a>
                     {% endif %}
 
-                    {% if request.user.is_authenticated and active_mode_code %}
-                    <button class="navbar-toggler d-xl-none" type="button" data-bs-toggle="offcanvas"
-                        data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-label="Abrir navegación">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    {% endif %}
                 </div>
             </div>
         </nav>

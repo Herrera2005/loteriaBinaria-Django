@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Conversión de wallets | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+    <h1 class="h2 mb-2">Conversión de wallets</h1>
+    <p class="text-body-secondary mb-0">
+        Elige el flujo correcto según la moneda de origen.
+    </p>
+</header>
+
+{% include "finance/_wallet_summary.html" %}
+
+<section class="card shadow-sm" aria-labelledby="conversion-options-title">
+    <div class="card-body p-4">
+        <h2 id="conversion-options-title" class="visually-hidden">
+            Opciones de conversión
+        </h2>
+
+        <nav class="nav nav-tabs mb-4" aria-label="Conversión de wallets">
+            <a
+                class="nav-link {% if active_tab == 'real-to-virtual' %}active{% endif %}"
+                href="{% url 'finance:wallet_conversion' %}?tab=real-to-virtual"
+                {% if active_tab == 'real-to-virtual' %}aria-current="page"{% endif %}
+            >
+                REAL → VIRTUAL
+            </a>
+            <a
+                class="nav-link {% if active_tab == 'virtual-to-real' %}active{% endif %}"
+                href="{% url 'finance:wallet_conversion' %}?tab=virtual-to-real"
+                {% if active_tab == 'virtual-to-real' %}aria-current="page"{% endif %}
+            >
+                VIRTUAL → REAL
+            </a>
+        </nav>
+
+        {% if active_tab == "real-to-virtual" %}
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                <div>
+                    <h2 class="h3 mb-2">Solicitar REAL → VIRTUAL</h2>
+                    <p class="text-body-secondary mb-0">
+                        El monto REAL queda reservado: se bloquea temporalmente y ya no puede usarse
+                        en otra operación. Un vendedor elegible atenderá la solicitud y el VIRTUAL
+                        se acreditará cuando la operación sea completada.
+                    </p>
+                </div>
+                <a class="btn btn-outline-primary" href="{% url 'vendors:client_conversionrequest_list' %}">
+                    Mis solicitudes
+                </a>
+            </div>
+            {% include "finance/_operation_form.html" with form=request_form submit_label="Crear solicitud" action_value="real-to-virtual" %}
+        {% else %}
+            <h2 class="h3 mb-2">Convertir VIRTUAL → REAL</h2>
+            <p class="text-body-secondary">
+                Se debita el monto VIRTUAL completo, se acredita el 90 % en REAL y el 10 %
+                se registra como comisión.
+            </p>
+            {% include "finance/_operation_form.html" with form=conversion_form submit_label="Confirmar conversión" action_value="virtual-to-real" %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

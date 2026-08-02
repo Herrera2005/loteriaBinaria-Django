@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.contrib.auth.views import redirect_to_login
-from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,9 +14,10 @@ from django.views.generic import (
     View,
 )
 
-from apps.accounts.access import assigned_mode_codes, get_valid_active_mode
-from apps.accounts.models import User
-from apps.accounts.roles import ADMINISTRATOR
+from apps.accounts.mixins import (
+    AdministratorModeRequiredMixin,
+    EventAdministrationRequiredMixin,
+)
 
 from .forms import DrawEventForm, LotteryProductForm
 from .models import DrawEvent, DrawResult, LotteryProduct
@@ -28,41 +26,6 @@ from .services import (
     delete_lottery_product,
     event_can_be_deleted,
 )
-
-
-class AdministratorModeRequiredMixin(
-    LoginRequiredMixin,
-    UserPassesTestMixin,
-):
-    """Exige cuenta administrativa activa y modo ADMINISTRADOR."""
-
-    raise_exception = True
-
-    def test_func(self) -> bool:
-        user = self.request.user
-        if not user.is_authenticated:
-            return False
-
-        return (
-            user.is_active
-            and user.status == User.Status.ACTIVE
-            and user.is_staff
-            and ADMINISTRATOR in assigned_mode_codes(user)
-            and get_valid_active_mode(self.request) == ADMINISTRATOR
-        )
-
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-
-        raise PermissionDenied(
-            "Se requiere una cuenta administrativa activa y el modo "
-            "ADMINISTRADOR."
-        )
 
 
 class LotteryProductListView(
@@ -232,6 +195,7 @@ class DrawEventListView(
             DrawEvent.objects
             .select_related("product")
             .annotate(tickets_count=Count("tickets"))
+            .exclude(tickets__user=self.request.user)
             .order_by("draw_at", "id")
         )
 
@@ -281,7 +245,7 @@ class DrawEventListView(
 
 
 class DrawEventDetailView(
-    AdministratorModeRequiredMixin,
+    EventAdministrationRequiredMixin,
     DetailView,
 ):
     model = DrawEvent
@@ -331,7 +295,7 @@ class DrawEventCreateView(
 
 
 class DrawEventUpdateView(
-    AdministratorModeRequiredMixin,
+    EventAdministrationRequiredMixin,
     UpdateView,
 ):
     model = DrawEvent
@@ -355,7 +319,7 @@ class DrawEventUpdateView(
 
 
 class DrawEventDeleteView(
-    AdministratorModeRequiredMixin,
+    EventAdministrationRequiredMixin,
     View,
 ):
     template_name = "lottery/event_confirm_delete.html"

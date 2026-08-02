@@ -16,8 +16,7 @@
     </header>
 
     <div class="alert alert-info" role="note">
-        El navegador no modifica saldos. Las recargas, conversiones y compras
-        todavía no están habilitadas en este bloque visual.
+        Las operaciones financieras se validan en Django, usan unidades menores enteras y quedan registradas en movimientos.
     </div>
 
     <section class="mb-5" aria-labelledby="client-summary-title">
@@ -61,7 +60,7 @@
     </section>
 
     <section class="mb-5" aria-labelledby="client-actions-title">
-        <h2 id="client-actions-title" class="h3">Consultas disponibles</h2>
+        <h2 id="client-actions-title" class="h3">Finanzas del cliente</h2>
         <div class="row g-3">
             <div class="col-12 col-md-6">
                 <a class="card h-100 shadow-sm text-decoration-none" href="{{ wallet_url }}">

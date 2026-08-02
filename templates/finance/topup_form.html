@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Recargar REAL | Lotería Binaria{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mx-auto" style="max-width: 760px;">
+    <div class="card-body p-4">
+        <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+
+        <h1 class="h2 mb-3">Recargar REAL</h1>
+
+        <p class="text-body-secondary">
+            La recarga académica acredita el mismo monto en la wallet REAL,
+            sin comisión.
+        </p>
+
+        {% include "finance/_operation_form.html" %}
+    </div>
+</div>
+{% endblock %}
