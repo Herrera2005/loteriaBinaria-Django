@@ -25,15 +25,39 @@
 
 <div class="row g-4">
     <section class="col-12 col-lg-7">
-        <div class="card shadow-sm mb-4">
+        <div
+            class="card shadow-sm lottery-event-card mb-4 {% if is_open_now %}border-success border-3 lottery-event-card--open{% elif is_upcoming %}border-info border-3 lottery-event-card--upcoming{% else %}border-secondary border-2 lottery-event-card--neutral{% endif %}"
+            style="--lottery-accent: {{ event.product.accent_color }};"
+        >
+            <div class="card-header d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <span
+                        class="lottery-product-marker"
+                        style="border-color: {{ event.product.accent_color }};"
+                        aria-hidden="true"
+                    ></span>
+                    <h2 class="h4 mb-0 d-inline">Información del sorteo</h2>
+                </div>
+
+                {% if is_open_now %}
+                    <span class="badge text-bg-success">Ventas abiertas</span>
+                {% elif is_upcoming %}
+                    <span class="badge text-bg-info">Próximamente</span>
+                {% else %}
+                    <span class="badge text-bg-secondary">{{ event.get_status_display }}</span>
+                {% endif %}
+            </div>
+
             <div class="card-body">
-                <h2 class="h4">Información del sorteo</h2>
                 <dl class="row mb-0">
                     <dt class="col-sm-5">Símbolos permitidos</dt>
                     <dd class="col-sm-7">
                         <span class="d-flex flex-wrap gap-1">
                             {% for token in event.product.symbol_tokens %}
-                                <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                                <span
+                                    class="badge rounded-pill bg-white text-body border border-2 lottery-symbol-badge font-monospace"
+                                    style="border-color: {{ event.product.accent_color }} !important;"
+                                >{{ token }}</span>
                             {% endfor %}
                         </span>
                     </dd>
@@ -54,7 +78,8 @@
         </div>
 
         <div class="alert alert-info" role="note">
-            La compra es directa: la combinación no se reserva. El servidor ordena la selección de forma canónica y valida disponibilidad al confirmar.
+            La compra es directa: la combinación no se reserva. El servidor ordena la selección de forma canónica y
+            valida disponibilidad al confirmar.
         </div>
     </section>
 
@@ -81,9 +106,12 @@
                         </div>
                     {% endif %}
 
-                    <form method="post" novalidate
+                    <form
+                        method="post"
+                        novalidate
                         data-confirm-title="Confirmar compra"
-                        data-confirm-message="Se debitará el precio del boleto de tu saldo VIRTUAL. La combinación se confirma únicamente si sigue disponible.">
+                        data-confirm-message="Se debitará el precio del boleto de tu saldo VIRTUAL. La combinación se confirma únicamente si sigue disponible."
+                    >
                         {% csrf_token %}
                         {{ purchase_form.operation_id }}
                         {{ purchase_form.combination }}
@@ -110,12 +138,16 @@
                                 {% endfor %}
                             </div>
                             <div class="form-text mt-2">
-                                Puede completar una o varias casillas y consultar cuántas combinaciones siguen disponibles. Use símbolos distintos; el orden no crea otra combinación.
+                                Puede completar una o varias casillas y consultar cuántas combinaciones siguen disponibles.
+                                Use símbolos distintos; el orden no crea otra combinación.
                             </div>
                         </fieldset>
 
                         {% if availability_result %}
-                            <section class="alert {% if availability_result.is_available %}alert-info{% else %}alert-warning{% endif %}" aria-labelledby="availability-title">
+                            <section
+                                class="alert {% if availability_result.is_available %}alert-info{% else %}alert-warning{% endif %}"
+                                aria-labelledby="availability-title"
+                            >
                                 <h3 class="h6" id="availability-title">Disponibilidad de la selección</h3>
                                 <p class="mb-2">
                                     Coincidencias posibles: <strong>{{ availability_result.total_matching }}</strong> ·
@@ -132,7 +164,10 @@
                                                 data-availability-suggestion="{{ suggestion|join:'|' }}"
                                             >
                                                 {% for token in suggestion %}
-                                                    <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                                                    <span
+                                                        class="badge rounded-pill bg-white text-body border border-2 lottery-symbol-badge font-monospace"
+                                                        style="border-color: {{ event.product.accent_color }} !important;"
+                                                    >{{ token }}</span>
                                                 {% endfor %}
                                             </button>
                                         {% endfor %}

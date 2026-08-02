@@ -62,6 +62,12 @@
                             {{ product.selection_count }} posiciones
                         </dd>
 
+                        <dt class="col-sm-6">Color identificador</dt>
+                        <dd class="col-sm-6">
+                            <span class="lottery-color-swatch" style="--lottery-accent: {{ product.accent_color }};" aria-hidden="true"></span>
+                            <code>{{ product.accent_color }}</code>
+                        </dd>
+
                         <dt class="col-sm-6">Estado</dt>
                         <dd class="col-sm-6">
                             <span class="badge {% if product.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
@@ -77,7 +83,7 @@
         </div>
 
         <div class="col-12 col-lg-7">
-            <article class="card shadow-sm">
+            <article class="card shadow-sm lottery-event-card" style="--lottery-accent: {{ product.accent_color }};">
                 <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
                     <h2 class="h5 mb-0">Eventos relacionados</h2>
                     <a

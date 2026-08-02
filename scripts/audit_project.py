@@ -240,7 +240,7 @@ def check_python_syntax(errors: list[str]) -> None:
         if path.suffix.lower() != ".py":
             continue
         try:
-            ast.parse(
+            tree = ast.parse(
                 path.read_text(encoding="utf-8"),
                 filename=str(path),
             )
@@ -248,6 +248,29 @@ def check_python_syntax(errors: list[str]) -> None:
             errors.append(
                 f"Python inválido en {path.relative_to(ROOT)}: {exc}"
             )
+            continue
+
+        containers = [tree] + [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef)
+        ]
+        for container in containers:
+            definitions: dict[str, list[int]] = defaultdict(list)
+            for node in container.body:
+                if isinstance(
+                    node,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+                ):
+                    definitions[node.name].append(node.lineno)
+
+            for name, lines in definitions.items():
+                if len(lines) > 1:
+                    scope = getattr(container, "name", "módulo")
+                    errors.append(
+                        "Definición duplicada en "
+                        f"{path.relative_to(ROOT)}::{scope}: "
+                        f"{name} en líneas {lines}"
+                    )
 
 
 def check_generated_residue(errors: list[str]) -> None:
@@ -299,9 +322,67 @@ def check_templates(errors: list[str]) -> None:
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         hashes[digest].append(path)
 
-        if re.search(r"{%\s*\n", text):
+        block_openers = {
+            "if": "endif",
+            "for": "endfor",
+            "block": "endblock",
+            "with": "endwith",
+        }
+        block_closers = {
+            closer: opener
+            for opener, closer in block_openers.items()
+        }
+        block_stack: list[tuple[str, int]] = []
+
+        for match in re.finditer(r"{%.*?%}", text, flags=re.S):
+            token = match.group(0)
+            line = text.count("\n", 0, match.start()) + 1
+            if "\n" in token:
+                errors.append(
+                    "Tag Django partido por salto de línea en "
+                    f"{relative}:{line}"
+                )
+
+            inner = token[2:-2].strip()
+            if not inner:
+                continue
+            command = inner.split()[0]
+
+            if command in block_openers:
+                block_stack.append((command, line))
+            elif command in block_closers:
+                if not block_stack:
+                    errors.append(
+                        f"Cierre {command} sin apertura en {relative}:{line}"
+                    )
+                    continue
+                opener, opener_line = block_stack.pop()
+                if opener != block_closers[command]:
+                    errors.append(
+                        f"Cierre {command} incompatible en {relative}:{line}; "
+                        f"se abrió {opener} en línea {opener_line}"
+                    )
+            elif command in {"elif", "else", "empty"}:
+                allowed_parents = {
+                    "elif": {"if"},
+                    "else": {"if", "for"},
+                    "empty": {"for"},
+                }
+                if (
+                    not block_stack
+                    or block_stack[-1][0] not in allowed_parents[command]
+                ):
+                    errors.append(
+                        f"Rama {command} fuera de contexto en "
+                        f"{relative}:{line}"
+                    )
+
+        if block_stack:
+            pending = ", ".join(
+                f"{name}@{line}" for name, line in block_stack
+            )
             errors.append(
-                f"Tag Django partido por salto de línea en {relative}"
+                f"Bloques Django sin cerrar en {relative}: {pending}"
             )
 
         is_partial = (

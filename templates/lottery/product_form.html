@@ -115,6 +115,15 @@
                             {% for error in form.selection_count.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                         </div>
 
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="{{ form.accent_color.id_for_label }}">{{ form.accent_color.label }}</label>
+                            <div class="d-flex align-items-center gap-3">
+                                {{ form.accent_color }}
+                                <span class="form-text mb-0">Se usa en bordes y contornos; el nombre siempre seguirá visible.</span>
+                            </div>
+                            {% for error in form.accent_color.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+
                         <div class="col-12">
                             <div class="form-check">
                                 {{ form.is_active }}

@@ -18,6 +18,7 @@ from apps.accounts.access import active_mode_required, get_valid_active_mode
 from apps.accounts.roles import ADMINISTRATOR, CLIENT, DASHBOARD_URL_NAMES, VENDOR
 from apps.finance.models import Movement, Wallet
 from apps.lottery.models import DrawEvent, LotteryProduct, Ticket
+from apps.lottery.services import sync_lottery_event_states
 from apps.vendors.models import (
     ConversionAssignment,
     ConversionRequest,
@@ -157,37 +158,65 @@ def _movement_rows(user, *, limit: int = 5) -> list[dict[str, object]]:
 
 
 def _visible_event_rows(*, limit: int = 6) -> list[dict[str, object]]:
+    """Devuelve sorteos visibles, con abiertos primero y estado visual explícito."""
+
+    sync_lottery_event_states()
     now = timezone.now()
-    events = (
+    events = list(
         DrawEvent.objects
         .filter(
             product__is_active=True,
             status__in=(
+                DrawEvent.Status.SCHEDULED,
                 DrawEvent.Status.PUBLISHED,
                 DrawEvent.Status.SALES_OPEN,
             ),
             sales_close_at__gt=now,
         )
         .select_related("product")
-        .order_by("draw_at", "id")[:limit]
+        .order_by("sales_close_at", "draw_at", "id")
     )
 
-    return [
-        {
-            "event": event,
-            "product_label": event.product.name,
-            "status_label": event.get_status_display(),
-            "price_display": _format_minor(
-                event.price_minor,
-                Wallet.Currency.VIRTUAL,
-            ),
-            "prize_display": _format_minor(
-                event.prize_minor,
-                Wallet.Currency.VIRTUAL,
-            ),
-        }
-        for event in events
-    ]
+    events.sort(
+        key=lambda event: (
+            0 if event.status == DrawEvent.Status.SALES_OPEN else 1,
+            event.sales_close_at,
+            event.draw_at,
+            event.id,
+        )
+    )
+
+    rows = []
+    for event in events[:limit]:
+        is_open_now = (
+            event.status == DrawEvent.Status.SALES_OPEN
+            and now < event.sales_close_at
+        )
+        is_upcoming = (
+            event.status in (
+                DrawEvent.Status.SCHEDULED,
+                DrawEvent.Status.PUBLISHED,
+            )
+            and event.sales_open_at > now
+        )
+        rows.append(
+            {
+                "event": event,
+                "product_label": event.product.name,
+                "status_label": event.get_status_display(),
+                "is_open_now": is_open_now,
+                "is_upcoming": is_upcoming,
+                "price_display": _format_minor(
+                    event.price_minor,
+                    Wallet.Currency.VIRTUAL,
+                ),
+                "prize_display": _format_minor(
+                    event.prize_minor,
+                    Wallet.Currency.VIRTUAL,
+                ),
+            }
+        )
+    return rows
 
 
 def home(request):

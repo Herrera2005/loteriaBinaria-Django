@@ -8,7 +8,7 @@
     </div><a class="btn btn-outline-secondary align-self-lg-start"
         href="{% url 'lottery:client_ticket_list' %}">Volver</a>
 </header>
-<section class="card shadow-sm">
+<section class="card shadow-sm lottery-event-card" style="--lottery-accent: {{ event.product.accent_color }};">
     <div class="card-body p-4">
         <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Combinación del boleto">
             {% for token in ticket.key_tokens %}
@@ -20,7 +20,7 @@
             <h2 class="h5">Resultado del boleto: {{ ticket.get_evaluation_status_display }}</h2>
             <div class="d-flex flex-wrap gap-2 mb-2" aria-label="Resultado oficial {{ ticket.event.result.winning_key }}">
                 {% for token in ticket.event.result.key_tokens %}
-                    <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                    <span class="badge lottery-symbol-badge font-monospace">{{ token }}</span>
                 {% endfor %}
             </div>
             <a href="{% url 'lottery:public_result_detail' ticket.event.result.pk %}">Ver resultado público</a>

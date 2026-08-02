@@ -90,13 +90,11 @@
         <div class="row g-4">
             {% for product in products %}
                 <div class="col-12 col-md-6 col-xl-4">
-                    <article class="card h-100 shadow-sm">
+                    <article class="card h-100 shadow-sm lottery-event-card" style="--lottery-accent: {{ product.accent_color }};">
                         <div class="card-body">
                             <div class="d-flex justify-content-between gap-3">
                                 <div>
-                                    <span class="badge text-bg-primary">
-                                        {{ product.code }}
-                                    </span>
+                                    <span class="badge lottery-code-badge">{{ product.code }}</span>
                                     <h2 class="h5 mt-2 mb-1">
                                         {{ product.name }}
                                     </h2>
@@ -116,7 +114,7 @@
                                 <dd class="col-6 text-end">
                                     <span class="d-flex flex-wrap justify-content-end gap-1">
                                         {% for token in product.symbol_tokens %}
-                                            <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                                            <span class="badge lottery-symbol-badge font-monospace">{{ token }}</span>
                                         {% endfor %}
                                     </span>
                                 </dd>

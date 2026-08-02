@@ -46,6 +46,44 @@ from .services import (
 )
 
 
+ADMIN_EVENT_ORDER_CHOICES = (
+    ("close_asc", "Cierre más próximo"),
+    ("draw_asc", "Sorteo más próximo"),
+    ("created_desc", "Más recientes creados"),
+    ("created_asc", "Más antiguos creados"),
+    ("draw_desc", "Sorteo más lejano"),
+)
+ADMIN_EVENT_ORDERING = {
+    "close_asc": ("sales_close_at", "draw_at", "id"),
+    "draw_asc": ("draw_at", "id"),
+    "created_desc": ("-created_at", "-id"),
+    "created_asc": ("created_at", "id"),
+    "draw_desc": ("-draw_at", "-id"),
+}
+
+CLIENT_EVENT_ORDER_CHOICES = (
+    ("close_asc", "Cierre más próximo"),
+    ("draw_asc", "Sorteo más próximo"),
+    ("price_asc", "Precio menor"),
+    ("price_desc", "Precio mayor"),
+    ("prize_desc", "Premio mayor"),
+    ("prize_asc", "Premio menor"),
+)
+CLIENT_EVENT_ORDERING = {
+    "close_asc": ("sales_close_at", "draw_at", "id"),
+    "draw_asc": ("draw_at", "id"),
+    "price_asc": ("price_minor", "sales_close_at", "id"),
+    "price_desc": ("-price_minor", "sales_close_at", "id"),
+    "prize_desc": ("-prize_minor", "sales_close_at", "id"),
+    "prize_asc": ("prize_minor", "sales_close_at", "id"),
+}
+
+
+def _selected_order(request, ordering_map, default="close_asc"):
+    requested = request.GET.get("order", "").strip()
+    return requested if requested in ordering_map else default
+
+
 def _add_validation_error(form, exc: ValidationError) -> None:
     """Convierte ValidationError de campo o diccionario en errores de formulario."""
     if hasattr(exc, "message_dict"):
@@ -241,7 +279,6 @@ class DrawEventListView(
                     ).values("pk")[:1]
                 ),
             )
-            .order_by("draw_at", "id")
         )
 
         status = self.request.GET.get("status", "").strip()
@@ -267,7 +304,11 @@ class DrawEventListView(
                 | Q(product__code__icontains=query)
             )
 
-        return queryset
+        selected_order = _selected_order(
+            self.request,
+            ADMIN_EVENT_ORDERING,
+        )
+        return queryset.order_by(*ADMIN_EVENT_ORDERING[selected_order])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -290,6 +331,11 @@ class DrawEventListView(
                     else ""
                 ),
                 "query": self.request.GET.get("q", "").strip(),
+                "order_choices": ADMIN_EVENT_ORDER_CHOICES,
+                "selected_order": _selected_order(
+                    self.request,
+                    ADMIN_EVENT_ORDERING,
+                ),
             }
         )
         return context
@@ -685,7 +731,11 @@ class ClientDrawEventListView(ActiveModeRequiredMixin, ListView):
                 | Q(product__name__icontains=query)
                 | Q(product__code__icontains=query)
             )
-        return queryset
+        selected_order = _selected_order(
+            self.request,
+            CLIENT_EVENT_ORDERING,
+        )
+        return queryset.order_by(*CLIENT_EVENT_ORDERING[selected_order])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -716,6 +766,11 @@ class ClientDrawEventListView(ActiveModeRequiredMixin, ListView):
             "selected_product": selected_product if selected_product.isdigit() else "",
             "selected_availability": availability if availability in {"", "open", "upcoming"} else "",
             "query": self.request.GET.get("q", "").strip(),
+            "order_choices": CLIENT_EVENT_ORDER_CHOICES,
+            "selected_order": _selected_order(
+                self.request,
+                CLIENT_EVENT_ORDERING,
+            ),
         })
         return context
 

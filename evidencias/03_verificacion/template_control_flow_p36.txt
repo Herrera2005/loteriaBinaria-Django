@@ -1,0 +1,5 @@
+TEMPLATE_CONTROL_FLOW: OK
+- 58 templates revisados
+- 0 tags Django partidos por salto de línea
+- 0 ramas elif/else/empty fuera de contexto
+- 0 bloques if/for/block/with sin cerrar

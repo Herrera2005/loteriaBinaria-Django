@@ -99,6 +99,12 @@ class LotteryProduct(models.Model):
             "El código solo puede contener letras, números y guion bajo."
         ),
     )
+    COLOR_VALIDATOR = RegexValidator(
+        regex=r"^#[0-9A-Fa-f]{6}$",
+        message=(
+            "Ingrese un color hexadecimal válido, por ejemplo #0D6EFD."
+        ),
+    )
 
     IMMUTABLE_WITH_EVENTS_FIELDS = (
         "kind",
@@ -145,6 +151,15 @@ class LotteryProduct(models.Model):
         "cantidad de posiciones",
     )
     is_active = models.BooleanField("activo", default=True, db_index=True)
+    accent_color = models.CharField(
+        "color identificador",
+        max_length=7,
+        default="#FD7E14",
+        validators=[COLOR_VALIDATOR],
+        help_text=(
+            "Color hexadecimal usado en bordes y símbolos, por ejemplo #0D6EFD."
+        ),
+    )
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("actualizado", auto_now=True)
 
@@ -243,6 +258,7 @@ class LotteryProduct(models.Model):
 
         self.kind = (self.kind or "").strip().upper()
         self.code = (self.code or "").strip().upper()
+        self.accent_color = (self.accent_color or "").strip().upper()
 
         self._validate_persisted_immutability()
 
@@ -383,6 +399,7 @@ class LotteryProduct(models.Model):
     def save(self, *args, **kwargs) -> None:
         self.kind = (self.kind or "").strip().upper()
         self.code = (self.code or "").strip().upper()
+        self.accent_color = (self.accent_color or "").strip().upper()
         if self.kind == self.Kind.CUSTOM:
             self.allowed_symbols = _serialize_symbol_tokens(self.symbol_tokens)
         else:

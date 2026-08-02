@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import uuid
+from decimal import Decimal
+
 from django import forms
 
 from .models import (
@@ -11,8 +14,7 @@ from .models import (
     LotteryProduct,
     validate_key_for_product,
 )
-import uuid
-from decimal import Decimal
+
 
 def _append_css_class(widget: forms.Widget, css_class: str) -> None:
     classes = widget.attrs.get("class", "").split()
@@ -33,6 +35,12 @@ def _apply_bootstrap_widgets(form: forms.Form) -> None:
             css_class = "form-control"
 
         _append_css_class(widget, css_class)
+
+
+class ColorInput(forms.TextInput):
+    """Selector HTML5 de color con comportamiento explícito y comprobable."""
+
+    input_type = "color"
 
 
 class LotteryProductForm(forms.ModelForm):
@@ -82,6 +90,24 @@ class LotteryProductForm(forms.ModelForm):
         required=False,
     )
 
+    accent_color = forms.CharField(
+        label="Color identificador",
+        required=False,
+        initial="#FD7E14",
+        max_length=7,
+        widget=ColorInput(
+            attrs={
+                "class": "form-control form-control-color",
+                "title": "Selecciona un color identificador",
+                "aria-label": "Color identificador del producto",
+            }
+        ),
+        help_text=(
+            "Se usa en bordes y símbolos. "
+            "Si no selecciona uno, se aplicará el color predeterminado."
+        ),
+    )
+
     class Meta:
         model = LotteryProduct
         fields = (
@@ -89,6 +115,7 @@ class LotteryProductForm(forms.ModelForm):
             "name",
             "allowed_symbols",
             "selection_count",
+            "accent_color",
             "is_active",
         )
         widgets = {
@@ -114,6 +141,7 @@ class LotteryProductForm(forms.ModelForm):
         "range_end",
         "allowed_symbols",
         "selection_count",
+        "accent_color",
         "is_active",
     )
 
@@ -124,6 +152,11 @@ class LotteryProductForm(forms.ModelForm):
         self.fields["code"].required = False
         self.fields["allowed_symbols"].required = False
         self.fields["selection_count"].required = False
+        self.fields["accent_color"].required = False
+
+        if not self.is_bound:
+            current_color = getattr(self.instance, "accent_color", "")
+            self.initial["accent_color"] = current_color or "#FD7E14"
 
         self.fields["code"].help_text = (
             "Para personalizados use letras, números y guion bajo; se "
@@ -131,6 +164,10 @@ class LotteryProductForm(forms.ModelForm):
         )
         self.fields["selection_count"].help_text = (
             "Entre 2 y 8; no puede superar el universo de símbolos."
+        )
+        self.fields["accent_color"].help_text = (
+            "Identifica visualmente este producto. El nombre y código siempre "
+            "se muestran; el color no es la única señal."
         )
         self.fields["range_start"].widget.attrs.update(
             {
@@ -291,6 +328,16 @@ class LotteryProductForm(forms.ModelForm):
             )
 
         return tokens
+
+    def clean_accent_color(self):
+        color = (
+            self.cleaned_data.get("accent_color")
+            or getattr(self.instance, "accent_color", "")
+            or "#FD7E14"
+        )
+        color = color.strip().upper()
+        LotteryProduct.COLOR_VALIDATOR(color)
+        return color
 
     def clean(self):
         cleaned_data = super().clean()
