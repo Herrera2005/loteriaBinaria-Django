@@ -86,11 +86,12 @@
     </section>
 
     <section class="mb-5" aria-labelledby="available-events-title">
-        <div class="mb-3">
-            <h2 id="available-events-title" class="h3 mb-1">Eventos visibles</h2>
-            <p class="text-body-secondary mb-0">
-                Esta etapa solo consulta eventos; todavía no crea boletos.
-            </p>
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end gap-2 mb-3">
+            <div>
+                <h2 id="available-events-title" class="h3 mb-1">Sorteos disponibles</h2>
+                <p class="text-body-secondary mb-0">Consulta reglas, fechas, precio y premio.</p>
+            </div>
+            <a class="btn btn-outline-primary" href="{% url 'lottery:client_event_list' %}">Ver todos</a>
         </div>
 
         {% if available_events %}
@@ -112,6 +113,9 @@
                                     <dt class="col-6">Cierre</dt>
                                     <dd class="col-6 text-end">{{ item.event.sales_close_at|date:"d/m/Y H:i" }}</dd>
                                 </dl>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a class="btn btn-primary w-100" href="{% url 'lottery:client_event_detail' item.event.pk %}">Ver detalle</a>
                             </div>
                         </article>
                     </div>
@@ -178,13 +182,16 @@
         <section class="col-12 col-xl-6" aria-labelledby="client-tickets-title">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h2 id="client-tickets-title" class="h4">Boletos recientes</h2>
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                        <h2 id="client-tickets-title" class="h4 mb-0">Boletos recientes</h2>
+                        <a class="btn btn-sm btn-outline-primary" href="{% url 'lottery:client_ticket_list' %}">Ver todos</a>
+                    </div>
                     {% if recent_tickets %}
                         <div class="list-group list-group-flush">
                             {% for row in recent_tickets %}
                                 <div class="list-group-item px-0">
                                     <div class="d-flex justify-content-between gap-3">
-                                        <strong>{{ row.ticket.normalized_key }}</strong>
+                                        <strong>{{ row.ticket.key_display }}</strong>
                                         <span>{{ row.price_display }}</span>
                                     </div>
                                     <small class="text-body-secondary">

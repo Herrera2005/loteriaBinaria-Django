@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ event.name }} | Sorteos{% endblock %}
+
+{% block content %}
+<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+        <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+        <h1 class="h2">{{ event.name }}</h1>
+        <p class="text-body-secondary mb-0">
+            {{ event.product.name }} · {{ event.get_status_display }}
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary align-self-lg-start" href="{% url 'lottery:client_event_list' %}">
+        Volver
+    </a>
+</header>
+
+{% if public_status_message %}
+<div class="alert {% if event.status == "CANCELLED" %}alert-danger{% else %}alert-info{% endif %}" role="status">
+    {{ public_status_message }}
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <section class="col-12 col-lg-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h4">Información del sorteo</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Símbolos permitidos</dt>
+                    <dd class="col-sm-7">
+                        <span class="d-flex flex-wrap gap-1">
+                            {% for token in event.product.symbol_tokens %}
+                                <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                            {% endfor %}
+                        </span>
+                    </dd>
+                    <dt class="col-sm-5">Cantidad exacta</dt>
+                    <dd class="col-sm-7">{{ event.product.selection_count }} símbolos únicos</dd>
+                    <dt class="col-sm-5">Precio</dt>
+                    <dd class="col-sm-7">{{ price_display }}</dd>
+                    <dt class="col-sm-5">Premio fijo</dt>
+                    <dd class="col-sm-7">{{ prize_display }}</dd>
+                    <dt class="col-sm-5">Apertura</dt>
+                    <dd class="col-sm-7">{{ event.sales_open_at|date:"d/m/Y H:i" }}</dd>
+                    <dt class="col-sm-5">Cierre</dt>
+                    <dd class="col-sm-7">{{ event.sales_close_at|date:"d/m/Y H:i" }}</dd>
+                    <dt class="col-sm-5">Sorteo</dt>
+                    <dd class="col-sm-7">{{ event.draw_at|date:"d/m/Y H:i" }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="alert alert-info" role="note">
+            La compra es directa: la combinación no se reserva. El servidor ordena la selección de forma canónica y valida disponibilidad al confirmar.
+        </div>
+    </section>
+
+    <aside class="col-12 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h4">Comprar boleto</h2>
+
+                {% if is_open_now %}
+                    <div class="alert alert-success">Ventas abiertas.</div>
+
+                    <dl class="row small">
+                        <dt class="col-7">Saldo VIRTUAL actual</dt>
+                        <dd class="col-5 text-end">{{ virtual_available_display }}</dd>
+                        <dt class="col-7">Precio del boleto</dt>
+                        <dd class="col-5 text-end">{{ price_display }}</dd>
+                        <dt class="col-7">Saldo posterior</dt>
+                        <dd class="col-5 text-end">{{ balance_after_display }}</dd>
+                    </dl>
+
+                    {% if not has_enough_virtual %}
+                        <div class="alert alert-warning">
+                            No tienes saldo VIRTUAL suficiente para esta compra.
+                        </div>
+                    {% endif %}
+
+                    <form method="post" novalidate
+                        data-confirm-title="Confirmar compra"
+                        data-confirm-message="Se debitará el precio del boleto de tu saldo VIRTUAL. La combinación se confirma únicamente si sigue disponible.">
+                        {% csrf_token %}
+                        {{ purchase_form.operation_id }}
+                        {{ purchase_form.combination }}
+
+                        {% if purchase_form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in purchase_form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <fieldset class="mb-3" data-ticket-selection>
+                            <legend class="form-label mb-2">Seleccione la combinación</legend>
+                            <div class="row g-2">
+                                {% for field in purchase_form.position_fields %}
+                                    <div class="col-6 col-sm-4 col-md">
+                                        <label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% for error in field.errors %}
+                                            <div class="invalid-feedback d-block">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text mt-2">
+                                Puede completar una o varias casillas y consultar cuántas combinaciones siguen disponibles. Use símbolos distintos; el orden no crea otra combinación.
+                            </div>
+                        </fieldset>
+
+                        {% if availability_result %}
+                            <section class="alert {% if availability_result.is_available %}alert-info{% else %}alert-warning{% endif %}" aria-labelledby="availability-title">
+                                <h3 class="h6" id="availability-title">Disponibilidad de la selección</h3>
+                                <p class="mb-2">
+                                    Coincidencias posibles: <strong>{{ availability_result.total_matching }}</strong> ·
+                                    vendidas: <strong>{{ availability_result.sold_matching }}</strong> ·
+                                    disponibles: <strong>{{ availability_result.available_matching }}</strong>.
+                                </p>
+                                {% if availability_result.suggestions %}
+                                    <p class="small mb-2">Alternativas disponibles:</p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for suggestion in availability_result.suggestions %}
+                                            <button
+                                                class="btn btn-sm btn-outline-primary"
+                                                type="button"
+                                                data-availability-suggestion="{{ suggestion|join:'|' }}"
+                                            >
+                                                {% for token in suggestion %}
+                                                    <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                                                {% endfor %}
+                                            </button>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="mb-0">No quedan combinaciones para esta selección parcial.</p>
+                                {% endif %}
+                            </section>
+                        {% endif %}
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" type="submit" name="action" value="check_availability">
+                                Consultar disponibilidad
+                            </button>
+                            <button class="btn btn-primary" type="submit" name="action" value="buy" {% if not has_enough_virtual %}disabled{% endif %}>
+                                Confirmar compra
+                            </button>
+                        </div>
+                    </form>
+                {% elif is_upcoming %}
+                    <div class="alert alert-info">Las ventas todavía no han iniciado.</div>
+                {% else %}
+                    <div class="alert alert-secondary">La compra no está disponible.</div>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

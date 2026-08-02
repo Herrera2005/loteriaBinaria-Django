@@ -44,8 +44,12 @@ class LotteryProductFormTests(TestCase):
         form = LotteryProductForm()
 
         self.assertIn(
-            "form-select",
+            "form-control",
             form.fields["code"].widget.attrs["class"],
+        )
+        self.assertIn(
+            "form-select",
+            form.fields["product_type"].widget.attrs["class"],
         )
         self.assertIn(
             "form-control",
@@ -79,8 +83,6 @@ class DrawEventFormTests(TestCase):
             "draw_at": draw_at.strftime("%Y-%m-%dT%H:%M"),
             "price_minor": 100,
             "prize_minor": 5000,
-            "status": DrawEvent.Status.DRAFT,
-            "cancellation_reason": "",
         }
 
     def test_form_calculates_close_ten_minutes_before_draw(self):
@@ -94,6 +96,34 @@ class DrawEventFormTests(TestCase):
             event.sales_close_at,
             event.draw_at - timedelta(minutes=10),
         )
+
+    def test_money_inputs_are_always_converted_from_dollars_to_minor_units(self):
+        product = create_product()
+        data = self.valid_data(product)
+        data["price_minor"] = "1.50"
+        data["prize_minor"] = "10.00"
+
+        form = DrawEventForm(data=data)
+
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        event = form.save()
+        self.assertEqual(event.price_minor, 150)
+        self.assertEqual(event.prize_minor, 1000)
+
+    def test_existing_draft_money_is_converted_from_dollars_to_minor_units(self):
+        event = create_event(status=DrawEvent.Status.DRAFT)
+        data = self.valid_data(event.product)
+        data["name"] = "Borrador actualizado"
+        data["price_minor"] = "2.75"
+        data["prize_minor"] = "25.00"
+
+        form = DrawEventForm(data=data, instance=event)
+
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        updated = form.save()
+        self.assertEqual(updated.price_minor, 275)
+        self.assertEqual(updated.prize_minor, 2500)
+        self.assertEqual(updated.status, DrawEvent.Status.DRAFT)
 
     def test_form_rejects_opening_after_calculated_close(self):
         product = create_product()
@@ -109,15 +139,11 @@ class DrawEventFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("sales_open_at", form.errors)
 
-    def test_cancelled_event_requires_reason(self):
-        product = create_product()
-        data = self.valid_data(product)
-        data["status"] = DrawEvent.Status.CANCELLED
+    def test_event_form_does_not_expose_transition_fields(self):
+        form = DrawEventForm()
 
-        form = DrawEventForm(data=data)
-
-        self.assertFalse(form.is_valid())
-        self.assertIn("cancellation_reason", form.errors)
+        self.assertNotIn("status", form.fields)
+        self.assertNotIn("cancellation_reason", form.fields)
 
     def test_non_draft_event_protects_critical_fields(self):
         event = create_event(status=DrawEvent.Status.PUBLISHED)
@@ -134,6 +160,9 @@ class DrawEventFormTests(TestCase):
             with self.subTest(field_name=field_name):
                 self.assertTrue(form.fields[field_name].disabled)
 
+        self.assertNotIn("status", form.fields)
+        self.assertNotIn("cancellation_reason", form.fields)
+
     def test_event_widgets_use_bootstrap(self):
         form = DrawEventForm()
 
@@ -146,9 +175,12 @@ class DrawEventFormTests(TestCase):
             form.fields["draw_at"].widget.attrs["class"],
         )
         self.assertIn(
-            "form-select",
-            form.fields["status"].widget.attrs["class"],
+            "form-control",
+            form.fields["price_minor"].widget.attrs["class"],
         )
+
+        self.assertNotIn("status", form.fields)
+        self.assertNotIn("cancellation_reason", form.fields)
 
     def test_ticket_and_result_forms_do_not_exist(self):
         from apps.lottery import forms as lottery_forms

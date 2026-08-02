@@ -1,109 +1,250 @@
 {% extends "base.html" %}
 {% load static %}
-
-{% block title %}
-    {% if object %}Editar producto{% else %}Crear producto{% endif %}
-    | Lotería Binaria
-{% endblock %}
+{% block title %}{% if object %}Editar producto{% else %}Crear producto{% endif %} | Lotería{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-12 col-lg-9 col-xl-7">
-        <section
-            class="card shadow-sm"
-            aria-labelledby="product-form-title"
-        >
-            <div class="card-body p-4 p-lg-5">
-                <span class="badge text-bg-warning mb-2">
-                    Modo ADMINISTRADOR
-                </span>
-
-                <h1 id="product-form-title" class="h2">
-                    {% if object %}
-                        Editar producto
-                    {% else %}
-                        Crear producto
-                    {% endif %}
+    <div class="col-12 col-xl-9">
+        <section class="card shadow-sm" aria-labelledby="product-form-title">
+            <div class="card-body p-4">
+                <h1 id="product-form-title" class="h2 mb-2">
+                    {% if object %}Editar producto{% else %}Crear producto{% endif %}
                 </h1>
-
                 <p class="text-body-secondary">
-                    OCTAL usa 0–7 y 4 únicos; DECIMAL 0–9 y 5;
-                    HEXADECIMAL 0–9/A–F y 6.
+                    Los productos oficiales conservan su configuración exacta. En un producto personalizado, cada casilla representa un símbolo independiente de uno o dos caracteres.
                 </p>
 
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">
-                        {% for error in form.non_field_errors %}
-                            <p class="mb-0">{{ error }}</p>
-                        {% endfor %}
+                        {% for error in form.non_field_errors %}<p class="mb-0">{{ error }}</p>{% endfor %}
                     </div>
                 {% endif %}
 
-                <form method="post" novalidate>
+                <form method="post" novalidate id="lottery-product-form">
                     {% csrf_token %}
+                    {{ form.allowed_symbols }}
 
                     <div class="row g-3">
-                        {% for field in form %}
-                            <div class="col-12">
-                                {% if field.field.widget.input_type == "checkbox" %}
-                                    <div class="form-check">
-                                        {{ field }}
-                                        <label
-                                            class="form-check-label"
-                                            for="{{ field.id_for_label }}"
-                                        >
-                                            {{ field.label }}
-                                        </label>
-                                    </div>
-                                {% else %}
-                                    <label
-                                        class="form-label"
-                                        for="{{ field.id_for_label }}"
-                                    >
-                                        {{ field.label }}
-                                    </label>
-                                    {{ field }}
-                                {% endif %}
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="{{ form.product_type.id_for_label }}">{{ form.product_type.label }}</label>
+                            {{ form.product_type }}
+                            {% for error in form.product_type.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
 
-                                {% if field.help_text %}
-                                    <div class="form-text">
-                                        {{ field.help_text }}
-                                    </div>
-                                {% endif %}
+                        <div class="col-12 col-md-6" data-custom-field>
+                            <label class="form-label" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+                            {{ form.code }}
+                            {% if form.code.help_text %}<div class="form-text">{{ form.code.help_text }}</div>{% endif %}
+                            {% for error in form.code.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
 
-                                {% for error in field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ error }}
+                        <div class="col-12">
+                            <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                            {{ form.name }}
+                            {% for error in form.name.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-12 col-md-6" data-custom-field>
+                            <label class="form-label" for="{{ form.symbol_mode.id_for_label }}">{{ form.symbol_mode.label }}</label>
+                            {{ form.symbol_mode }}
+                            {% for error in form.symbol_mode.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-6 col-md-3" data-range-field>
+                            <label class="form-label" for="{{ form.range_start.id_for_label }}">{{ form.range_start.label }}</label>
+                            {{ form.range_start }}
+                            {% for error in form.range_start.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-6 col-md-3" data-range-field>
+                            <label class="form-label" for="{{ form.range_end.id_for_label }}">{{ form.range_end.label }}</label>
+                            {{ form.range_end }}
+                            {% for error in form.range_end.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-12" data-manual-field>
+                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-2">
+                                <div>
+                                    <span class="form-label mb-0 d-block">Símbolos permitidos</span>
+                                    <span class="form-text">
+                                        Agregue cada valor en una casilla. Se admiten ejemplos como <code>A</code>, <code>7</code> o <code>10</code>.
+                                    </span>
+                                </div>
+                                {% if not form.symbols_disabled %}
+                                    <button class="btn btn-sm btn-outline-primary" type="button" id="add-symbol-token">
+                                        Agregar símbolo
+                                    </button>
+                                {% endif %}
+                            </div>
+
+                            <div class="row g-2" id="symbol-token-list" aria-label="Universo de símbolos">
+                                {% for value in form.symbol_token_values %}
+                                    <div class="col-6 col-sm-4 col-md-3 col-lg-2" data-symbol-token-row>
+                                        <div class="input-group">
+                                            <label class="visually-hidden" data-symbol-token-label for="symbol-token-{{ forloop.counter }}">Símbolo {{ forloop.counter }}</label>
+                                            <input
+                                                class="form-control text-uppercase font-monospace text-center"
+                                                id="symbol-token-{{ forloop.counter }}"
+                                                name="symbol_token"
+                                                type="text"
+                                                maxlength="2"
+                                                pattern="[A-Za-z0-9]{1,2}"
+                                                value="{{ value }}"
+                                                autocomplete="off"
+                                                spellcheck="false"
+                                                aria-label="Símbolo {{ forloop.counter }}"
+                                                {% if form.symbols_disabled %}disabled{% endif %}
+                                            >
+                                            {% if not form.symbols_disabled %}
+                                                <button class="btn btn-outline-danger" type="button" data-remove-symbol aria-label="Quitar símbolo {{ forloop.counter }}">×</button>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 {% endfor %}
                             </div>
-                        {% endfor %}
+
+                            {% for error in form.allowed_symbols.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-12 col-md-4" data-custom-field>
+                            <label class="form-label" for="{{ form.selection_count.id_for_label }}">{{ form.selection_count.label }}</label>
+                            {{ form.selection_count }}
+                            {% if form.selection_count.help_text %}<div class="form-text">{{ form.selection_count.help_text }}</div>{% endif %}
+                            {% for error in form.selection_count.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                            </div>
+                            {% for error in form.is_active.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-4 mb-0" role="note">
+                        No se precargan combinaciones. Solo se guarda el universo de símbolos y la cantidad de posiciones. El servidor vuelve a validar todo al guardar.
                     </div>
 
                     <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
-                        {% if object %}
-                            <a
-                                class="btn btn-outline-secondary"
-                                href="{% url 'lottery:product_detail' object.pk %}"
-                            >
-                                Cancelar
-                            </a>
-                        {% else %}
-                            <a
-                                class="btn btn-outline-secondary"
-                                href="{% url 'lottery:product_list' %}"
-                            >
-                                Cancelar
-                            </a>
-                        {% endif %}
-
-                        <button class="btn btn-primary" type="submit">
-                            Guardar producto
-                        </button>
+                        <a class="btn btn-outline-secondary" href="{% if object %}{% url 'lottery:product_detail' object.pk %}{% else %}{% url 'lottery:product_list' %}{% endif %}">Cancelar</a>
+                        <button class="btn btn-primary" type="submit">Guardar producto</button>
                     </div>
                 </form>
             </div>
         </section>
     </div>
 </div>
+
+<template id="symbol-token-template">
+    <div class="col-6 col-sm-4 col-md-3 col-lg-2" data-symbol-token-row>
+        <div class="input-group">
+            <label class="visually-hidden" data-symbol-token-label>Símbolo</label>
+            <input
+                class="form-control text-uppercase font-monospace text-center"
+                name="symbol_token"
+                type="text"
+                maxlength="2"
+                pattern="[A-Za-z0-9]{1,2}"
+                autocomplete="off"
+                spellcheck="false"
+            >
+            <button class="btn btn-outline-danger" type="button" data-remove-symbol aria-label="Quitar símbolo">×</button>
+        </div>
+    </div>
+</template>
+
+<script>
+(() => {
+    const form = document.getElementById("lottery-product-form");
+    if (!form) return;
+
+    const productType = form.querySelector("#id_product_type");
+    const symbolMode = form.querySelector("#id_symbol_mode");
+    const code = form.querySelector("#id_code");
+    const count = form.querySelector("#id_selection_count");
+    const tokenList = form.querySelector("#symbol-token-list");
+    const addButton = form.querySelector("#add-symbol-token");
+    const tokenTemplate = document.getElementById("symbol-token-template");
+    const officialRules = {
+        OCTAL: {count: "4"},
+        DECIMAL: {count: "5"},
+        HEXADECIMAL: {count: "6"},
+    };
+
+    const toggle = (selector, visible) => {
+        form.querySelectorAll(selector).forEach((element) => {
+            element.classList.toggle("d-none", !visible);
+        });
+    };
+
+    const renumberTokens = () => {
+        tokenList?.querySelectorAll("[data-symbol-token-row]").forEach((row, index) => {
+            const number = index + 1;
+            const input = row.querySelector("input[name='symbol_token']");
+            const label = row.querySelector("[data-symbol-token-label]");
+            const remove = row.querySelector("[data-remove-symbol]");
+            if (input) {
+                input.id = `symbol-token-${number}`;
+                input.setAttribute("aria-label", `Símbolo ${number}`);
+            }
+            if (label) {
+                label.htmlFor = `symbol-token-${number}`;
+                label.textContent = `Símbolo ${number}`;
+            }
+            if (remove) remove.setAttribute("aria-label", `Quitar símbolo ${number}`);
+        });
+    };
+
+    const addToken = () => {
+        if (!tokenList || !tokenTemplate) return;
+        const current = tokenList.querySelectorAll("[data-symbol-token-row]").length;
+        if (current >= 32) return;
+        tokenList.appendChild(tokenTemplate.content.cloneNode(true));
+        renumberTokens();
+        tokenList.querySelector("[data-symbol-token-row]:last-child input")?.focus();
+    };
+
+    tokenList?.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-remove-symbol]");
+        if (!button) return;
+        const rows = tokenList.querySelectorAll("[data-symbol-token-row]");
+        if (rows.length <= 2) {
+            button.closest("[data-symbol-token-row]")?.querySelector("input")?.focus();
+            return;
+        }
+        button.closest("[data-symbol-token-row]")?.remove();
+        renumberTokens();
+    });
+
+    tokenList?.addEventListener("input", (event) => {
+        if (event.target.matches("input[name='symbol_token']")) {
+            event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2);
+        }
+    });
+
+    addButton?.addEventListener("click", addToken);
+
+    const refresh = () => {
+        const type = productType?.value || "CUSTOM";
+        const custom = type === "CUSTOM";
+        const mode = symbolMode?.value || "MANUAL";
+        toggle("[data-custom-field]", custom);
+        toggle("[data-range-field]", custom && mode !== "MANUAL");
+        toggle("[data-manual-field]", custom && mode === "MANUAL");
+
+        if (!custom && officialRules[type]) {
+            if (code) code.value = type;
+            if (count) count.value = officialRules[type].count;
+        }
+    };
+
+    productType?.addEventListener("change", refresh);
+    symbolMode?.addEventListener("change", refresh);
+    renumberTokens();
+    refresh();
+})();
+</script>
 {% endblock %}

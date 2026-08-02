@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mis boletos | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+        <span class="badge text-bg-warning mb-2">
+            Modo CLIENTE
+        </span>
+
+        <h1 class="h2">
+            Mis boletos
+        </h1>
+
+        <p class="text-body-secondary">
+            Historial propio de solo lectura.
+        </p>
+    </div>
+
+    <a class="btn btn-primary align-self-lg-start" href="{% url 'lottery:client_event_list' %}">
+        Explorar sorteos
+    </a>
+</header>
+
+<section class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="id_product">
+                    Producto
+                </label>
+
+                <select class="form-select" id="id_product" name="product">
+                    <option value="">Todos</option>
+
+                    {% for product in products %}
+                    <option 
+                        value="{{ product.pk }}" 
+                        {% if selected_product == product.pk|stringformat:"s" %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ product.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="id_status">
+                    Estado
+                </label>
+
+                <select class="form-select" id="id_status" name="status">
+                    <option value="">Todos</option>
+
+                    {% for value, label in ownership_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-grid">
+                <button class="btn btn-primary" type="submit">
+                    Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+{% if ticket_rows %}
+<div class="table-responsive shadow-sm rounded">
+    <table class="table table-striped align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Evento</th>
+                <th>Combinación</th>
+                <th>Estado</th>
+                <th class="text-end">Precio</th>
+                <th>
+                    <span class="visually-hidden">Acciones</span>
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for row in ticket_rows %}
+            <tr>
+                <td>
+                    {{ row.ticket.created_at|date:"d/m/Y H:i" }}
+                </td>
+
+                <td>
+                    {{ row.ticket.event.name }}
+                </td>
+
+                <td>
+                    <span
+                        class="d-flex flex-wrap gap-1"
+                        aria-label="Combinación {{ row.ticket.normalized_key }}"
+                    >
+                        {% for token in row.ticket.key_tokens %}
+                            <span
+                                class="badge text-bg-light border font-monospace"
+                                aria-hidden="true"
+                            >
+                                {{ token }}
+                            </span>
+                        {% endfor %}
+                    </span>
+                </td>
+
+                <td>
+                    {{ row.ticket.get_ownership_status_display }}
+                </td>
+
+                <td class="text-end">
+                    {{ row.price_display }}
+                </td>
+
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary"
+                        href="{% url 'lottery:client_ticket_detail' row.ticket.pk %}">
+                        Detalle
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h2 class="h5">
+        Todavía no tienes boletos
+    </h2>
+
+    <p class="text-body-secondary">
+        Explora los sorteos disponibles para comprar tu primer boleto.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

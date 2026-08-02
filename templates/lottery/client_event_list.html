@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sorteos disponibles | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+
+    <h1 class="h2 mb-2">Sorteos disponibles</h1>
+
+    <p class="text-body-secondary mb-0">
+        Eventos publicados o con ventas abiertas.
+        En P-35A todavía no se compra.
+    </p>
+</header>
+
+<section class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Filtros</h2>
+
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-lg-5">
+                <label class="form-label" for="id_q">
+                    Buscar
+                </label>
+
+                <input
+                    class="form-control"
+                    id="id_q"
+                    name="q"
+                    value="{{ query }}"
+                >
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-3">
+                <label class="form-label" for="id_product">
+                    Producto
+                </label>
+
+                <select
+                    class="form-select"
+                    id="id_product"
+                    name="product"
+                >
+                    <option value="">Todos</option>
+
+                    {% for product in products %}
+                        <option
+                            value="{{ product.pk }}"
+                            {% if selected_product == product.pk|stringformat:"s" %}selected{% endif %}
+                        >
+                            {{ product.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-2">
+                <label class="form-label" for="id_availability">
+                    Disponibilidad
+                </label>
+
+                <select
+                    class="form-select"
+                    id="id_availability"
+                    name="availability"
+                >
+                    <option value="">Todas</option>
+
+                    <option
+                        value="open"
+                        {% if selected_availability == "open" %}selected{% endif %}
+                    >
+                        Abiertas
+                    </option>
+
+                    <option
+                        value="upcoming"
+                        {% if selected_availability == "upcoming" %}selected{% endif %}
+                    >
+                        Próximas
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-12 col-lg-2 d-grid">
+                <button class="btn btn-primary" type="submit">
+                    Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+{% if event_rows %}
+    <div class="row g-4">
+        {% for row in event_rows %}
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-header d-flex justify-content-between gap-2">
+                        <h2 class="h5 mb-0">
+                            {{ row.event.name }}
+                        </h2>
+
+                        {% if row.is_open_now %}
+                            <span class="badge text-bg-success">
+                                Ventas abiertas
+                            </span>
+                        {% elif row.is_upcoming %}
+                            <span class="badge text-bg-info">
+                                Próximamente
+                            </span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">
+                                {{ row.event.get_status_display }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-body">
+                        <p>
+                            <strong>Producto:</strong>
+                            {{ row.event.product.name }}
+                        </p>
+
+                        <dl class="row mb-0">
+                            <dt class="col-6">Precio</dt>
+                            <dd class="col-6 text-end">
+                                {{ row.price_display }}
+                            </dd>
+
+                            <dt class="col-6">Premio</dt>
+                            <dd class="col-6 text-end">
+                                {{ row.prize_display }}
+                            </dd>
+
+                            <dt class="col-6">Cierre</dt>
+                            <dd class="col-6 text-end">
+                                {{ row.event.sales_close_at|date:"d/m/Y H:i" }}
+                            </dd>
+                        </dl>
+                    </div>
+
+                    <div class="card-footer bg-transparent">
+                        <a
+                            class="btn btn-primary w-100"
+                            href="{% url 'lottery:client_event_detail' row.event.pk %}"
+                        >
+                            Ver detalle
+                        </a>
+                    </div>
+                </article>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <h2 class="h5">
+            No hay sorteos disponibles
+        </h2>
+
+        <p class="text-body-secondary mb-0">
+            No se muestran borradores, cerrados ni cancelados.
+        </p>
+    </div>
+{% endif %}
+{% endblock %}

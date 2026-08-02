@@ -76,15 +76,29 @@ class EventAdministrationPermissionTests(TestCase):
                 )
                 self.assertEqual(response.status_code, 403)
 
-    def test_administrator_with_ticket_does_not_see_event_in_admin_list(self):
+    def test_administrator_with_ticket_sees_event_marked_as_participant(self):
         self._login_in_admin_mode(self.administrator)
 
-        response = self.client.get(reverse("lottery:event_list"))
+        response = self.client.get(
+            reverse("lottery:event_list")
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(
-            self.event,
-            list(response.context["events"]),
+
+        events = list(response.context["events"])
+
+        self.assertIn(self.event, events)
+        self.assertContains(response, self.event.name)
+        self.assertContains(response, "Participante")
+
+        listed_event = next(
+            listed_event
+            for listed_event in events
+            if listed_event.pk == self.event.pk
+        )
+
+        self.assertTrue(
+            listed_event.current_admin_has_ticket
         )
 
     def test_other_administrator_can_administer_event(self):
@@ -94,4 +108,4 @@ class EventAdministrationPermissionTests(TestCase):
             reverse("lottery:event_detail", kwargs={"pk": self.event.pk})
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, msg=f"Redirección inesperada a: {response.get('Location')}",)

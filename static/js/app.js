@@ -127,3 +127,68 @@
         }
     });
 })();
+
+// P-35B-R3: ayuda visual para selección por posiciones.
+// El servidor sigue siendo la única autoridad de validación y disponibilidad.
+document.addEventListener("DOMContentLoaded", () => {
+    const selection = document.querySelector("[data-ticket-selection]");
+    if (!selection) return;
+
+    const selects = Array.from(selection.querySelectorAll("select[data-ticket-position]"));
+
+    const refreshDisabledOptions = () => {
+        const selected = new Set(selects.map((field) => field.value).filter(Boolean));
+        selects.forEach((field) => {
+            Array.from(field.options).forEach((option) => {
+                option.disabled = Boolean(
+                    option.value && option.value !== field.value && selected.has(option.value)
+                );
+            });
+        });
+    };
+
+    selects.forEach((field) => field.addEventListener("change", refreshDisabledOptions));
+    refreshDisabledOptions();
+
+    document.querySelectorAll("[data-availability-suggestion]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const tokens = button.dataset.availabilitySuggestion.split("|");
+            selects.forEach((field, index) => {
+                field.value = tokens[index] || "";
+            });
+            refreshDisabledOptions();
+            selects[0]?.focus();
+        });
+    });
+});
+
+// P-35C: prevención visual de símbolos repetidos al publicar el resultado.
+// La validación definitiva permanece en DrawResultPublishForm y el servicio.
+document.addEventListener("DOMContentLoaded", () => {
+    const selection = document.querySelector("[data-result-selection]");
+    if (!selection) return;
+
+    const selects = Array.from(
+        selection.querySelectorAll("select[data-result-position]")
+    );
+
+    const refreshDisabledOptions = () => {
+        const selected = new Set(
+            selects.map((field) => field.value).filter(Boolean)
+        );
+        selects.forEach((field) => {
+            Array.from(field.options).forEach((option) => {
+                option.disabled = Boolean(
+                    option.value
+                    && option.value !== field.value
+                    && selected.has(option.value)
+                );
+            });
+        });
+    };
+
+    selects.forEach((field) => {
+        field.addEventListener("change", refreshDisabledOptions);
+    });
+    refreshDisabledOptions();
+});

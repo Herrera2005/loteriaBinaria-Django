@@ -12,7 +12,7 @@
                 {{ product.name }}
             </h1>
             <p class="text-body-secondary mb-0">
-                Configuración oficial del producto de lotería.
+                Configuración del producto de lotería.
             </p>
         </div>
 
@@ -42,17 +42,24 @@
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">
+                        <dt class="col-sm-6">Tipo</dt>
+                        <dd class="col-sm-6">{{ product.get_kind_display }}</dd>
+
                         <dt class="col-sm-6">Código</dt>
-                        <dd class="col-sm-6">{{ product.code }}</dd>
+                        <dd class="col-sm-6"><code>{{ product.code }}</code></dd>
 
                         <dt class="col-sm-6">Símbolos</dt>
                         <dd class="col-sm-6">
-                            <code>{{ product.allowed_symbols }}</code>
+                            <span class="d-flex flex-wrap gap-1">
+                                {% for token in product.symbol_tokens %}
+                                    <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                                {% endfor %}
+                            </span>
                         </dd>
 
                         <dt class="col-sm-6">Cantidad</dt>
                         <dd class="col-sm-6">
-                            {{ product.selection_count }} únicos
+                            {{ product.selection_count }} posiciones
                         </dd>
 
                         <dt class="col-sm-6">Estado</dt>

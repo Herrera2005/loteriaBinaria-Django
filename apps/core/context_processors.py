@@ -15,6 +15,8 @@ from apps.accounts.roles import (
 MODE_NAVIGATION = {
     CLIENT: (
         ("Panel Cliente", "core:client_dashboard"),
+        ("Sorteos", "lottery:client_event_list"),
+        ("Mis boletos", "lottery:client_ticket_list"),
         ("Billeteras y movimientos", "finance:wallet_detail"),
         ("Operaciones REAL", "finance:real_operations"),
         ("Conversión de wallets", "finance:wallet_conversion"),

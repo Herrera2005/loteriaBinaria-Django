@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Boleto {{ ticket.key_display }} | Lotería Binaria{% endblock %}
+{% block content %}<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div><span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+        <h1 class="h2">Detalle de boleto</h1>
+        <p class="text-body-secondary">Comprobante histórico de solo lectura.</p>
+    </div><a class="btn btn-outline-secondary align-self-lg-start"
+        href="{% url 'lottery:client_ticket_list' %}">Volver</a>
+</header>
+<section class="card shadow-sm">
+    <div class="card-body p-4">
+        <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Combinación del boleto">
+            {% for token in ticket.key_tokens %}
+                <span class="badge text-bg-primary fs-6 font-monospace">{{ token }}</span>
+            {% endfor %}
+        </div>
+        {% if ticket.event.result %}
+        <div class="alert {% if ticket.evaluation_status == 'WINNER' %}alert-success{% elif ticket.evaluation_status == 'REFUND' %}alert-info{% else %}alert-secondary{% endif %}" role="status">
+            <h2 class="h5">Resultado del boleto: {{ ticket.get_evaluation_status_display }}</h2>
+            <div class="d-flex flex-wrap gap-2 mb-2" aria-label="Resultado oficial {{ ticket.event.result.winning_key }}">
+                {% for token in ticket.event.result.key_tokens %}
+                    <span class="badge text-bg-light border font-monospace">{{ token }}</span>
+                {% endfor %}
+            </div>
+            <a href="{% url 'lottery:public_result_detail' ticket.event.result.pk %}">Ver resultado público</a>
+        </div>
+        {% endif %}
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Evento</dt>
+            <dd class="col-sm-8">{{ ticket.event.name }}</dd>
+            <dt class="col-sm-4">Producto</dt>
+            <dd class="col-sm-8">{{ ticket.event.product.name }}</dd>
+            <dt class="col-sm-4">Precio</dt>
+            <dd class="col-sm-8">{{ price_display }}</dd>
+            <dt class="col-sm-4">Propiedad</dt>
+            <dd class="col-sm-8">{{ ticket.get_ownership_status_display }}</dd>
+            <dt class="col-sm-4">Evaluación</dt>
+            <dd class="col-sm-8">{{ ticket.get_evaluation_status_display }}</dd>
+            <dt class="col-sm-4">Premio</dt>
+            <dd class="col-sm-8">{{ award_display }}</dd>
+            <dt class="col-sm-4">Operación</dt>
+            <dd class="col-sm-8"><code>{{ ticket.operation_id }}</code></dd>
+        </dl>
+    </div>
+</section>{% endblock %}
