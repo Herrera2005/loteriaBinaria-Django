@@ -14,9 +14,14 @@
             </p>
         </div>
 
-        <a class="btn btn-primary" href="{% url 'accounts:profile_edit' %}">
-            Editar información
-        </a>
+        <div class="d-grid d-sm-flex gap-2">
+            <a class="btn btn-outline-primary" href="{% url 'accounts:password_change' %}">
+                Cambiar contraseña
+            </a>
+            <a class="btn btn-primary" href="{% url 'accounts:profile_edit' %}">
+                Editar información
+            </a>
+        </div>
     </header>
 
     <div class="row g-4">

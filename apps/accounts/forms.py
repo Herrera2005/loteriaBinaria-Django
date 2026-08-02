@@ -10,6 +10,7 @@ from __future__ import annotations
 from django import forms
 from django.contrib.auth.forms import (
     AuthenticationForm,
+    PasswordChangeForm,
     UserChangeForm,
     UserCreationForm,
 )
@@ -127,24 +128,44 @@ class UserIdentityValidationMixin:
         return cleaned_data
 
 class TallerAuthenticationForm(BootstrapValidationMixin, AuthenticationForm):
-    """Login con widgets Bootstrap y bloqueo por estado académico."""
+    """Autenticación por nombre de usuario o correo electrónico."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["username"].label = "Usuario"
+        self.fields["username"].label = "Usuario o correo electrónico"
         self.fields["password"].label = "Contraseña"
         self.fields["username"].widget.attrs.update(
-            {"autocomplete": "username", "autofocus": True}
+            {
+                "autocomplete": "username",
+                "autofocus": True,
+                "placeholder": "usuario o correo@ejemplo.com",
+            }
         )
         self.fields["password"].widget.attrs.update(
             {"autocomplete": "current-password"}
         )
         _apply_bootstrap_widgets(self)
 
-    def clean_username(self) -> str:
-        return User.normalize_username_value(
+    def clean(self):
+        identifier = User.normalize_username_value(
             self.cleaned_data.get("username")
         )
+
+        if identifier and "@" in identifier:
+            matched_username = (
+                User.objects
+                .filter(email__iexact=identifier)
+                .values_list("username", flat=True)
+                .first()
+            )
+            if matched_username:
+                self.cleaned_data["username"] = matched_username
+            else:
+                self.cleaned_data["username"] = identifier
+        else:
+            self.cleaned_data["username"] = identifier
+
+        return super().clean()
 
     def confirm_login_allowed(self, user) -> None:
         if user.status != User.Status.ACTIVE:
@@ -153,6 +174,29 @@ class TallerAuthenticationForm(BootstrapValidationMixin, AuthenticationForm):
                 code="inactive_status",
             )
         super().confirm_login_allowed(user)
+
+
+class TallerPasswordChangeForm(
+    BootstrapValidationMixin,
+    PasswordChangeForm,
+):
+    """Cambio de contraseña autenticado con estilos Bootstrap."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["old_password"].label = "Contraseña actual"
+        self.fields["new_password1"].label = "Nueva contraseña"
+        self.fields["new_password2"].label = "Confirmar nueva contraseña"
+        self.fields["old_password"].widget.attrs["autocomplete"] = (
+            "current-password"
+        )
+        self.fields["new_password1"].widget.attrs["autocomplete"] = (
+            "new-password"
+        )
+        self.fields["new_password2"].widget.attrs["autocomplete"] = (
+            "new-password"
+        )
+        _apply_bootstrap_widgets(self)
 
 
 class RegistrationForm(

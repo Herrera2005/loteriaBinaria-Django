@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import (
     LoginView,
-    LogoutView,
+    PasswordChangeDoneView,
+    PasswordChangeView,
     redirect_to_login,
 )
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
@@ -29,6 +31,7 @@ from .forms import (
     ProfileUpdateForm,
     RegistrationForm,
     TallerAuthenticationForm,
+    TallerPasswordChangeForm,
     UserAdminChangeForm,
     UserAdminCreationForm,
 )
@@ -44,6 +47,27 @@ from .services import (
 )
 
 
+LOGIN_NEXT_SESSION_KEY = "accounts_safe_login_next"
+
+
+def _safe_next_url(request) -> str | None:
+    """Acepta redirecciones únicamente hacia este mismo host."""
+    candidate = (
+        request.POST.get("next")
+        or request.GET.get("next")
+        or ""
+    ).strip()
+    if not candidate:
+        return None
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return None
+
+
 def _client_ip(request) -> str | None:
     return request.META.get("REMOTE_ADDR") or None
 
@@ -57,16 +81,24 @@ class AccountLoginView(LoginView):
         user = form.get_user()
         login(self.request, user)
         modes = assigned_mode_codes(user)
+        safe_next = _safe_next_url(self.request)
 
         if len(modes) == 1:
             active_mode = modes[0]
             self.request.session[ACTIVE_MODE_SESSION_KEY] = active_mode
-            destination = reverse(DASHBOARD_URL_NAMES[active_mode])
+            destination = safe_next or reverse(
+                DASHBOARD_URL_NAMES[active_mode]
+            )
         elif len(modes) > 1:
             self.request.session.pop(ACTIVE_MODE_SESSION_KEY, None)
+            if safe_next:
+                self.request.session[LOGIN_NEXT_SESSION_KEY] = safe_next
+            else:
+                self.request.session.pop(LOGIN_NEXT_SESSION_KEY, None)
             destination = reverse("accounts:choose_mode")
         else:
             self.request.session.pop(ACTIVE_MODE_SESSION_KEY, None)
+            self.request.session.pop(LOGIN_NEXT_SESSION_KEY, None)
             messages.warning(
                 self.request,
                 "La cuenta no tiene roles asignados; contacta al administrador.",
@@ -77,9 +109,37 @@ class AccountLoginView(LoginView):
         return HttpResponseRedirect(destination)
 
 
-class AccountLogoutView(LogoutView):
-    next_page = "core:home"
+class AccountLogoutView(View):
     http_method_names = ["post", "options"]
+
+    def post(self, request, *args, **kwargs):
+        logout(request)
+        messages.success(request, "Sesión cerrada correctamente.")
+        return redirect("core:home")
+
+
+class AccountPasswordChangeView(
+    LoginRequiredMixin,
+    PasswordChangeView,
+):
+    form_class = TallerPasswordChangeForm
+    template_name = "accounts/password_change_form.html"
+    success_url = reverse_lazy("accounts:password_change_done")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Tu contraseña se actualizó correctamente.",
+        )
+        return response
+
+
+class AccountPasswordChangeDoneView(
+    LoginRequiredMixin,
+    PasswordChangeDoneView,
+):
+    template_name = "accounts/password_change_done.html"
 
 
 @require_http_methods(["GET", "POST"])
@@ -124,6 +184,13 @@ def choose_mode(request):
             request,
             f"Modo {ROLE_PRESENTATION[selected]['label']} activado.",
         )
+        safe_next = request.session.pop(LOGIN_NEXT_SESSION_KEY, None)
+        if safe_next and url_has_allowed_host_and_scheme(
+            safe_next,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(safe_next)
         return redirect(DASHBOARD_URL_NAMES[selected])
 
     assigned_modes = [
