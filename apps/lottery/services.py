@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
-from .models import DrawEvent, DrawResult, LotteryProduct
+from .models import DrawEvent, DrawEventSeries, DrawResult, LotteryProduct
 
 @dataclass(frozen=True)
 class DeleteResult:
@@ -373,6 +373,13 @@ def sync_lottery_event_states(*, actor=None, now=None) -> int:
 
         if (
             event.status in (DrawEvent.Status.SCHEDULED, DrawEvent.Status.PUBLISHED)
+            and now >= event.sales_close_at
+        ):
+            target = DrawEvent.Status.SALES_CLOSED
+            reason = "Cierre automático al detectar vencida la hora límite."
+            public_message = "Las ventas del sorteo han finalizado."
+        elif (
+            event.status in (DrawEvent.Status.SCHEDULED, DrawEvent.Status.PUBLISHED)
             and event.sales_open_at <= now < event.sales_close_at
         ):
             target = DrawEvent.Status.SALES_OPEN
@@ -588,6 +595,7 @@ def publish_draw_result(
     winning_key,
     actor,
     reason: str,
+    publication_source=DrawResult.PublicationSource.ADMINISTRATOR,
 ) -> ResultPublicationOutcome:
     """Fija un resultado único, evalúa boletos y finaliza atómicamente."""
     from django.db import IntegrityError
@@ -597,14 +605,22 @@ def publish_draw_result(
     from apps.accounts.roles import ADMINISTRATOR
     from .models import DrawEventStatusTransition
 
-    if not (
-        is_operational_user(actor)
-        and getattr(actor, "is_staff", False)
-        and has_assigned_role(actor, ADMINISTRATOR)
-    ):
-        raise ValidationError(
-            "Solo un Administrador operativo puede publicar resultados."
-        )
+    if publication_source == DrawResult.PublicationSource.ADMINISTRATOR:
+        if not (
+            is_operational_user(actor)
+            and getattr(actor, "is_staff", False)
+            and has_assigned_role(actor, ADMINISTRATOR)
+        ):
+            raise ValidationError(
+                "Solo un Administrador operativo puede publicar resultados."
+            )
+    elif publication_source == DrawResult.PublicationSource.SYSTEM:
+        if actor is not None:
+            raise ValidationError(
+                "La publicación automática debe ejecutarse sin actor humano."
+            )
+    else:
+        raise ValidationError("El origen de publicación del resultado no es válido.")
 
     event = (
         DrawEvent.objects.select_for_update()
@@ -613,7 +629,10 @@ def publish_draw_result(
     )
     reason = (reason or "").strip()
 
-    if event.tickets.filter(user=actor).exists():
+    if (
+        publication_source == DrawResult.PublicationSource.ADMINISTRATOR
+        and event.tickets.filter(user=actor).exists()
+    ):
         raise ValidationError(
             "No puedes publicar el resultado de un evento en el que tienes boleto."
         )
@@ -636,6 +655,7 @@ def publish_draw_result(
         event=event,
         winning_key=winning_key,
         published_by=actor,
+        publication_source=publication_source,
         reason=reason,
     )
     result.full_clean()
@@ -662,3 +682,201 @@ def publish_draw_result(
     )
 
     return settle_draw_result(result_id=result.pk)
+
+
+@dataclass(frozen=True)
+class SeriesGenerationResult:
+    series_id: int
+    created_event_ids: tuple[int, ...]
+    skipped_sequences: int
+
+
+@transaction.atomic
+def archive_event_series(*, series_id: int, actor=None) -> DeleteResult:
+    """Elimina la programación sin romper los eventos históricos generados."""
+    from django.utils import timezone
+
+    series = DrawEventSeries.objects.select_for_update().get(pk=series_id)
+    if series.is_archived:
+        return DeleteResult(series.pk, series.name_prefix, False, "La serie ya estaba eliminada.")
+    series.is_active = False
+    series.is_archived = True
+    series.archived_at = timezone.now()
+    series.save(update_fields=("is_active", "is_archived", "archived_at", "updated_at"))
+    return DeleteResult(series.pk, series.name_prefix, True)
+
+
+@transaction.atomic
+def generate_series_events(*, series_id: int, actor=None, now=None) -> SeriesGenerationResult:
+    """Mantiene el cupo futuro sin duplicados y respeta el límite restante."""
+    from datetime import timedelta
+    from django.utils import timezone
+
+    now = now or timezone.now()
+    series = (
+        DrawEventSeries.objects.select_for_update()
+        .select_related("product")
+        .get(pk=series_id)
+    )
+    if series.is_archived or not series.is_active:
+        return SeriesGenerationResult(series.pk, (), 0)
+    if series.remaining_occurrences == 0:
+        series.is_active = False
+        series.save(update_fields=("is_active", "updated_at"))
+        return SeriesGenerationResult(series.pk, (), 0)
+    if not series.product.is_active:
+        raise ValidationError("El producto de la serie no está activo.")
+
+    future_count = series.events.filter(
+        draw_at__gt=now,
+    ).exclude(
+        status=DrawEvent.Status.CANCELLED,
+    ).count()
+    missing = max(series.future_events_target - future_count, 0)
+    if series.remaining_occurrences is not None:
+        missing = min(missing, series.remaining_occurrences)
+
+    created_ids = []
+    skipped = 0
+    next_draw_at = series.next_draw_at or series.first_draw_at
+
+    while missing > 0:
+        sequence = series.next_sequence
+        draw_at = next_draw_at
+        sales_close_at = DrawEvent.calculate_sales_close_at(draw_at)
+        series.next_sequence += 1
+        next_draw_at = draw_at + timedelta(minutes=series.recurrence_minutes)
+
+        if sales_close_at <= now:
+            skipped += 1
+            continue
+
+        event = DrawEvent(
+            series=series,
+            series_sequence=sequence,
+            product=series.product,
+            name=f"{series.name_prefix} #{sequence}",
+            sales_open_at=draw_at - timedelta(minutes=series.sales_lead_minutes),
+            sales_close_at=sales_close_at,
+            draw_at=draw_at,
+            price_minor=series.price_minor,
+            prize_minor=series.prize_minor,
+            status=DrawEvent.Status.DRAFT,
+        )
+        event.full_clean()
+        event.save()
+        transition_draw_event(
+            event_id=event.pk,
+            to_status=DrawEvent.Status.SCHEDULED,
+            actor=actor or series.created_by,
+            reason=f"Evento generado automáticamente por la serie {series.name_prefix}.",
+            public_message="Sorteo programado automáticamente.",
+        )
+        created_ids.append(event.pk)
+        missing -= 1
+        if series.remaining_occurrences is not None:
+            series.remaining_occurrences -= 1
+            if series.remaining_occurrences == 0:
+                series.is_active = False
+                break
+
+    series.next_draw_at = next_draw_at
+    series.save(
+        update_fields=(
+            "next_sequence",
+            "next_draw_at",
+            "remaining_occurrences",
+            "is_active",
+            "updated_at",
+        )
+    )
+    sync_lottery_event_states(actor=actor or series.created_by, now=now)
+    return SeriesGenerationResult(series.pk, tuple(created_ids), skipped)
+
+
+@transaction.atomic
+def process_active_event_series(*, actor=None, now=None) -> tuple[SeriesGenerationResult, ...]:
+    """Procesa series activas, no archivadas y todavía vigentes."""
+    series_ids = list(
+        DrawEventSeries.objects.filter(
+            is_active=True,
+            is_archived=False,
+        )
+        .order_by("id")
+        .values_list("id", flat=True)
+    )
+    return tuple(
+        generate_series_events(series_id=series_id, actor=actor, now=now)
+        for series_id in series_ids
+    )
+
+
+
+@dataclass(frozen=True)
+class AutomaticResultProcessingResult:
+    processed_event_ids: tuple[int, ...]
+    skipped_event_ids: tuple[int, ...]
+    errors: tuple[str, ...]
+
+
+def generate_automatic_winning_key(*, product):
+    """Genera una combinación válida usando aleatoriedad del servidor."""
+    import secrets
+
+    tokens = tuple(product.symbol_tokens)
+    if len(tokens) < product.selection_count:
+        raise ValidationError(
+            "El producto no tiene suficientes símbolos para generar el resultado."
+        )
+    selected = secrets.SystemRandom().sample(tokens, product.selection_count)
+    from .models import validate_key_for_product
+    return validate_key_for_product(value=selected, product=product)
+
+
+def process_due_automatic_results(*, now=None) -> AutomaticResultProcessingResult:
+    """Publica y liquida resultados automáticos vencidos sin duplicarlos."""
+    from django.utils import timezone
+
+    now = now or timezone.now()
+    event_ids = list(
+        DrawEvent.objects.filter(
+            series__isnull=False,
+            series__is_archived=False,
+            series__result_mode=DrawEventSeries.ResultMode.AUTOMATIC,
+            status=DrawEvent.Status.SALES_CLOSED,
+            draw_at__lte=now,
+            result__isnull=True,
+        )
+        .order_by("draw_at", "id")
+        .values_list("id", flat=True)
+    )
+
+    processed = []
+    skipped = []
+    errors = []
+    for event_id in event_ids:
+        try:
+            event = DrawEvent.objects.select_related("product", "series").get(pk=event_id)
+            winning_key = generate_automatic_winning_key(product=event.product)
+            publish_draw_result(
+                event_id=event.pk,
+                winning_key=winning_key,
+                actor=None,
+                reason=(
+                    "Resultado generado automáticamente por la programación "
+                    f"de la serie {event.series.name_prefix}."
+                ),
+                publication_source=DrawResult.PublicationSource.SYSTEM,
+            )
+            processed.append(event.pk)
+        except ValidationError as exc:
+            if DrawResult.objects.filter(event_id=event_id).exists():
+                skipped.append(event_id)
+            else:
+                errors.append(f"Evento {event_id}: {'; '.join(exc.messages)}")
+
+    return AutomaticResultProcessingResult(
+        processed_event_ids=tuple(processed),
+        skipped_event_ids=tuple(skipped),
+        errors=tuple(errors),
+    )

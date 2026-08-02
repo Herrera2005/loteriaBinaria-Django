@@ -44,6 +44,7 @@ STAFF_ADMIN_NAVIGATION = (
     ("Solicitudes", "vendors:conversionrequest_list"),
     ("Productos", "lottery:product_list"),
     ("Sorteos", "lottery:event_list"),
+    ("Series automáticas", "lottery:series_list"),
 )
 
 

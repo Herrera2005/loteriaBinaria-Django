@@ -26,19 +26,22 @@ from apps.accounts.roles import CLIENT
 
 from .forms import (
     DrawEventForm,
+    DrawEventSeriesForm,
     DrawEventTransitionForm,
     DrawResultPublishForm,
     LotteryProductForm,
     TicketPurchaseForm,
 )
 from .availability import get_combination_availability
-from .models import DrawEvent, DrawResult, LotteryProduct, Ticket
+from .models import DrawEvent, DrawEventSeries, DrawResult, LotteryProduct, Ticket
 from apps.finance.models import Wallet
 from .services import (
     delete_draw_event,
     delete_lottery_product,
     available_event_transitions,
     event_can_be_deleted,
+    archive_event_series,
+    generate_series_events,
     purchase_ticket,
     publish_draw_result,
     sync_lottery_event_states,
@@ -352,7 +355,7 @@ class DrawEventDetailView(
     def get_queryset(self):
         return (
             DrawEvent.objects
-            .select_related("product")
+            .select_related("product", "series")
             .annotate(tickets_count=Count("tickets"))
         )
 
@@ -365,8 +368,13 @@ class DrawEventDetailView(
             result = None
         context["has_result"] = result is not None
         context["result"] = result
+        context["is_automatic_result"] = bool(
+            self.object.series_id
+            and self.object.series.result_mode == DrawEventSeries.ResultMode.AUTOMATIC
+        )
         context["can_publish_result"] = (
             result is None
+            and not context["is_automatic_result"]
             and self.object.status == DrawEvent.Status.SALES_CLOSED
             and timezone.now() >= self.object.draw_at
         )
@@ -377,47 +385,109 @@ class DrawEventDetailView(
         return context
 
 
-class DrawEventCreateView(
-    AdministratorModeRequiredMixin,
-    CreateView,
-):
-    model = DrawEvent
-    form_class = DrawEventForm
+class DrawEventCreateView(AdministratorModeRequiredMixin, View):
+    """Pantalla unificada para crear un evento o una serie automática."""
+
     template_name = "lottery/event_form.html"
 
-    def get_success_url(self):
-        return reverse(
-            "lottery:event_detail",
-            kwargs={"pk": self.object.pk},
+    def _render(self, request, *, event_form=None, series_form=None, mode="single"):
+        event_form = event_form or DrawEventForm(prefix="event")
+        series_form = series_form or DrawEventSeriesForm(prefix="series")
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": event_form,
+                "event_form": event_form,
+                "series_form": series_form,
+                "creation_mode": mode,
+                "is_unified_creation": True,
+            },
         )
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        submit_action = self.request.POST.get("submit_action", "draft")
+    def get(self, request, *args, **kwargs):
+        mode = request.GET.get("mode", "single")
+        if mode not in {"single", "series"}:
+            mode = "single"
+        return self._render(request, mode=mode)
+
+    def post(self, request, *args, **kwargs):
+        mode = request.POST.get("creation_mode", "single")
+
+        # Compatibilidad con las pruebas y formularios anteriores sin prefijo.
+        legacy_event_post = "creation_mode" not in request.POST
+        if mode == "series":
+            series_form = DrawEventSeriesForm(request.POST, prefix="series")
+            event_form = DrawEventForm(prefix="event")
+            if not series_form.is_valid():
+                return self._render(
+                    request,
+                    event_form=event_form,
+                    series_form=series_form,
+                    mode="series",
+                )
+
+            series = series_form.save(commit=False)
+            series.created_by = request.user
+            series.full_clean()
+            series.save()
+            result = generate_series_events(
+                series_id=series.pk,
+                actor=request.user,
+            )
+            messages.success(
+                request,
+                f"Serie {series.name_prefix} creada. "
+                f"Eventos generados: {len(result.created_event_ids)}.",
+            )
+            return redirect("lottery:series_detail", pk=series.pk)
+
+        event_form = DrawEventForm(
+            request.POST,
+            prefix=None if legacy_event_post else "event",
+        )
+        series_form = DrawEventSeriesForm(prefix="series")
+        if not event_form.is_valid():
+            return self._render(
+                request,
+                event_form=event_form,
+                series_form=series_form,
+                mode="single",
+            )
+
+        event = event_form.save()
+        submit_action = request.POST.get("submit_action", "draft")
         if submit_action == "schedule":
             try:
                 transition_draw_event(
-                    event_id=self.object.pk,
+                    event_id=event.pk,
                     to_status=DrawEvent.Status.SCHEDULED,
-                    actor=self.request.user,
+                    actor=request.user,
                     reason="Evento creado y programado por el administrador.",
-                    public_message="El sorteo fue programado y abrirá ventas en la fecha indicada.",
+                    public_message=(
+                        "El sorteo fue programado y abrirá ventas en la fecha indicada."
+                    ),
                 )
-                sync_lottery_event_states(actor=self.request.user)
+                sync_lottery_event_states(actor=request.user)
             except ValidationError as exc:
-                self.object.delete()
-                _add_validation_error(form, exc)
-                return self.form_invalid(form)
+                event.delete()
+                _add_validation_error(event_form, exc)
+                return self._render(
+                    request,
+                    event_form=event_form,
+                    series_form=series_form,
+                    mode="single",
+                )
             messages.success(
-                self.request,
-                f"Evento {self.object.name} creado y programado correctamente.",
+                request,
+                f"Evento {event.name} creado y programado correctamente.",
             )
         else:
             messages.success(
-                self.request,
-                f"Evento {self.object.name} guardado como borrador.",
+                request,
+                f"Evento {event.name} guardado como borrador.",
             )
-        return response
+        return redirect("lottery:event_detail", pk=event.pk)
 
 
 class DrawEventUpdateView(
@@ -965,3 +1035,172 @@ class ClientTicketDetailView(ActiveModeRequiredMixin, DetailView):
         )
 
         return context
+
+class DrawEventSeriesListView(AdministratorModeRequiredMixin, ListView):
+    model = DrawEventSeries
+    template_name = "lottery/series_list.html"
+    context_object_name = "series_list"
+    paginate_by = 15
+
+    def get_queryset(self):
+        queryset = (
+            DrawEventSeries.objects.select_related("product", "created_by")
+            .annotate(events_count=Count("events"))
+            .order_by("name_prefix", "id")
+        )
+        archived = self.request.GET.get("archived", "").strip()
+        if archived == "1":
+            queryset = queryset.filter(is_archived=True)
+        else:
+            queryset = queryset.filter(is_archived=False)
+        active = self.request.GET.get("active", "").strip()
+        if active == "1":
+            queryset = queryset.filter(is_active=True)
+        elif active == "0":
+            queryset = queryset.filter(is_active=False)
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(name_prefix__icontains=query)
+                | Q(product__name__icontains=query)
+                | Q(product__code__icontains=query)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            "query": self.request.GET.get("q", "").strip(),
+            "active_filter": self.request.GET.get("active", "").strip(),
+            "archived_filter": self.request.GET.get("archived", "").strip(),
+        })
+        return context
+
+
+class DrawEventSeriesDetailView(AdministratorModeRequiredMixin, DetailView):
+    model = DrawEventSeries
+    template_name = "lottery/series_detail.html"
+    context_object_name = "series"
+
+    def get_queryset(self):
+        return DrawEventSeries.objects.select_related("product", "created_by")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["generated_events"] = self.object.events.select_related("product").order_by(
+            "series_sequence",
+        )[:30]
+        context["price_display"] = _format_virtual_minor(self.object.price_minor)
+        context["prize_display"] = _format_virtual_minor(self.object.prize_minor)
+        context["generated_count"] = self.object.events.count()
+        return context
+
+
+class DrawEventSeriesCreateView(AdministratorModeRequiredMixin, CreateView):
+    model = DrawEventSeries
+    form_class = DrawEventSeriesForm
+    template_name = "lottery/series_form.html"
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        response = super().form_valid(form)
+        result = generate_series_events(
+            series_id=self.object.pk,
+            actor=self.request.user,
+        )
+        messages.success(
+            self.request,
+            f"Serie creada. Eventos generados: {len(result.created_event_ids)}.",
+        )
+        return response
+
+    def get_success_url(self):
+        return reverse("lottery:series_detail", kwargs={"pk": self.object.pk})
+
+
+class DrawEventSeriesUpdateView(AdministratorModeRequiredMixin, UpdateView):
+    model = DrawEventSeries
+    form_class = DrawEventSeriesForm
+    template_name = "lottery/series_form.html"
+    context_object_name = "series"
+
+    def get_queryset(self):
+        return DrawEventSeries.objects.filter(is_archived=False)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        result = generate_series_events(
+            series_id=self.object.pk,
+            actor=self.request.user,
+        )
+        messages.success(
+            self.request,
+            f"Serie actualizada. Eventos nuevos: {len(result.created_event_ids)}.",
+        )
+        return response
+
+    def get_success_url(self):
+        return reverse("lottery:series_detail", kwargs={"pk": self.object.pk})
+
+
+class DrawEventSeriesArchiveView(AdministratorModeRequiredMixin, View):
+    template_name = "lottery/series_confirm_archive.html"
+
+    def get_object(self):
+        return get_object_or_404(DrawEventSeries, pk=self.kwargs["pk"])
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, {"series": self.get_object()})
+
+    def post(self, request, *args, **kwargs):
+        series = self.get_object()
+        result = archive_event_series(
+            series_id=series.pk,
+            actor=request.user,
+        )
+        if result.deleted:
+            messages.success(
+                request,
+                "La programación fue eliminada. Los eventos ya generados se conservan.",
+            )
+            return redirect("lottery:series_list")
+        messages.warning(request, result.reason)
+        return redirect("lottery:series_detail", pk=series.pk)
+
+
+class DrawEventSeriesToggleView(AdministratorModeRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        series = get_object_or_404(
+            DrawEventSeries,
+            pk=self.kwargs["pk"],
+            is_archived=False,
+        )
+        if series.remaining_occurrences == 0:
+            messages.warning(
+                request,
+                "La serie está completada. Edite las generaciones restantes antes de reactivarla.",
+            )
+            return redirect("lottery:series_detail", pk=series.pk)
+        series.is_active = not series.is_active
+        series.full_clean()
+        series.save(update_fields=("is_active", "updated_at"))
+        if series.is_active:
+            result = generate_series_events(series_id=series.pk, actor=request.user)
+            messages.success(
+                request,
+                f"Serie reactivada. Eventos nuevos: {len(result.created_event_ids)}.",
+            )
+        else:
+            messages.success(request, "Serie pausada. Los eventos existentes se conservan.")
+        return redirect("lottery:series_detail", pk=series.pk)
+
+
+class DrawEventSeriesGenerateView(AdministratorModeRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        series = get_object_or_404(DrawEventSeries, pk=self.kwargs["pk"], is_archived=False)
+        result = generate_series_events(series_id=series.pk, actor=request.user)
+        messages.success(
+            request,
+            f"Sincronización terminada. Eventos nuevos: {len(result.created_event_ids)}; secuencias vencidas omitidas: {result.skipped_sequences}.",
+        )
+        return redirect("lottery:series_detail", pk=series.pk)

@@ -44,7 +44,13 @@
                         {% endfor %}
                     </div>
                     <p class="small text-body-secondary mt-3 mb-0">
-                        Publicado por {{ result.published_by.username }} el {{ result.published_at|date:"d/m/Y H:i" }}.
+                        Origen: <strong>{{ result.get_publication_source_display }}</strong>.
+                        {% if result.published_by %}
+                            Publicado por {{ result.published_by.username }}
+                        {% else %}
+                            Publicado automáticamente por el sistema
+                        {% endif %}
+                        el {{ result.published_at|date:"d/m/Y H:i" }}.
                     </p>
                 </div>
                 <a class="btn btn-outline-primary align-self-sm-start" href="{% url 'lottery:public_result_detail' result.pk %}">Ver página pública</a>
@@ -82,6 +88,10 @@
 
                 {% if can_publish_result %}
                     <a class="btn btn-success" href="{% url 'lottery:result_publish' event.pk %}">Publicar resultado</a>
+                {% elif event.status == "SALES_CLOSED" and not has_result and is_automatic_result %}
+                    <div class="alert alert-info mb-0">
+                        Esta serie usa resultado automático. El comando programado lo publicará y liquidará al llegar la hora del sorteo.
+                    </div>
                 {% elif event.status == "SALES_CLOSED" and not has_result %}
                     <div class="alert alert-info mb-0">El resultado podrá publicarse al llegar la hora del sorteo.</div>
                 {% endif %}

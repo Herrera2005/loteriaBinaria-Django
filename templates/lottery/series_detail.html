@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ series.name_prefix }} | Series{% endblock %}
+{% block content %}
+<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+        <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+        <h1 class="h2 mb-1">{{ series.name_prefix }}</h1>
+        <p class="text-body-secondary mb-0">
+            {{ series.product.name }} · {{ series.generation_status_display }}
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if not series.is_archived %}
+            <a class="btn btn-outline-primary" href="{% url 'lottery:series_update' series.pk %}">Editar parámetros</a>
+            <form method="post" action="{% url 'lottery:series_generate' series.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-primary" {% if not series.is_active %}disabled{% endif %}>Sincronizar ahora</button>
+            </form>
+            <form method="post" action="{% url 'lottery:series_toggle' series.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-outline-secondary">
+                    {% if series.is_active %}Pausar{% else %}Reactivar{% endif %}
+                </button>
+            </form>
+            <a class="btn btn-outline-danger" href="{% url 'lottery:series_archive' series.pk %}">Eliminar programación</a>
+        {% endif %}
+    </div>
+</header>
+
+{% if series.is_archived %}
+<div class="alert alert-secondary">
+    Esta programación fue eliminada. No generará eventos nuevos; el historial permanece disponible.
+</div>
+{% elif series.remaining_occurrences == 0 %}
+<div class="alert alert-info">
+    La serie completó todas sus generaciones limitadas. Puede editarla y asignar nuevas generaciones restantes.
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+        <section class="card shadow-sm h-100">
+            <div class="card-body">
+                <h2 class="h5">Configuración editable</h2>
+                <dl class="row mb-0">
+                    <dt class="col-7">Primer sorteo histórico</dt><dd class="col-5 text-end">{{ series.first_draw_at|date:'d/m/Y H:i' }}</dd>
+                    <dt class="col-7">Próximo a generar</dt><dd class="col-5 text-end">{{ series.next_draw_at|date:'d/m/Y H:i' }}</dd>
+                    <dt class="col-7">Frecuencia</dt><dd class="col-5 text-end">{{ series.recurrence_minutes }} min</dd>
+                    <dt class="col-7">Aparece antes</dt><dd class="col-5 text-end">{{ series.sales_lead_minutes }} min</dd>
+                    <dt class="col-7">Precio</dt><dd class="col-5 text-end">{{ price_display }}</dd>
+                    <dt class="col-7">Premio</dt><dd class="col-5 text-end">{{ prize_display }}</dd>
+                    <dt class="col-7">Futuros simultáneos</dt><dd class="col-5 text-end">{{ series.future_events_target }}</dd>
+                    <dt class="col-7">Resultado</dt><dd class="col-5 text-end">{{ series.get_result_mode_display }}</dd>
+                    <dt class="col-7">Generaciones restantes</dt>
+                    <dd class="col-5 text-end">
+                        {% if series.remaining_occurrences == None %}Sin límite{% else %}{{ series.remaining_occurrences }}{% endif %}
+                    </dd>
+                    <dt class="col-7">Próxima secuencia</dt><dd class="col-5 text-end">#{{ series.next_sequence }}</dd>
+                    <dt class="col-7">Eventos ya generados</dt><dd class="col-5 text-end">{{ generated_count }}</dd>
+                </dl>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-lg-6">
+        <section class="card shadow-sm h-100">
+            <div class="card-body">
+                <h2 class="h5">Cómo funciona</h2>
+                <p>Los nombres se generan como <strong>{{ series.name_prefix }} #N</strong>.</p>
+                <ul class="mb-0">
+                    <li>Editar no modifica sorteos ya creados.</li>
+                    <li>Pausar conserva la programación para reactivarla después.</li>
+                    <li>Eliminar programación detiene definitivamente nuevas generaciones, pero conserva el historial.</li>
+                    <li>La sincronización es idempotente: repetirla no duplica eventos ni resultados.</li>
+                    <li>En modo automático, el resultado se genera y liquida al llegar la hora del sorteo.</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+</div>
+
+<section>
+    <h2 class="h4">Eventos generados</h2>
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-striped align-middle mb-0">
+            <thead><tr><th>#</th><th>Evento</th><th>Apertura</th><th>Cierre</th><th>Sorteo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+                {% for event in generated_events %}
+                    <tr>
+                        <td>{{ event.series_sequence }}</td>
+                        <td>{{ event.name }}</td>
+                        <td>{{ event.sales_open_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ event.sales_close_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ event.draw_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ event.get_status_display }}</td>
+                        <td><a class="btn btn-sm btn-outline-primary" href="{% url 'lottery:event_detail' event.pk %}">Ver</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="text-center py-4">Todavía no hay eventos generados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

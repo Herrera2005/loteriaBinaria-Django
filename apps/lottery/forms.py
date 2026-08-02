@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import uuid
-from decimal import Decimal
-
 from django import forms
+from django.utils import timezone
 
 from .models import (
     MAX_PRODUCT_SYMBOLS,
     MAX_SYMBOL_TOKEN_LENGTH,
     DrawEvent,
+    DrawEventSeries,
     LotteryProduct,
     validate_key_for_product,
 )
-
+import uuid
+from decimal import Decimal
 
 def _append_css_class(widget: forms.Widget, css_class: str) -> None:
     classes = widget.attrs.get("class", "").split()
@@ -35,12 +35,6 @@ def _apply_bootstrap_widgets(form: forms.Form) -> None:
             css_class = "form-control"
 
         _append_css_class(widget, css_class)
-
-
-class ColorInput(forms.TextInput):
-    """Selector HTML5 de color con comportamiento explícito y comprobable."""
-
-    input_type = "color"
 
 
 class LotteryProductForm(forms.ModelForm):
@@ -95,8 +89,9 @@ class LotteryProductForm(forms.ModelForm):
         required=False,
         initial="#FD7E14",
         max_length=7,
-        widget=ColorInput(
+        widget=forms.TextInput(
             attrs={
+                "type": "color",
                 "class": "form-control form-control-color",
                 "title": "Selecciona un color identificador",
                 "aria-label": "Color identificador del producto",
@@ -130,6 +125,13 @@ class LotteryProductForm(forms.ModelForm):
             "selection_count": forms.NumberInput(
                 attrs={"min": 2, "max": 8}
             ),
+            "accent_color": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "form-control form-control-color",
+                    "title": "Seleccione el color identificador del producto",
+                }
+            ),
         }
 
     field_order = (
@@ -147,16 +149,37 @@ class LotteryProductForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         _apply_bootstrap_widgets(self)
+
+        accent_field = self.fields["accent_color"]
+
+        accent_field.required = False
+        accent_field.initial = "#FD7E14"
+
+        accent_field.widget = forms.TextInput(
+            attrs={
+                "type": "color",
+                "class": "form-control form-control-color",
+                "title": "Selecciona un color identificador",
+                "aria-label": "Color identificador del producto",
+            }
+        )
+
+        current_color = getattr(
+            self.instance,
+            "accent_color",
+            "",
+        )
+
+        if not self.is_bound:
+            self.initial["accent_color"] = (
+                current_color or "#FD7E14"
+            )
 
         self.fields["code"].required = False
         self.fields["allowed_symbols"].required = False
         self.fields["selection_count"].required = False
-        self.fields["accent_color"].required = False
-
-        if not self.is_bound:
-            current_color = getattr(self.instance, "accent_color", "")
-            self.initial["accent_color"] = current_color or "#FD7E14"
 
         self.fields["code"].help_text = (
             "Para personalizados use letras, números y guion bajo; se "
@@ -330,13 +353,30 @@ class LotteryProductForm(forms.ModelForm):
         return tokens
 
     def clean_accent_color(self):
+        field_name = self.add_prefix("accent_color")
+
+        # Compatibilidad con formularios antiguos:
+        # si el POST no contiene el campo, conserva el valor existente.
+        if (
+            self.is_bound
+            and field_name not in self.data
+            and self.instance.pk
+        ):
+            existing_color = (
+                self.instance.accent_color
+                or "#FD7E14"
+            )
+            return existing_color.strip().upper()
+
         color = (
             self.cleaned_data.get("accent_color")
             or getattr(self.instance, "accent_color", "")
             or "#FD7E14"
         )
+
         color = color.strip().upper()
         LotteryProduct.COLOR_VALIDATOR(color)
+
         return color
 
     def clean(self):
@@ -757,3 +797,209 @@ class DrawResultPublishForm(forms.Form):
             self.add_error(None, exc)
 
         return cleaned_data
+
+
+class DrawEventSeriesForm(forms.ModelForm):
+    """Configura una serie editable, limitada o sin límite."""
+
+    class OccurrenceMode:
+        UNLIMITED = "UNLIMITED"
+        LIMITED = "LIMITED"
+        choices = (
+            (UNLIMITED, "Sin límite"),
+            (LIMITED, "Número limitado"),
+        )
+
+    occurrence_mode = forms.ChoiceField(
+        label="Duración de la serie",
+        choices=OccurrenceMode.choices,
+        widget=forms.RadioSelect,
+        initial=OccurrenceMode.UNLIMITED,
+    )
+    result_mode = forms.ChoiceField(
+        label="Publicación del resultado",
+        choices=DrawEventSeries.ResultMode.choices,
+        widget=forms.RadioSelect,
+        initial=DrawEventSeries.ResultMode.MANUAL,
+        required=False,
+    )
+    remaining_occurrences = forms.IntegerField(
+        label="Sorteos que faltan por generar",
+        min_value=0,
+        required=False,
+        help_text=(
+            "Puede cambiar este número después. Cero detiene la generación."
+        ),
+    )
+    price_minor = forms.DecimalField(
+        label="Precio del boleto (VIRTUAL)",
+        min_value=Decimal("0.01"),
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0.01"}),
+        help_text="Valor en unidades VIRTUAL, por ejemplo 1.50.",
+    )
+    prize_minor = forms.DecimalField(
+        label="Premio fijo (VIRTUAL)",
+        min_value=Decimal("0.01"),
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0.01"}),
+        help_text="Premio en unidades VIRTUAL, por ejemplo 50.00.",
+    )
+
+    class Meta:
+        model = DrawEventSeries
+        fields = (
+            "name_prefix",
+            "product",
+            "first_draw_at",
+            "next_draw_at",
+            "recurrence_minutes",
+            "sales_lead_minutes",
+            "price_minor",
+            "prize_minor",
+            "future_events_target",
+            "result_mode",
+            "occurrence_mode",
+            "remaining_occurrences",
+            "is_active",
+        )
+        widgets = {
+            "first_draw_at": forms.DateTimeInput(
+                attrs={"type": "datetime-local"},
+                format="%Y-%m-%dT%H:%M",
+            ),
+            "next_draw_at": forms.DateTimeInput(
+                attrs={"type": "datetime-local"},
+                format="%Y-%m-%dT%H:%M",
+            ),
+            "recurrence_minutes": forms.NumberInput(attrs={"min": 10}),
+            "sales_lead_minutes": forms.NumberInput(attrs={"min": 11}),
+            "future_events_target": forms.NumberInput(attrs={"min": 1, "max": 10}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _apply_bootstrap_widgets(self)
+        self.fields["first_draw_at"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["next_draw_at"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["product"].queryset = LotteryProduct.objects.filter(
+            is_active=True,
+        ).order_by("name", "id")
+        self.fields["recurrence_minutes"].help_text = (
+            "60 = cada hora, 1440 = cada día, 10080 = cada semana."
+        )
+        self.fields["sales_lead_minutes"].help_text = (
+            "Cuántos minutos antes del sorteo aparecerá para comprar."
+        )
+        self.fields["future_events_target"].help_text = (
+            "Cantidad simultánea de eventos futuros visibles, entre 1 y 10."
+        )
+        self.fields["result_mode"].help_text = (
+            "Manual requiere publicación del Administrador. Automático genera, "
+            "publica y liquida el resultado al llegar la hora del sorteo."
+        )
+        self.fields["next_draw_at"].required = False
+        self.fields["next_draw_at"].help_text = (
+            "Al editar, cambia la fecha del siguiente evento aún no generado."
+        )
+
+        if self.instance.pk:
+            self.initial["price_minor"] = Decimal(self.instance.price_minor) / Decimal("100")
+            self.initial["prize_minor"] = Decimal(self.instance.prize_minor) / Decimal("100")
+            self.initial["occurrence_mode"] = (
+                self.OccurrenceMode.UNLIMITED
+                if self.instance.remaining_occurrences is None
+                else self.OccurrenceMode.LIMITED
+            )
+            self.initial["remaining_occurrences"] = self.instance.remaining_occurrences
+            if self.instance.events.exists():
+                self.fields["product"].disabled = True
+                self.fields["first_draw_at"].disabled = True
+                self.fields["product"].help_text = "No cambia después de generar eventos."
+                self.fields["first_draw_at"].help_text = "No cambia después de generar eventos."
+        else:
+            self.initial.setdefault("next_draw_at", self.initial.get("first_draw_at"))
+
+    def clean_result_mode(self):
+        result_mode = (
+            self.cleaned_data.get("result_mode")
+            or getattr(self.instance, "result_mode", "")
+            or DrawEventSeries.ResultMode.MANUAL
+        )
+
+        valid_modes = {
+            value
+            for value, _label in DrawEventSeries.ResultMode.choices
+        }
+
+        if result_mode not in valid_modes:
+            raise forms.ValidationError(
+                "Seleccione un modo de publicación válido."
+            )
+
+        return result_mode
+    
+    def clean(self):
+        cleaned = super().clean()
+        recurrence = cleaned.get("recurrence_minutes")
+        lead = cleaned.get("sales_lead_minutes")
+        first_draw = cleaned.get("first_draw_at")
+        next_draw = cleaned.get("next_draw_at") or first_draw
+        mode = cleaned.get("occurrence_mode")
+        remaining = cleaned.get("remaining_occurrences")
+
+        if recurrence and lead and lead > recurrence:
+            self.add_error(
+                "sales_lead_minutes",
+                "La anticipación de ventas no puede superar la frecuencia.",
+            )
+        if first_draw and not self.instance.pk and first_draw <= timezone.now():
+            self.add_error("first_draw_at", "El primer sorteo debe estar en el futuro.")
+        if next_draw and next_draw <= timezone.now():
+            self.add_error(
+                "next_draw_at",
+                "El próximo sorteo a generar debe estar en el futuro.",
+            )
+        if mode == self.OccurrenceMode.LIMITED and remaining is None:
+            self.add_error(
+                "remaining_occurrences",
+                "Indique cuántos sorteos faltan por generar.",
+            )
+        if mode == self.OccurrenceMode.UNLIMITED:
+            cleaned["remaining_occurrences"] = None
+        cleaned["next_draw_at"] = next_draw
+        return cleaned
+
+    def save(self, commit=True):
+        series = super().save(commit=False)
+
+        series.price_minor = int(
+            self.cleaned_data["price_minor"] * Decimal("100")
+        )
+        series.prize_minor = int(
+            self.cleaned_data["prize_minor"] * Decimal("100")
+        )
+        series.result_mode = (
+            self.cleaned_data.get("result_mode")
+            or DrawEventSeries.ResultMode.MANUAL
+        )
+        series.remaining_occurrences = self.cleaned_data.get(
+            "remaining_occurrences"
+        )
+        series.next_draw_at = (
+            self.cleaned_data.get("next_draw_at")
+            or series.first_draw_at
+        )
+
+        if series.remaining_occurrences == 0:
+            series.is_active = False
+
+        if commit:
+            series.full_clean()
+            series.save()
+            self.save_m2m()
+
+        return series
+

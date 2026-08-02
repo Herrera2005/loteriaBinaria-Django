@@ -1,0 +1,43 @@
+{% if series_form.non_field_errors %}
+<div class="alert alert-danger" role="alert">
+    {% for error in series_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-3">
+    {% for field in series_form %}
+        <div
+            class="{% if field.name == 'is_active' or field.name == 'occurrence_mode' or field.name == 'result_mode' %}col-12{% else %}col-12 col-md-6{% endif %}"
+            {% if field.name == 'remaining_occurrences' %}data-occurrence-limit-field{% endif %}
+        >
+            {% if field.name == 'is_active' %}
+                <div class="form-check mt-3">
+                    {{ field }}
+                    <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+            {% elif field.name == 'occurrence_mode' or field.name == 'result_mode' %}
+                <fieldset>
+                    <legend class="form-label mb-2">{{ field.label }}</legend>
+                    <div class="d-flex flex-column flex-sm-row gap-3" data-occurrence-mode>
+                        {% for choice in field %}
+                            <div class="form-check">
+                                {{ choice.tag }}
+                                <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                    {{ choice.choice_label }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+            {% else %}
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+            {% endif %}
+
+            {% for error in field.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        </div>
+    {% endfor %}
+</div>

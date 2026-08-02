@@ -411,6 +411,173 @@ class LotteryProduct(models.Model):
         return self.name
 
 
+class DrawEventSeries(models.Model):
+    """Plantilla recurrente que genera una cantidad limitada de eventos futuros."""
+
+    class ResultMode(models.TextChoices):
+        MANUAL = "MANUAL", "Manual por Administrador"
+        AUTOMATIC = "AUTOMATIC", "Automático por el sistema"
+
+    id = models.BigAutoField(primary_key=True)
+    name_prefix = models.CharField("nombre base", max_length=120)
+    product = models.ForeignKey(
+        "lottery.LotteryProduct",
+        on_delete=models.PROTECT,
+        related_name="event_series",
+        verbose_name="producto",
+    )
+    first_draw_at = models.DateTimeField("primer sorteo")
+    recurrence_minutes = models.PositiveIntegerField(
+        "frecuencia en minutos",
+        validators=[MinValueValidator(10)],
+        help_text="Mínimo 10 minutos.",
+    )
+    sales_lead_minutes = models.PositiveIntegerField(
+        "anticipación de ventas en minutos",
+        validators=[MinValueValidator(1)],
+    )
+    price_minor = models.BigIntegerField(
+        "precio en unidades menores",
+        validators=[MinValueValidator(1)],
+    )
+    prize_minor = models.BigIntegerField(
+        "premio en unidades menores",
+        validators=[MinValueValidator(1)],
+    )
+    future_events_target = models.PositiveSmallIntegerField(
+        "eventos futuros a mantener",
+        default=2,
+        validators=[MinValueValidator(1)],
+    )
+    next_sequence = models.PositiveIntegerField(
+        "próxima secuencia",
+        default=1,
+        editable=False,
+    )
+    next_draw_at = models.DateTimeField(
+        "próximo sorteo a generar",
+        null=True,
+        blank=True,
+        help_text=(
+            "Permite reprogramar únicamente los eventos que todavía no se han generado."
+        ),
+    )
+    remaining_occurrences = models.PositiveIntegerField(
+        "generaciones restantes",
+        null=True,
+        blank=True,
+        help_text="Vacío significa sin límite.",
+    )
+    result_mode = models.CharField(
+        "publicación del resultado",
+        max_length=20,
+        choices=ResultMode.choices,
+        default=ResultMode.MANUAL,
+        db_index=True,
+    )
+    is_active = models.BooleanField("activa", default=True, db_index=True)
+    is_archived = models.BooleanField(
+        "programación eliminada",
+        default=False,
+        db_index=True,
+    )
+    archived_at = models.DateTimeField(
+        "eliminada el",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_draw_event_series",
+        verbose_name="creada por",
+    )
+    created_at = models.DateTimeField("creada", auto_now_add=True)
+    updated_at = models.DateTimeField("actualizada", auto_now=True)
+
+    class Meta:
+        ordering = ("name_prefix", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(recurrence_minutes__gte=10),
+                name="lot_series_recurrence_gte_10",
+            ),
+            models.CheckConstraint(
+                condition=Q(sales_lead_minutes__gte=11),
+                name="lot_series_lead_gte_11",
+            ),
+            models.CheckConstraint(
+                condition=Q(future_events_target__gte=1, future_events_target__lte=10),
+                name="lot_series_future_target_1_10",
+            ),
+            models.CheckConstraint(
+                condition=Q(price_minor__gt=0),
+                name="lot_series_price_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=Q(prize_minor__gt=0),
+                name="lot_series_prize_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(remaining_occurrences__isnull=True)
+                    | Q(remaining_occurrences__gte=0)
+                ),
+                name="lot_series_remaining_nonnegative",
+            ),
+        ]
+        verbose_name = "serie de sorteos"
+        verbose_name_plural = "series de sorteos"
+
+    def clean(self):
+        super().clean()
+        self.name_prefix = (self.name_prefix or "").strip()
+        if not self.name_prefix:
+            raise ValidationError({"name_prefix": "Ingrese un nombre base."})
+        if self.recurrence_minutes and self.recurrence_minutes < 10:
+            raise ValidationError({"recurrence_minutes": "La frecuencia mínima es de 10 minutos."})
+        if self.sales_lead_minutes and self.sales_lead_minutes < 11:
+            raise ValidationError({"sales_lead_minutes": "Las ventas deben abrir al menos 11 minutos antes del sorteo."})
+        if self.recurrence_minutes and self.sales_lead_minutes and self.sales_lead_minutes > self.recurrence_minutes:
+            raise ValidationError({"sales_lead_minutes": "La anticipación no puede superar la frecuencia de la serie."})
+        if self.future_events_target and not 1 <= self.future_events_target <= 10:
+            raise ValidationError({"future_events_target": "Mantenga entre 1 y 10 eventos futuros."})
+        if self.product_id and not self.product.is_active:
+            raise ValidationError({"product": "La serie requiere un producto activo."})
+        if self.is_archived:
+            self.is_active = False
+        if self.remaining_occurrences == 0:
+            self.is_active = False
+        if self.next_draw_at is None:
+            self.next_draw_at = self.first_draw_at
+
+    @property
+    def is_unlimited(self) -> bool:
+        return self.remaining_occurrences is None
+
+    @property
+    def generation_status_display(self) -> str:
+        if self.is_archived:
+            return "Eliminada"
+        if self.remaining_occurrences == 0:
+            return "Completada"
+        if self.is_active:
+            return "Activa"
+        return "Pausada"
+
+    @property
+    def recurrence_delta(self):
+        return timedelta(minutes=self.recurrence_minutes)
+
+    @property
+    def sales_lead_delta(self):
+        return timedelta(minutes=self.sales_lead_minutes)
+
+    def __str__(self):
+        return self.name_prefix
+
+
 class DrawEventQuerySet(models.QuerySet):
     """Bloquea actualizaciones masivas de la configuración crítica."""
 
@@ -424,6 +591,9 @@ class DrawEventQuerySet(models.QuerySet):
         "prize_minor",
         "status",
         "cancellation_reason",
+        "series",
+        "series_id",
+        "series_sequence",
     }
 
     def update(self, **kwargs):
@@ -462,6 +632,20 @@ class DrawEvent(models.Model):
         on_delete=models.PROTECT,
         related_name="events",
         verbose_name="producto",
+    )
+    series = models.ForeignKey(
+        "lottery.DrawEventSeries",
+        on_delete=models.PROTECT,
+        related_name="events",
+        null=True,
+        blank=True,
+        verbose_name="serie",
+    )
+    series_sequence = models.PositiveIntegerField(
+        "secuencia de serie",
+        null=True,
+        blank=True,
+        editable=False,
     )
     name = models.CharField("nombre", max_length=150)
     sales_open_at = models.DateTimeField("apertura de ventas")
@@ -513,6 +697,18 @@ class DrawEvent(models.Model):
                 condition=Q(sales_close_at__lt=F("draw_at")),
                 name="lot_event_close_before_draw",
             ),
+            models.CheckConstraint(
+                condition=(
+                    Q(series__isnull=True, series_sequence__isnull=True)
+                    | Q(series__isnull=False, series_sequence__isnull=False)
+                ),
+                name="lot_event_series_pair",
+            ),
+            models.UniqueConstraint(
+                fields=("series", "series_sequence"),
+                condition=Q(series__isnull=False),
+                name="lot_event_unique_series_sequence",
+            ),
         ]
         indexes = [
             models.Index(
@@ -522,6 +718,10 @@ class DrawEvent(models.Model):
             models.Index(
                 fields=("draw_at",),
                 name="lot_event_draw_at_idx",
+            ),
+            models.Index(
+                fields=("series", "series_sequence"),
+                name="lot_event_series_seq_idx",
             ),
         ]
         verbose_name = "evento de sorteo"
@@ -604,6 +804,11 @@ class DrawEvent(models.Model):
                         "La apertura debe ser anterior al cierre de ventas."
                     )
                 }
+            )
+
+        if (self.series_id is None) != (self.series_sequence is None):
+            raise ValidationError(
+                {"series_sequence": "La serie y su secuencia deben registrarse juntas."}
             )
 
         if (
@@ -969,6 +1174,10 @@ class Ticket(models.Model):
 class DrawResult(models.Model):
     """Resultado único, protegido e inmutable de un evento."""
 
+    class PublicationSource(models.TextChoices):
+        ADMINISTRATOR = "ADMINISTRATOR", "Administrador"
+        SYSTEM = "SYSTEM", "Sistema"
+
     id = models.BigAutoField(primary_key=True)
     event = models.OneToOneField(
         "lottery.DrawEvent",
@@ -985,6 +1194,15 @@ class DrawResult(models.Model):
         on_delete=models.PROTECT,
         related_name="published_draw_results",
         verbose_name="publicado por",
+        null=True,
+        blank=True,
+    )
+    publication_source = models.CharField(
+        "origen de publicación",
+        max_length=20,
+        choices=PublicationSource.choices,
+        default=PublicationSource.ADMINISTRATOR,
+        db_index=True,
     )
     reason = models.TextField("motivo")
     published_at = models.DateTimeField(
@@ -1025,6 +1243,16 @@ class DrawResult(models.Model):
             raise ValidationError(
                 {"reason": "La publicación requiere un motivo."}
             )
+
+        if (
+            self.publication_source == self.PublicationSource.ADMINISTRATOR
+            and self.published_by_id is None
+        ):
+            raise ValidationError(
+                {"published_by": "La publicación administrativa requiere un responsable."}
+            )
+        if self.publication_source == self.PublicationSource.SYSTEM:
+            self.published_by = None
 
         if self.event.status == DrawEvent.Status.CANCELLED:
             raise ValidationError(

@@ -192,3 +192,41 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     refreshDisabledOptions();
 });
+
+// P-36C-R1: creación unificada de eventos y series.
+// Solo controla visibilidad; Django valida y guarda todos los datos.
+document.addEventListener("DOMContentLoaded", () => {
+    const buttons = Array.from(document.querySelectorAll("[data-creation-mode-button]"));
+    const panels = Array.from(document.querySelectorAll("[data-creation-panel]"));
+    if (buttons.length && panels.length) {
+        const activate = (mode) => {
+            buttons.forEach((button) => {
+                const selected = button.dataset.creationModeButton === mode;
+                button.classList.toggle("btn-primary", selected);
+                button.classList.toggle("btn-outline-primary", !selected);
+                button.setAttribute("aria-pressed", selected ? "true" : "false");
+            });
+            panels.forEach((panel) => {
+                panel.hidden = panel.dataset.creationPanel !== mode;
+            });
+        };
+        buttons.forEach((button) => {
+            button.addEventListener("click", () => activate(button.dataset.creationModeButton));
+        });
+    }
+
+    document.querySelectorAll("[data-series-form]").forEach((form) => {
+        const modeInputs = Array.from(form.querySelectorAll("input[name$='occurrence_mode']"));
+        const limitField = form.querySelector("[data-occurrence-limit-field]");
+        if (!modeInputs.length || !limitField) return;
+
+        const refreshLimit = () => {
+            const selected = modeInputs.find((input) => input.checked)?.value;
+            limitField.hidden = selected !== "LIMITED";
+            const input = limitField.querySelector("input");
+            if (input) input.disabled = selected !== "LIMITED";
+        };
+        modeInputs.forEach((input) => input.addEventListener("change", refreshLimit));
+        refreshLimit();
+    });
+});
