@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -18,7 +18,6 @@ from apps.accounts.access import active_mode_required, get_valid_active_mode
 from apps.accounts.roles import ADMINISTRATOR, CLIENT, DASHBOARD_URL_NAMES, VENDOR
 from apps.finance.models import Movement, Wallet
 from apps.lottery.models import DrawEvent, LotteryProduct, Ticket
-from apps.lottery.services import sync_lottery_event_states
 from apps.vendors.models import (
     ConversionAssignment,
     ConversionRequest,
@@ -31,6 +30,7 @@ from apps.vendors.services import (
     release_conversion_assignment,
 )
 
+from .date_utils import local_date_bounds
 from .models import AuditEvent
 
 
@@ -160,9 +160,8 @@ def _movement_rows(user, *, limit: int = 5) -> list[dict[str, object]]:
 def _visible_event_rows(*, limit: int = 6) -> list[dict[str, object]]:
     """Devuelve sorteos visibles, con abiertos primero y estado visual explícito."""
 
-    sync_lottery_event_states()
     now = timezone.now()
-    events = list(
+    events = (
         DrawEvent.objects
         .filter(
             product__is_active=True,
@@ -174,20 +173,18 @@ def _visible_event_rows(*, limit: int = 6) -> list[dict[str, object]]:
             sales_close_at__gt=now,
         )
         .select_related("product")
-        .order_by("sales_close_at", "draw_at", "id")
-    )
-
-    events.sort(
-        key=lambda event: (
-            0 if event.status == DrawEvent.Status.SALES_OPEN else 1,
-            event.sales_close_at,
-            event.draw_at,
-            event.id,
+        .annotate(
+            open_rank=Case(
+                When(status=DrawEvent.Status.SALES_OPEN, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
         )
+        .order_by("open_rank", "sales_close_at", "draw_at", "id")[:limit]
     )
 
     rows = []
-    for event in events[:limit]:
+    for event in events:
         is_open_now = (
             event.status == DrawEvent.Status.SALES_OPEN
             and now < event.sales_close_at
@@ -685,14 +682,16 @@ def audit_list(request):
     date_from_value = request.GET.get("date_from", "").strip()
     date_from = _parse_iso_date(date_from_value)
     if date_from is not None:
-        queryset = queryset.filter(created_at__date__gte=date_from)
+        date_from_start, _ = local_date_bounds(date_from)
+        queryset = queryset.filter(created_at__gte=date_from_start)
     else:
         date_from_value = ""
 
     date_to_value = request.GET.get("date_to", "").strip()
     date_to = _parse_iso_date(date_to_value)
     if date_to is not None:
-        queryset = queryset.filter(created_at__date__lte=date_to)
+        _, date_to_end = local_date_bounds(date_to)
+        queryset = queryset.filter(created_at__lt=date_to_end)
     else:
         date_to_value = ""
 

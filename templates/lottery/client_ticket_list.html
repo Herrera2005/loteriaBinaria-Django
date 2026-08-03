@@ -26,7 +26,7 @@
 
 <section class="card shadow-sm mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" role="search" aria-label="Filtrar resultados" class="row g-3 align-items-end">
             <div class="col-12 col-md-6">
                 <label class="form-label" for="id_product">
                     Producto
@@ -74,7 +74,7 @@
 </section>
 
 {% if ticket_rows %}
-<div class="table-responsive shadow-sm rounded">
+<div data-table-label="Boletos del cliente" class="table-responsive shadow-sm rounded">
     <table class="table table-striped align-middle mb-0">
         <thead>
             <tr>

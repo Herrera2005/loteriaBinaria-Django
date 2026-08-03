@@ -1,82 +1,115 @@
-# Inventario vigente del proyecto hasta preparación P-28A
+# Inventario técnico vigente
 
-Este inventario conserva P-27 y agrega los modelos base de Finance/Core sin introducir vistas ni operaciones financieras fuera del alcance.
-
-## Raíz y configuración
+## 1. Raíz y configuración
 
 | Ruta | Responsabilidad |
 |---|---|
-| `.env.example` | SQLite por defecto y variables futuras de MySQL, sin secretos |
-| `.gitignore` | excluye entorno, secretos, bases locales, bytecode y collectstatic |
-| `requirements.txt` | dependencias de fase SQLite |
-| `requirements-mysql.txt` | driver exclusivo de la segunda fase |
-| `config/settings.py` | apps, templates, static, seguridad y allowlist SQLite/MySQL |
-| `config/urls.py` | integra admin, accounts, core, vendors y lottery |
-| `scripts/audit_project.py` | auditoría estática hasta P-28A |
-| `scripts/verify.ps1` | SQLite limpia, suite, smoke y static |
+| `manage.py` | entrada estándar de Django; no contiene lógica de negocio |
+| `config/settings.py` | configuración SQLite/MySQL, seguridad, templates y static |
+| `config/urls.py` | montaje de Admin y namespaces de las cinco apps |
+| `.env.example` | variables ficticias y documentadas, sin secretos |
+| `requirements.txt` | dependencias base de la fase SQLite |
+| `requirements-mysql.txt` | driver requerido únicamente para MySQL |
+| `MANIFEST_SHA256.txt` | integridad de los archivos entregables |
 
-## Apps
+## 2. Apps
 
-| App | Estado vigente |
+### `apps/accounts/`
+
+Usuario personalizado, términos/privacidad, autenticación, modo activo, perfil y CRUD administrativo de usuarios.
+
+### `apps/core/`
+
+Landing, redirección inicial, dashboards, auditoría, utilidades de fechas, contexto global y seeds.
+
+### `apps/finance/`
+
+Wallets REAL/VIRTUAL, movimientos y operaciones simuladas: recarga, retiro, conversión, transferencia e inventario vendedor.
+
+### `apps/vendors/`
+
+Perfil vendedor, solicitudes Cliente–Vendedor, asignaciones, liberación, liquidación, cancelación y expiración.
+
+### `apps/lottery/`
+
+Productos, eventos, transiciones, boletos, resultados, premios, series y automatización.
+
+## 3. Migraciones reales
+
+| App | Última migración |
 |---|---|
-| `accounts` | usuario personalizado, términos, autenticación, modos y CRUD administrativo |
-| `core` | landing, dashboards, navegación, seeds y `AuditEvent` append-only |
-| `vendors` | modelos, migración, admin, forms, servicio, CRUD de perfiles y solicitudes read-only |
-| `lottery` | productos/eventos, tickets/resultados protegidos, migración, admin, forms, servicios y CRUD P-27 |
-| `finance` | `Wallet`, `Movement`, admin read-only, provisión, señal, backfill, migración y tests P-28A |
+| accounts | `0002_alter_termsacceptance_id_alter_termsversion_id.py` |
+| core | `0001_initial.py` |
+| finance | `0004_vendorinventorypurchase.py` |
+| vendors | `0001_initial.py` |
+| lottery | `0011_portable_series_sequence_unique.py` |
 
-## Finance/Core agregados en P-28A
+Migraciones destacadas de lottery:
 
-```text
-apps/finance/models.py
-apps/finance/admin.py
-apps/finance/apps.py
-apps/finance/services.py
-apps/finance/signals.py
-apps/finance/migrations/0001_initial.py
-apps/finance/management/commands/backfill_wallets.py
-apps/finance/tests/test_models.py
+- `0007_event_series.py`: series y relación con eventos;
+- `0008_series_limits_and_archive.py`: límites, pausa/archivo lógico;
+- `0009_automatic_results.py`: modo de resultado automático;
+- `0010_draweventseries_last_synced_at.py`: última sincronización;
+- `0011_portable_series_sequence_unique.py`: unicidad portable de secuencia.
 
-apps/core/models.py
-apps/core/admin.py
-apps/core/migrations/0001_initial.py
-apps/core/tests/test_models.py
-```
+## 4. Comandos de management
 
-## Templates activos
+| Comando | Responsabilidad |
+|---|---|
+| `seed_baseline` | Groups canónicos y versiones legales |
+| `seed_demo` | usuarios/datos académicos reproducibles |
+| `backfill_wallets` | completa wallets faltantes sin duplicar |
+| `process_expired_requests` | resuelve solicitudes vencidas |
+| `sync_lottery_event_states` | aplica transiciones temporales de eventos |
+| `process_lottery_schedules` | genera series y resultados automáticos |
 
-Se conservan los templates de P-27. P-28A no agrega templates.
+## 5. Templates y static
 
-- base común Bootstrap 5.3;
-- Accounts: lista, detalle, crear, editar y confirmación;
-- Vendors: lista, detalle, form, confirmación y solicitudes read-only;
-- Lottery: `product_*` y `event_*` completos;
-- dashboards de Cliente, Vendedor y Administrador;
-- páginas 403/404 y partials de mensajes/modal.
+- `templates/base.html`: Bootstrap 5.3, navegación, offcanvas, mensajes, modal y skip link.
+- `templates/accounts/`: autenticación, perfil, modo y usuarios.
+- `templates/dashboards/`: Cliente, Vendedor y Administrador.
+- `templates/finance/`: pantallas financieras unificadas.
+- `templates/vendors/`: perfiles y solicitudes.
+- `templates/lottery/`: productos, eventos, compra, boletos, resultados y series.
+- `templates/403.html`, `404.html`: recuperación accesible.
+- `static/css/app.css`: identidad azul/dorada, responsive y foco.
+- `static/js/app.js`: interacción progresiva; nunca decide permisos, saldos o estados.
 
-## Pruebas
+## 6. Pruebas
 
-El árbol contiene **195 pruebas diseñadas**:
+Hay **458 pruebas ejecutadas correctamente** en la última verificación documental. Se distribuyen en:
 
-- Accounts: 55;
-- Core: 29, incluidas 8 de AuditEvent;
-- Finance: 20;
-- Vendors: 37;
-- Lottery: 54.
+- `apps/accounts/tests/`
+- `apps/core/tests/`
+- `apps/finance/tests/`
+- `apps/vendors/tests/`
+- `apps/lottery/tests/`
 
-La ejecución definitiva de P-28A debe realizarse con Django 5.2.16 mediante `scripts/verify.ps1`.
+La cifra no se mantiene manualmente como constante: debe actualizarse solo después de otra ejecución completa.
 
-## Fuera del runtime
+## 7. Scripts
 
-- frontend antiguo en `respaldo_frontend/`;
-- no hay `index.html`/`pages/` activos;
-- no hay JSON/localStorage/fetch de negocio;
-- no se entregan `.env`, SQLite local, `.venv`, `staticfiles`, `__pycache__` ni `.pyc`.
+| Script | Uso |
+|---|---|
+| `audit_project.py` | estructura, residuos, documentación vigente y controles estáticos |
+| `manifest_project.py` | genera/verifica SHA-256 |
+| `verify.ps1`, `verify.sh` | puerta integral SQLite |
+| `verify_mysql.ps1`, `verify_mysql.sh` | puerta dedicada MySQL |
+| `smoke_runserver.py` | arranque HTTP local reproducible |
+| `run_local.ps1`, `run_local.sh` | ayuda operativa local |
 
-## Documentos operativos
+## 8. Documentación y referencias
 
-- `docs/DECISION_P28A_MODELOS_FINANCE_AUDITORIA.md`;
-- `docs/GUIA_APLICACION_P28A.md`;
-- `docs/MATRIZ_PRUEBAS_P28A.md`;
-- `docs/RESULTADO_IMPLEMENTACION_P28A.md`;
-- `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+- `docs/INDICE_DOCUMENTACION.md`: autoridad y clasificación.
+- `docs/referencias/`: originales preservados.
+- `docs/historico/`: documentación explícitamente histórica.
+- documentos de implementación P-33/P-34/P-36: evidencia de su fase, no estado global.
+
+## 9. Exclusiones del ZIP final
+
+- `.venv/`, `venv/`, `env/`;
+- `.env`;
+- `db.sqlite3`, `*.sqlite3`, `*.db`;
+- `__pycache__/`, `*.pyc`, `*.pyo`;
+- `staticfiles/`;
+- logs y copias temporales.

@@ -12,6 +12,7 @@ from .models import (
     DrawEventSeries,
     LotteryProduct,
     validate_key_for_product,
+    validate_series_timing,
 )
 import uuid
 from decimal import Decimal
@@ -950,11 +951,15 @@ class DrawEventSeriesForm(forms.ModelForm):
         mode = cleaned.get("occurrence_mode")
         remaining = cleaned.get("remaining_occurrences")
 
-        if recurrence and lead and lead > recurrence:
-            self.add_error(
-                "sales_lead_minutes",
-                "La anticipación de ventas no puede superar la frecuencia.",
+        try:
+            validate_series_timing(
+                recurrence_minutes=recurrence,
+                sales_lead_minutes=lead,
             )
+        except forms.ValidationError as exc:
+            for field_name, messages in exc.message_dict.items():
+                for message in messages:
+                    self.add_error(field_name, message)
         if first_draw and not self.instance.pk and first_draw <= timezone.now():
             self.add_error("first_draw_at", "El primer sorteo debe estar en el futuro.")
         if next_draw and next_draw <= timezone.now():

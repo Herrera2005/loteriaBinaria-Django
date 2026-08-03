@@ -1,5 +1,8 @@
 # Plan archivo por archivo para migrar el ZIP legado a Django
 
+> **DOCUMENTO HISTÓRICO / DE FASE.** Plan previo a la implementación; no sustituye al inventario ni al mapa actual. Para el estado vigente consulte `docs/INDICE_DOCUMENTACION.md`, `README.md` y `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+
+
 ## 1. Alcance y fuente revisada
 
 El archivo `respaldo_frontend.zip` recibido contiene documentación, evidencias y archivos de planificación, pero no contiene los HTML, CSS, JavaScript ni JSON del frontend legado.

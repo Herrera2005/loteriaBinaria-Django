@@ -1,50 +1,14 @@
-# Plan siguiente desde la preparación P-28A
+# Siguiente trabajo autorizado
 
-## Estado actual
+El desarrollo funcional previsto en SQLite está documentado hasta P-36E, cierre y UX/accesibilidad. El siguiente trabajo permitido es de validación y entrega:
 
-P-27 está cerrado. La preparación P-28A incorpora:
+1. ejecutar `scripts/verify.ps1` en una copia limpia;
+2. regenerar y verificar `MANIFEST_SHA256.txt`;
+3. crear una base MySQL 8 vacía con `utf8mb4`;
+4. instalar `requirements-mysql.txt`;
+5. ejecutar `scripts/verify_mysql.ps1`;
+6. repetir en MySQL las pruebas críticas de concurrencia de compras, solicitudes, resultados y series;
+7. generar el ZIP definitivo sin entorno, base ni secretos;
+8. descomprimir el ZIP en otra carpeta y repetir auditoría, manifiesto y suite.
 
-- `finance.Wallet` por usuario y moneda REAL/VIRTUAL;
-- `finance.Movement` append-only;
-- `core.AuditEvent` append-only;
-- admin read-only;
-- servicio idempotente `ensure_user_wallets`;
-- señal al asignar roles;
-- migración y backfill de usuarios existentes;
-- pruebas de modelos, inmutabilidad y permisos de admin.
-
-## Primero: validar P-28A en SQLite
-
-1. Aplicar los archivos sobre la rama `feature/taller3-p28-finance-core`.
-2. Revisar las migraciones generadas para SQLite/MySQL portable.
-3. Ejecutar migraciones.
-4. Ejecutar `backfill_wallets` dos veces y comprobar idempotencia.
-5. Ejecutar las pruebas específicas y la regresión completa.
-6. Confirmar `No changes detected`.
-7. Hacer commit antes de iniciar vistas.
-
-## Después: P-28 oficial, no P-29 todavía
-
-Implementar únicamente consultas seguras de Finance/Core:
-
-1. wallet propia read-only;
-2. movimientos propios paginados;
-3. auditoría administrativa list/detail read-only;
-4. dashboards con datos reales del backend;
-5. ninguna edición directa de balance;
-6. ninguna recarga o conversión en esta primera entrega visual;
-7. pruebas de propiedad, autenticación, modo y paginación;
-8. Bootstrap 5.3 y responsive en cinco anchos.
-
-## Orden obligatorio para reglas sensibles futuras
-
-1. modelo y migración;
-2. servicio con `transaction.atomic`;
-3. pruebas de éxito, rechazo, idempotencia y rollback;
-4. formulario POST con CSRF;
-5. vista y URL;
-6. template Bootstrap;
-7. prueba manual y responsive;
-8. actualización de matriz.
-
-No crear botones, saldos ficticios, timers ni compra de boletos sin backend persistente.
+No corresponde crear PostgreSQL, API REST, Celery, Redis, microservicios ni nuevas funciones de negocio dentro de esta puerta.

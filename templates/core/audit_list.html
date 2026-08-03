@@ -25,7 +25,8 @@
         method="get"
         action="{% url 'core:audit_list' %}"
         class="card card-body shadow-sm mb-4"
-        aria-label="Filtros de auditoría"
+        role="search"
+        aria-label="Filtrar resultados"
     >
         <div class="row g-3 align-items-end">
             <div class="col-12 col-lg-4">
@@ -88,7 +89,7 @@
     </form>
 
     {% if audit_events %}
-        <div class="table-responsive shadow-sm rounded">
+        <div data-table-label="Registros de auditoría" class="table-responsive shadow-sm rounded">
             <table class="table table-striped align-middle mb-0">
                 <thead>
                     <tr>

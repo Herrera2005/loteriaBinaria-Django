@@ -39,6 +39,19 @@ class ImmutableResultQuerySet(HistoricalLotteryQuerySet):
         )
 
 
+class ImmutableTransitionQuerySet(models.QuerySet):
+    """Protege el historial de estados contra cambios o borrados masivos."""
+
+    def update(self, **kwargs):
+        raise ValidationError("El historial de estados es inmutable.")
+
+    def delete(self):
+        raise ValidationError("El historial de estados no se elimina.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("El historial de estados es inmutable.")
+
+
 class LotteryProductQuerySet(models.QuerySet):
     """Evita alterar en masa la configuración estructural del producto."""
 
@@ -411,6 +424,35 @@ class LotteryProduct(models.Model):
         return self.name
 
 
+def validate_series_timing(*, recurrence_minutes, sales_lead_minutes) -> None:
+    """Valida la relación temporal compartida por modelo y formulario."""
+
+    if recurrence_minutes and recurrence_minutes < 10:
+        raise ValidationError(
+            {"recurrence_minutes": "La frecuencia mínima es de 10 minutos."}
+        )
+    if sales_lead_minutes and sales_lead_minutes < 11:
+        raise ValidationError(
+            {
+                "sales_lead_minutes": (
+                    "Las ventas deben abrir al menos 11 minutos antes del sorteo."
+                )
+            }
+        )
+    if (
+        recurrence_minutes
+        and sales_lead_minutes
+        and sales_lead_minutes > recurrence_minutes
+    ):
+        raise ValidationError(
+            {
+                "sales_lead_minutes": (
+                    "La anticipación no puede superar la frecuencia de la serie."
+                )
+            }
+        )
+
+
 class DrawEventSeries(models.Model):
     """Plantilla recurrente que genera una cantidad limitada de eventos futuros."""
 
@@ -545,12 +587,10 @@ class DrawEventSeries(models.Model):
         self.name_prefix = (self.name_prefix or "").strip()
         if not self.name_prefix:
             raise ValidationError({"name_prefix": "Ingrese un nombre base."})
-        if self.recurrence_minutes and self.recurrence_minutes < 10:
-            raise ValidationError({"recurrence_minutes": "La frecuencia mínima es de 10 minutos."})
-        if self.sales_lead_minutes and self.sales_lead_minutes < 11:
-            raise ValidationError({"sales_lead_minutes": "Las ventas deben abrir al menos 11 minutos antes del sorteo."})
-        if self.recurrence_minutes and self.sales_lead_minutes and self.sales_lead_minutes > self.recurrence_minutes:
-            raise ValidationError({"sales_lead_minutes": "La anticipación no puede superar la frecuencia de la serie."})
+        validate_series_timing(
+            recurrence_minutes=self.recurrence_minutes,
+            sales_lead_minutes=self.sales_lead_minutes,
+        )
         if self.future_events_target and not 1 <= self.future_events_target <= 10:
             raise ValidationError({"future_events_target": "Mantenga entre 1 y 10 eventos futuros."})
         if self.product_id and not self.product.is_active:
@@ -716,7 +756,6 @@ class DrawEvent(models.Model):
             ),
             models.UniqueConstraint(
                 fields=("series", "series_sequence"),
-                condition=Q(series__isnull=False),
                 name="lot_event_unique_series_sequence",
             ),
         ]
@@ -895,6 +934,8 @@ class DrawEventStatusTransition(models.Model):
         verbose_name="cambiado por",
     )
     created_at = models.DateTimeField("creado", auto_now_add=True)
+
+    objects = ImmutableTransitionQuerySet.as_manager()
 
     class Meta:
         ordering = ("-created_at", "-id")

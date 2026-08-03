@@ -759,3 +759,156 @@ a.card:focus-visible {
     min-height: 2.5rem;
     padding: 0.25rem;
 }
+
+/* Cierre UX v2: foco, objetivos táctiles y estados no dependientes del color. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 0.2rem solid var(--lb-gold-500);
+    outline-offset: 0.18rem;
+    box-shadow: 0 0 0 0.22rem rgba(7, 17, 31, 0.28);
+}
+
+.btn:not(.btn-sm),
+.form-control,
+.form-select,
+.form-check-input,
+.page-link {
+    min-height: 2.75rem;
+}
+
+.btn-sm {
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+}
+
+.status-badge--open {
+    color: #0b4f2c;
+    background: #dff5e8;
+}
+.status-badge--open::before { content: "✓"; }
+
+.status-badge--upcoming {
+    color: #084b63;
+    background: #dff5fc;
+}
+.status-badge--upcoming::before { content: "◷"; }
+
+.table-responsive {
+    scrollbar-color: var(--lb-blue-700) var(--lb-surface-soft);
+    scrollbar-width: thin;
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 0.7rem;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--lb-blue-700);
+    border: 0.15rem solid var(--lb-surface-soft);
+    border-radius: 999px;
+}
+
+.empty-state,
+.error-state {
+    border: 1px dashed var(--lb-border);
+    border-radius: 1rem;
+    background: #ffffff;
+}
+
+@media (max-width: 575.98px) {
+    input.form-control,
+    select.form-select,
+    textarea.form-control {
+        font-size: 1rem;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .pagination .page-item,
+    .pagination .page-link {
+        min-width: 2.75rem;
+    }
+
+    .lottery-event-card .card-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+
+    .lottery-event-card .status-badge {
+        align-self: flex-start;
+    }
+}
+
+
+/* Cierre UX responsive: contención, lectura móvil y estados de series. */
+.row > * {
+    min-width: 0;
+}
+
+.text-break-safe,
+.card-title,
+.card-text,
+dd,
+td,
+th {
+    overflow-wrap: anywhere;
+}
+
+.table-responsive[role="region"]:focus-visible {
+    outline: 0.2rem solid var(--lb-gold-500);
+    outline-offset: 0.2rem;
+}
+
+.table-scroll-hint {
+    margin: 0 0 0.5rem;
+    color: #42526a;
+    font-size: 0.875rem;
+}
+
+.series-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid currentColor;
+}
+
+.series-status-badge::before {
+    font-weight: 800;
+}
+.series-status--active::before { content: "✓"; }
+.series-status--paused::before { content: "Ⅱ"; }
+.series-status--completed::before { content: "■"; }
+.series-status--archived::before { content: "×"; }
+
+.action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+@media (max-width: 575.98px) {
+    .action-group > *,
+    .action-group > form,
+    .action-group > form > .btn {
+        width: 100%;
+    }
+
+    .responsive-definition-list dt,
+    .responsive-definition-list dd {
+        flex: 0 0 100%;
+        max-width: 100%;
+        text-align: left !important;
+    }
+
+    .responsive-definition-list dd {
+        margin-bottom: 0.85rem;
+    }
+}

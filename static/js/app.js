@@ -5,6 +5,7 @@
     const modalTitle = document.getElementById("confirmationModalTitle");
     const modalMessage = document.getElementById("confirmationModalMessage");
     const modalAccept = document.getElementById("confirmationModalAccept");
+    const modalCancel = document.getElementById("confirmationModalCancel");
     let pendingForm = null;
     let pendingSubmitter = null;
 
@@ -51,10 +52,19 @@
 
             if (modalTitle) {
                 modalTitle.textContent =
-                    form.dataset.confirmTitle || "Confirmar acción";
+                    form.dataset.confirmTitle || "Confirmar acción sensible";
             }
             if (modalMessage) {
                 modalMessage.textContent = message;
+            }
+            if (modalAccept) {
+                const destructive = form.dataset.confirmVariant === "danger"
+                    || pendingSubmitter?.classList.contains("btn-danger");
+                modalAccept.classList.toggle("btn-danger", destructive);
+                modalAccept.classList.toggle("btn-primary", !destructive);
+                modalAccept.textContent = destructive
+                    ? "Confirmar acción sensible"
+                    : "Confirmar";
             }
             window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
         });
@@ -69,6 +79,11 @@
         }
         window.bootstrap?.Modal.getOrCreateInstance(modalElement)?.hide();
         submitConfirmedForm(formToSubmit, submitter);
+    });
+
+    modalElement?.addEventListener("shown.bs.modal", () => {
+        // En acciones sensibles el foco inicial queda en Cancelar para evitar confirmaciones accidentales.
+        (modalCancel || modalAccept)?.focus();
     });
 
     modalElement?.addEventListener("hidden.bs.modal", clearPendingConfirmation);
@@ -230,3 +245,65 @@ document.addEventListener("DOMContentLoaded", () => {
         refreshLimit();
     });
 });
+
+// Cierre UX: tablas desplazables, recuperación de errores y confirmaciones sensibles.
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".table-responsive").forEach((region, index) => {
+        if (!region.hasAttribute("tabindex")) region.tabIndex = 0;
+        region.setAttribute("role", "region");
+        const heading = region.closest("section, article, .card")?.querySelector("h1, h2, h3");
+        const label = region.dataset.tableLabel || heading?.textContent?.trim() || `Tabla de datos ${index + 1}`;
+        region.setAttribute("aria-label", label);
+
+        const hintId = `table-scroll-hint-${index + 1}`;
+        let hint = document.getElementById(hintId);
+        if (!hint) {
+            hint = document.createElement("p");
+            hint.id = hintId;
+            hint.className = "table-scroll-hint small text-body-secondary mb-2";
+            hint.textContent = "Tabla desplazable: en pantallas pequeñas usa desplazamiento horizontal o las flechas cuando la región tenga el foco.";
+            region.before(hint);
+        }
+        region.setAttribute("aria-describedby", hintId);
+    });
+
+    document.querySelectorAll("[data-history-back]").forEach((button) => {
+        if (window.history.length <= 1) button.hidden = true;
+        button.addEventListener("click", () => window.history.back());
+    });
+});
+
+
+(() => {
+    "use strict";
+
+    document.querySelectorAll(".table-responsive[data-table-label]").forEach((region) => {
+        const label = region.dataset.tableLabel;
+        if (!label) return;
+
+        region.setAttribute("role", "region");
+        region.setAttribute("aria-label", label);
+        region.tabIndex = 0;
+
+        let hint = region.previousElementSibling;
+        if (!(hint instanceof HTMLElement) || !hint.classList.contains("table-scroll-hint")) {
+            hint = document.createElement("p");
+            hint.className = "table-scroll-hint d-md-none";
+            hint.textContent = "Tabla desplazable: desliza horizontalmente para consultar todas las columnas.";
+            region.parentNode?.insertBefore(hint, region);
+        }
+    });
+})();
+
+(() => {
+    "use strict";
+    document.querySelectorAll("[data-history-back]").forEach((button) => {
+        button.addEventListener("click", () => {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.assign(button.dataset.fallbackUrl || "/");
+            }
+        });
+    });
+})();

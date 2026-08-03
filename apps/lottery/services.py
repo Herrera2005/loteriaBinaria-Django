@@ -52,16 +52,16 @@ def event_can_be_deleted(event: DrawEvent) -> bool:
     return False
 
 
-def _assert_active_client(user) -> None:
-    from apps.accounts.models import User
-    from apps.accounts.roles import CLIENT
+def _assert_active_client(*, user, active_mode) -> None:
+    from apps.accounts.policies import can_purchase_ticket_for_mode
 
-    if (
-        not getattr(user, "is_active", False)
-        or getattr(user, "status", None) != User.Status.ACTIVE
-        or not user.groups.filter(name=CLIENT).exists()
+    if not can_purchase_ticket_for_mode(
+        user=user,
+        active_mode=active_mode,
     ):
-        raise ValidationError("Se requiere una cuenta CLIENTE activa.")
+        raise ValidationError(
+            "Se requiere una cuenta CLIENTE activa en modo CLIENTE."
+        )
 
 
 def _active_virtual_wallet(user):
@@ -81,7 +81,14 @@ def _active_virtual_wallet(user):
 
 
 @transaction.atomic
-def purchase_ticket(*, user, event_id: int, combination: str, operation_id):
+def purchase_ticket(
+    *,
+    user,
+    active_mode,
+    event_id: int,
+    combination: str,
+    operation_id,
+):
     """Compra directa, atómica e idempotente de un boleto con VIRTUAL."""
     from django.core.exceptions import ValidationError
     from django.db import IntegrityError
@@ -91,7 +98,7 @@ def purchase_ticket(*, user, event_id: int, combination: str, operation_id):
 
     from .models import Ticket, validate_key_for_product
 
-    _assert_active_client(user)
+    _assert_active_client(user=user, active_mode=active_mode)
 
     event = (
         DrawEvent.objects.select_for_update()
@@ -346,25 +353,28 @@ def refund_cancelled_event_tickets(*, event: DrawEvent, actor=None) -> int:
 
 
 @transaction.atomic
-def sync_lottery_event_states(*, actor=None, now=None) -> int:
-    """Abre y cierra ventas por hora del servidor de forma idempotente."""
+def sync_lottery_event_states(*, actor=None, now=None, event_ids=None) -> int:
+    """Abre y cierra ventas por hora del servidor de forma idempotente.
+
+    ``event_ids`` limita la sincronización a eventos recién creados y evita
+    volver a escanear todo el catálogo dentro del procesamiento por lotes.
+    """
     from django.utils import timezone
     from .models import DrawEventStatusTransition
 
     now = now or timezone.now()
     changed = 0
 
-    candidates = list(
-        DrawEvent.objects.select_for_update()
-        .filter(
-            status__in=(
-                DrawEvent.Status.SCHEDULED,
-                DrawEvent.Status.PUBLISHED,
-                DrawEvent.Status.SALES_OPEN,
-            )
+    candidates_queryset = DrawEvent.objects.select_for_update().filter(
+        status__in=(
+            DrawEvent.Status.SCHEDULED,
+            DrawEvent.Status.PUBLISHED,
+            DrawEvent.Status.SALES_OPEN,
         )
-        .order_by("id")
     )
+    if event_ids is not None:
+        candidates_queryset = candidates_queryset.filter(pk__in=tuple(event_ids))
+    candidates = list(candidates_queryset.order_by("id"))
 
     for event in candidates:
         target = None
@@ -706,32 +716,20 @@ def archive_event_series(*, series_id: int, actor=None) -> DeleteResult:
     return DeleteResult(series.pk, series.name_prefix, True)
 
 
-@transaction.atomic
-def generate_series_events(*, series_id: int, actor=None, now=None) -> SeriesGenerationResult:
-    """Mantiene el cupo futuro sin duplicados y respeta el límite restante."""
+def _generate_series_events_locked(
+    *,
+    series,
+    actor,
+    now,
+) -> SeriesGenerationResult:
+    """Genera eventos con la serie ya bloqueada por el servicio público."""
     from datetime import timedelta
-    from django.utils import timezone
-
-    now = now or timezone.now()
-    series = (
-        DrawEventSeries.objects.select_for_update()
-        .select_related("product")
-        .get(pk=series_id)
-    )
-
-    # P-36E: una sincronización es cada invocación real de este servicio una
-    # vez localizada y bloqueada la serie. También se registra para series
-    # pausadas, completadas o archivadas, aunque el intento cree cero eventos.
-    # El sello comparte la misma transacción y el mismo bloqueo de fila, por lo
-    # que no introduce una carrera adicional ni debilita la idempotencia.
-    series.last_synced_at = now
 
     if series.is_archived or not series.is_active:
-        series.save(update_fields=("last_synced_at", "updated_at"))
         return SeriesGenerationResult(series.pk, (), 0)
     if series.remaining_occurrences == 0:
         series.is_active = False
-        series.save(update_fields=("is_active", "last_synced_at", "updated_at"))
+        series.save(update_fields=("is_active", "updated_at"))
         return SeriesGenerationResult(series.pk, (), 0)
     if not series.product.is_active:
         raise ValidationError("El producto de la serie no está activo.")
@@ -778,7 +776,10 @@ def generate_series_events(*, series_id: int, actor=None, now=None) -> SeriesGen
             event_id=event.pk,
             to_status=DrawEvent.Status.SCHEDULED,
             actor=actor or series.created_by,
-            reason=f"Evento generado automáticamente por la serie {series.name_prefix}.",
+            reason=(
+                "Evento generado automáticamente por la serie "
+                f"{series.name_prefix}."
+            ),
             public_message="Sorteo programado automáticamente.",
         )
         created_ids.append(event.pk)
@@ -796,18 +797,75 @@ def generate_series_events(*, series_id: int, actor=None, now=None) -> SeriesGen
             "next_draw_at",
             "remaining_occurrences",
             "is_active",
-            "last_synced_at",
             "updated_at",
         )
     )
-    sync_lottery_event_states(actor=actor or series.created_by, now=now)
+    if created_ids:
+        sync_lottery_event_states(
+            actor=actor or series.created_by,
+            now=now,
+            event_ids=created_ids,
+        )
     return SeriesGenerationResult(series.pk, tuple(created_ids), skipped)
 
 
-@transaction.atomic
-def process_active_event_series(*, actor=None, now=None) -> tuple[SeriesGenerationResult, ...]:
-    """Procesa series activas, no archivadas y todavía vigentes."""
-    series_ids = list(
+def generate_series_events(
+    *,
+    series_id: int,
+    actor=None,
+    now=None,
+) -> SeriesGenerationResult:
+    """Procesa una serie de forma atómica y registra todo intento real.
+
+    El sello de observabilidad se confirma aunque la generación falle. Los
+    cambios de negocio permanecen dentro de un savepoint independiente, de
+    modo que un error no deja eventos ni contadores parcialmente aplicados.
+    """
+    from django.utils import timezone
+
+    now = now or timezone.now()
+    result = None
+    pending_error = None
+
+    with transaction.atomic():
+        series = (
+            DrawEventSeries.objects.select_for_update()
+            .select_related("product")
+            .get(pk=series_id)
+        )
+        series.last_synced_at = now
+        series.save(update_fields=("last_synced_at",))
+
+        try:
+            with transaction.atomic():
+                result = _generate_series_events_locked(
+                    series=series,
+                    actor=actor,
+                    now=now,
+                )
+        except Exception as exc:  # Se confirma el intento y se relanza después.
+            pending_error = exc
+
+    if pending_error is not None:
+        raise pending_error
+    return result
+
+
+@dataclass(frozen=True)
+class SeriesProcessingError:
+    series_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class SeriesBatchProcessingResult:
+    results: tuple[SeriesGenerationResult, ...]
+    errors: tuple[SeriesProcessingError, ...]
+
+
+def process_active_event_series(*, actor=None, now=None) -> SeriesBatchProcessingResult:
+    """Procesa cada serie en su propia transacción y conserva éxitos parciales."""
+    series_ids = tuple(
         DrawEventSeries.objects.filter(
             is_active=True,
             is_archived=False,
@@ -815,10 +873,25 @@ def process_active_event_series(*, actor=None, now=None) -> tuple[SeriesGenerati
         .order_by("id")
         .values_list("id", flat=True)
     )
-    return tuple(
-        generate_series_events(series_id=series_id, actor=actor, now=now)
-        for series_id in series_ids
-    )
+    results = []
+    errors = []
+    for series_id in series_ids:
+        try:
+            results.append(
+                generate_series_events(
+                    series_id=series_id,
+                    actor=actor,
+                    now=now,
+                )
+            )
+        except Exception as exc:
+            errors.append(
+                SeriesProcessingError(
+                    series_id=series_id,
+                    message=str(exc),
+                )
+            )
+    return SeriesBatchProcessingResult(tuple(results), tuple(errors))
 
 
 

@@ -126,17 +126,19 @@ class VendorProfileDetailView(
     context_object_name = "vendor_profile"
 
     def get_queryset(self):
-        return (
-            VendorProfile.objects
-            .select_related("user")
-            .prefetch_related(
-                "user__groups",
-                "assignments__request",
-            )
+        return VendorProfile.objects.select_related("user").prefetch_related(
+            "user__groups",
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        assignments = self.object.assignments.select_related("request").order_by(
+            "-assigned_at",
+            "-id",
+        )
+        context["assignments_page"] = Paginator(assignments, 15).get_page(
+            self.request.GET.get("assignments_page")
+        )
         context["has_history"] = vendor_profile_has_history(self.object)
         return context
 

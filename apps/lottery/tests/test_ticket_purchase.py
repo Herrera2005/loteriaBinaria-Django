@@ -59,6 +59,7 @@ class TicketPurchaseServiceTests(TestCase):
         operation_id = uuid.uuid4()
         ticket, created = purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=self.event.pk,
             combination="0123",
             operation_id=operation_id,
@@ -78,12 +79,14 @@ class TicketPurchaseServiceTests(TestCase):
         operation_id = uuid.uuid4()
         first, first_created = purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=self.event.pk,
             combination="0123",
             operation_id=operation_id,
         )
         second, second_created = purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=self.event.pk,
             combination="0123",
             operation_id=operation_id,
@@ -98,6 +101,7 @@ class TicketPurchaseServiceTests(TestCase):
     def test_duplicate_combination_is_rejected_without_second_debit(self):
         purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=self.event.pk,
             combination="0123",
             operation_id=uuid.uuid4(),
@@ -114,6 +118,7 @@ class TicketPurchaseServiceTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "combinación ya fue comprada"):
             purchase_ticket(
                 user=other,
+                active_mode=CLIENT,
                 event_id=self.event.pk,
                 combination="0123",
                 operation_id=uuid.uuid4(),
@@ -124,6 +129,7 @@ class TicketPurchaseServiceTests(TestCase):
     def test_permutation_is_rejected_as_the_same_combination(self):
         purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=self.event.pk,
             combination="3210",
             operation_id=uuid.uuid4(),
@@ -143,6 +149,7 @@ class TicketPurchaseServiceTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "combinación ya fue comprada"):
             purchase_ticket(
                 user=other,
+                active_mode=CLIENT,
                 event_id=self.event.pk,
                 combination="0123",
                 operation_id=uuid.uuid4(),
@@ -157,6 +164,7 @@ class TicketPurchaseServiceTests(TestCase):
         with self.assertRaises(ValidationError):
             purchase_ticket(
                 user=self.user,
+                active_mode=CLIENT,
                 event_id=self.event.pk,
                 combination="0012",
                 operation_id=uuid.uuid4(),
@@ -165,6 +173,7 @@ class TicketPurchaseServiceTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "Saldo VIRTUAL insuficiente"):
             purchase_ticket(
                 user=self.user,
+                active_mode=CLIENT,
                 event_id=self.event.pk,
                 combination="0123",
                 operation_id=uuid.uuid4(),
@@ -185,6 +194,7 @@ class TicketPurchaseServiceTests(TestCase):
 
         ticket, created = purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=event.pk,
             combination=["A", "10", "1"],
             operation_id=uuid.uuid4(),
@@ -208,6 +218,7 @@ class TicketPurchaseServiceTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "ventas abiertas"):
             purchase_ticket(
                 user=self.user,
+                active_mode=CLIENT,
                 event_id=closed_event.pk,
                 combination="0123",
                 operation_id=uuid.uuid4(),
@@ -234,6 +245,7 @@ class TicketPurchaseServiceTests(TestCase):
 
         ticket, created = purchase_ticket(
             user=self.user,
+            active_mode=CLIENT,
             event_id=event.pk,
             combination="0123",
             operation_id=uuid.uuid4(),

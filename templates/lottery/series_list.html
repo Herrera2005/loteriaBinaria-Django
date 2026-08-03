@@ -12,7 +12,7 @@
 </header>
 <section class="card shadow-sm mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" role="search" aria-label="Filtrar resultados" class="row g-3 align-items-end">
             <div class="col-12 col-md"><label class="form-label" for="id_q">Buscar</label><input class="form-control" id="id_q" name="q" value="{{ query }}"></div>
             <div class="col-12 col-md-3"><label class="form-label" for="id_active">Estado</label><select class="form-select" id="id_active" name="active"><option value="">Todas</option><option value="1" {% if active_filter == '1' %}selected{% endif %}>Activas</option><option value="0" {% if active_filter == '0' %}selected{% endif %}>Pausadas o completadas</option></select></div>
             <div class="col-12 col-md-3"><label class="form-label" for="id_archived">Programación</label><select class="form-select" id="id_archived" name="archived"><option value="" {% if archived_filter != '1' %}selected{% endif %}>Vigentes</option><option value="1" {% if archived_filter == '1' %}selected{% endif %}>Eliminadas</option></select></div>
@@ -20,7 +20,7 @@
         </form>
     </div>
 </section>
-<div class="table-responsive shadow-sm rounded">
+<div data-table-label="Listado de series automáticas" class="table-responsive shadow-sm rounded">
     <table class="table table-striped align-middle mb-0">
         <thead><tr><th>Serie</th><th>Producto</th><th>Frecuencia</th><th>Resultado</th><th>Restantes</th><th>Próxima</th><th>Eventos</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
         <tbody>
@@ -34,10 +34,10 @@
                     <td>{{ series.next_draw_at|date:'d/m/Y H:i' }}</td>
                     <td>{{ series.events_count }}</td>
                     <td>
-                        {% if series.is_archived %}<span class="badge text-bg-dark">Eliminada</span>
-                        {% elif series.remaining_occurrences == 0 %}<span class="badge text-bg-info">Completada</span>
-                        {% elif series.is_active %}<span class="badge text-bg-success">Activa</span>
-                        {% else %}<span class="badge text-bg-secondary">Pausada</span>{% endif %}
+                        {% if series.is_archived %}<span class="badge text-bg-dark series-status-badge series-status--archived">Archivada</span>
+                        {% elif series.remaining_occurrences == 0 %}<span class="badge text-bg-info series-status-badge series-status--completed">Completada</span>
+                        {% elif series.is_active %}<span class="badge text-bg-success series-status-badge series-status--active">Activa</span>
+                        {% else %}<span class="badge text-bg-secondary series-status-badge series-status--paused">Pausada</span>{% endif %}
                     </td>
                     <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'lottery:series_detail' series.pk %}">Ver</a></td>
                 </tr>

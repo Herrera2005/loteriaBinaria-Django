@@ -15,7 +15,7 @@
 <section class="card shadow-sm mb-4">
     <div class="card-body">
         <h2 class="h5">Filtros y orden</h2>
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" role="search" aria-label="Filtrar resultados" class="row g-3 align-items-end">
             <div class="col-12 col-xl">
                 <label class="form-label" for="id_q">Buscar</label>
                 <input class="form-control" id="id_q" name="q" value="{{ query }}" placeholder="Sorteo o producto">
@@ -83,9 +83,9 @@
                         </div>
 
                         {% if row.is_open_now %}
-                            <span class="badge text-bg-success">Ventas abiertas</span>
+                            <span class="badge status-badge status-badge--open"><span class="visually-hidden">Estado: </span>Ventas abiertas</span>
                         {% elif row.is_upcoming %}
-                            <span class="badge text-bg-info">Próximamente</span>
+                            <span class="badge status-badge status-badge--upcoming"><span class="visually-hidden">Estado: </span>Próximamente</span>
                         {% else %}
                             <span class="badge text-bg-secondary">{{ row.event.get_status_display }}</span>
                         {% endif %}

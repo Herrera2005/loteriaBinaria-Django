@@ -113,9 +113,9 @@
                             </div>
 
                             {% if item.is_open_now %}
-                                <span class="badge text-bg-success">Ventas abiertas</span>
+                                <span class="badge status-badge status-badge--open"><span class="visually-hidden">Estado: </span>Ventas abiertas</span>
                             {% elif item.is_upcoming %}
-                                <span class="badge text-bg-info">Próximamente</span>
+                                <span class="badge status-badge status-badge--upcoming"><span class="visually-hidden">Estado: </span>Próximamente</span>
                             {% else %}
                                 <span class="badge text-bg-secondary">{{ item.status_label }}</span>
                             {% endif %}
@@ -169,7 +169,7 @@
     </div>
 
     {% if recent_movements %}
-    <div class="table-responsive shadow-sm rounded">
+    <div data-table-label="Actividad reciente del cliente" class="table-responsive shadow-sm rounded">
         <table class="table table-striped align-middle mb-0">
             <thead>
                 <tr>

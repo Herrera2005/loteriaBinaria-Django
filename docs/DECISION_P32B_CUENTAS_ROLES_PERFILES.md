@@ -7,8 +7,7 @@ Base de datos de esta fase: SQLite; la implementación debe mantenerse portable 
 ## 1. Propósito
 
 Cerrar las ambigüedades entre cuenta, rol, modo activo, `is_staff`,
-`is_superuser`, permisos individuales y `VendorProfile` antes de comenzar las
-operaciones financieras.
+`is_superuser`, permisos individuales y `VendorProfile` como decisión base previa a las operaciones financieras. El estado actual ya incluye dichas operaciones.
 
 La autorización de negocio se decide en Django mediante:
 
@@ -25,7 +24,7 @@ Los permisos individuales de Django no sustituyen esta política.
 
 | Tipo de cuenta | Groups | `is_staff` | `is_superuser` | `VendorProfile` | Modos disponibles | Resultado operativo actual |
 |---|---|---:|---:|---|---|---|
-| Cliente | `CLIENTE` | No | No | No aplica | CLIENTE | Puede entrar al panel Cliente. Las operaciones financieras y compra de boletos se habilitan en fases posteriores. |
+| Cliente | `CLIENTE` | No | No | No aplica | CLIENTE | Puede entrar al panel Cliente y usar las operaciones financieras, solicitudes y compra de boletos implementadas cuando el modo CLIENTE esté activo. |
 | Vendedor | `VENDEDOR` | No | No | Obligatorio para operar; estado `ACTIVE` | VENDEDOR | Puede seleccionar modo VENDEDOR. Sin perfil se muestra una advertencia y no existen asignaciones operativas. |
 | Cliente + Vendedor | `CLIENTE`, `VENDEDOR` | No | No | Obligatorio para operar como Vendedor | CLIENTE / VENDEDOR | Cada modo mantiene navegación y permisos aislados. En CLIENTE conserva funciones completas de Cliente; en VENDEDOR no compra boletos. |
 | Administrador de negocio | `ADMINISTRADOR` | Sí para CRUD actuales | No | No aplica | ADMINISTRADOR | El Group y el modo permiten dashboard/auditoría. Los CRUD visuales actuales de Usuarios, Vendedores y Lotería exigen además `is_staff`. |

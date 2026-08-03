@@ -3,7 +3,6 @@ from . import views
 app_name = "lottery"
 urlpatterns = [
     path("series/", views.DrawEventSeriesListView.as_view(), name="series_list"),
-    path("series/create/", views.DrawEventSeriesCreateView.as_view(), name="series_create"),
     path("series/<int:pk>/", views.DrawEventSeriesDetailView.as_view(), name="series_detail"),
     path("series/<int:pk>/edit/", views.DrawEventSeriesUpdateView.as_view(), name="series_update"),
     path("series/<int:pk>/toggle/", views.DrawEventSeriesToggleView.as_view(), name="series_toggle"),

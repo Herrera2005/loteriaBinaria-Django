@@ -11,7 +11,11 @@ from django.db.models import Q
 
 from apps.accounts.roles import VENDOR
 
-from .models import ACTIVE_USER_STATUS, VendorProfile
+from .models import (
+    ACTIVE_USER_STATUS,
+    VendorProfile,
+    validate_vendor_account,
+)
 
 
 User = get_user_model()
@@ -85,15 +89,15 @@ class VendorProfileForm(forms.ModelForm):
         )
 
         if not is_current_user:
-            if not user.groups.filter(name=VENDOR).exists():
-                raise ValidationError(
-                    "El usuario debe tener asignado el rol VENDEDOR."
-                )
-
-            if not user.is_active or user.status != ACTIVE_USER_STATUS:
-                raise ValidationError(
-                    "La cuenta del vendedor debe estar activa."
-                )
+            try:
+                validate_vendor_account(user, require_active=True)
+            except ValidationError as exc:
+                messages = [
+                    message
+                    for field_messages in exc.message_dict.values()
+                    for message in field_messages
+                ]
+                raise ValidationError(" ".join(messages)) from exc
 
         duplicate = VendorProfile.objects.filter(user=user)
         if self.instance.pk:
@@ -111,19 +115,13 @@ class VendorProfileForm(forms.ModelForm):
         status = cleaned_data.get("status")
 
         if user is not None and status == VendorProfile.Status.ACTIVE:
-            has_vendor_role = user.groups.filter(name=VENDOR).exists()
-            if (
-                not has_vendor_role
-                or not user.is_active
-                or user.status != ACTIVE_USER_STATUS
-            ):
-                self.add_error(
-                    "status",
-                    (
-                        "Solo una cuenta activa con el rol VENDEDOR puede "
-                        "operar como vendedor."
-                    ),
-                )
+            try:
+                validate_vendor_account(user, require_active=True)
+            except ValidationError as exc:
+                for field_name, messages in exc.message_dict.items():
+                    target_field = field_name if field_name in self.fields else "status"
+                    for message in messages:
+                        self.add_error(target_field, message)
 
         return cleaned_data
 

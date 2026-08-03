@@ -23,7 +23,6 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView, V
 from .access import (
     ACTIVE_MODE_SESSION_KEY,
     assigned_mode_codes,
-    get_valid_active_mode,
 )
 from .forms import (
     ModeSelectionForm,

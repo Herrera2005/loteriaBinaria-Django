@@ -79,9 +79,21 @@ def can_use_administrator_functions(request) -> bool:
     )
 
 
+def can_purchase_ticket_for_mode(*, user, active_mode: str | None) -> bool:
+    """Autoriza compra con cuenta, rol y modo CLIENTE explícitos."""
+    return bool(
+        active_mode == CLIENT
+        and is_operational_user(user)
+        and has_assigned_role(user, CLIENT)
+    )
+
+
 def can_purchase_ticket(request) -> bool:
     """Solo el modo CLIENTE habilita compra, incluso en multirrol."""
-    return can_use_client_functions(request)
+    return can_purchase_ticket_for_mode(
+        user=request.user,
+        active_mode=get_active_mode(request),
+    )
 
 
 def can_administer_event(request, event: Any) -> bool:

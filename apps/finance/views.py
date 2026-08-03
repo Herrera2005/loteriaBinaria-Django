@@ -14,8 +14,10 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from apps.accounts.access import get_valid_active_mode
+from apps.accounts.policies import can_use_vendor_functions
 from apps.accounts.models import User
 from apps.accounts.roles import CLIENT, DASHBOARD_URL_NAMES, VENDOR
+from apps.core.date_utils import local_date_bounds
 from apps.vendors.forms import ConversionRequestCreateForm
 from apps.vendors.services import create_conversion_request
 
@@ -101,7 +103,7 @@ def _vendor_mode_required(view_func):
         if active_mode is None:
             return redirect("accounts:choose_mode")
 
-        if active_mode != VENDOR or not user.groups.filter(name=VENDOR).exists():
+        if not can_use_vendor_functions(request):
             raise PermissionDenied(
                 "Esta operación requiere el modo VENDEDOR."
             )
@@ -289,14 +291,16 @@ def _movement_context(request) -> dict[str, object]:
     date_from_value = request.GET.get("date_from", "").strip()
     date_from = _parse_iso_date(date_from_value)
     if date_from is not None:
-        queryset = queryset.filter(created_at__date__gte=date_from)
+        date_from_start, _ = local_date_bounds(date_from)
+        queryset = queryset.filter(created_at__gte=date_from_start)
     else:
         date_from_value = ""
 
     date_to_value = request.GET.get("date_to", "").strip()
     date_to = _parse_iso_date(date_to_value)
     if date_to is not None:
-        queryset = queryset.filter(created_at__date__lte=date_to)
+        _, date_to_end = local_date_bounds(date_to)
+        queryset = queryset.filter(created_at__lt=date_to_end)
     else:
         date_to_value = ""
 

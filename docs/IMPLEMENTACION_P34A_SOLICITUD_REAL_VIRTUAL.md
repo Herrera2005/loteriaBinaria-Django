@@ -1,5 +1,8 @@
 # P-34A — Solicitud REAL → VIRTUAL
 
+> **DOCUMENTO HISTÓRICO / DE FASE.** Evidencia de P-34A. El alcance parcial indicado corresponde a esa fase. Para el estado vigente consulte `docs/INDICE_DOCUMENTACION.md`, `README.md` y `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+
+
 Este bloque permite que un Cliente cree una solicitud desde la pestaña REAL → VIRTUAL. El monto pasa de disponible a reservado en la wallet REAL. No se acredita VIRTUAL todavía.
 
 ## Alcance

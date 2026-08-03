@@ -1,5 +1,8 @@
 # P-33 — Finanzas del Cliente
 
+> **DOCUMENTO HISTÓRICO / DE FASE.** Evidencia de P-33. Las frases “pasos posteriores” se refieren a esa fecha; hoy esos módulos existen. Para el estado vigente consulte `docs/INDICE_DOCUMENTACION.md`, `README.md` y `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+
+
 ## Alcance implementado
 - Recarga REAL académica 1:1, sin comisión ni datos de tarjeta.
 - Conversión VIRTUAL → REAL: débito bruto VIRTUAL, comisión 10 %, crédito neto REAL 90 %.

@@ -112,11 +112,11 @@ Se añadieron regresiones para comprobar:
 Resultado estático verificado en la copia reparada:
 
 ```text
-AUDITORÍA ESTÁTICA P-28: OK
+AUDITORÍA ESTÁTICA DE CIERRE: OK
 Python parseable y sin bytecode versionado
 Templates y bloques Django verificados
 SQLite/MySQL conservados; PostgreSQL excluido
-396 pruebas automatizadas diseñadas
+458 pruebas encontradas y ejecutadas correctamente por Django
 ```
 
 La calificación queda como provisional porque la suite Django completa debe ejecutarse en el `.venv` del proyecto, donde está instalada la versión requerida de Django.
@@ -148,3 +148,11 @@ La reparación se considera aprobada cuando:
 - no aparece `TemplateSyntaxError`;
 - no hay `FAIL` ni `ERROR` en la suite;
 - la auditoría estática termina en `OK`.
+
+---
+
+## Actualización de cierre P-36E
+
+Este documento conserva la revisión visual P-36. La fuente vigente de estado es
+`RESULTADO_AUDITORIA_FINAL.md`. El árbol actual contiene 458 pruebas ejecutadas y usa `AUDITORÍA ESTÁTICA DE CIERRE`, no la puerta P-28. Compra,
+resultados y series están implementados y probados en SQLite.

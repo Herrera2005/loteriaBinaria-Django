@@ -5,13 +5,6 @@ from django.urls import path
 from . import views
 
 
-"""Rutas del módulo accounts."""
-
-from django.urls import path
-
-from . import views
-
-
 app_name = "accounts"
 
 urlpatterns = [

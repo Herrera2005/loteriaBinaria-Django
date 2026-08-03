@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -16,6 +17,7 @@ from django.views.generic import (
     View,
 )
 
+from apps.accounts.access import get_valid_active_mode
 from apps.accounts.mixins import (
     ActiveModeRequiredMixin,
     AdministratorModeRequiredMixin,
@@ -157,14 +159,17 @@ class LotteryProductDetailView(
     context_object_name = "product"
 
     def get_queryset(self):
-        return (
-            LotteryProduct.objects
-            .annotate(events_count=Count("events"))
-            .prefetch_related("events")
-        )
+        return LotteryProduct.objects.annotate(events_count=Count("events"))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        events_queryset = self.object.events.select_related("product").order_by(
+            "-draw_at",
+            "-id",
+        )
+        context["events_page"] = Paginator(events_queryset, 15).get_page(
+            self.request.GET.get("events_page")
+        )
         context["can_delete"] = self.object.events_count == 0
         return context
 
@@ -263,8 +268,6 @@ class DrawEventListView(
     paginate_by = 15
 
     def get_queryset(self):
-        sync_lottery_event_states(actor=self.request.user)
-
         queryset = (
             DrawEvent.objects
             .select_related("product")
@@ -750,7 +753,6 @@ def _format_virtual_minor(amount_minor: int) -> str:
 
 
 def _client_visible_events():
-    sync_lottery_event_states()
     return (
         DrawEvent.objects
         .filter(
@@ -846,10 +848,6 @@ class ClientDrawEventListView(ActiveModeRequiredMixin, ListView):
 
 
 class ClientDrawEventDetailView(ActiveModeRequiredMixin, DetailView):
-    def dispatch(self, request, *args, **kwargs):
-        sync_lottery_event_states()
-        return super().dispatch(request, *args, **kwargs)
-
     expected_mode = CLIENT
     model = DrawEvent
     template_name = "lottery/client_event_detail.html"
@@ -933,6 +931,7 @@ class ClientDrawEventDetailView(ActiveModeRequiredMixin, DetailView):
             try:
                 ticket, created = purchase_ticket(
                     user=request.user,
+                    active_mode=get_valid_active_mode(request),
                     event_id=self.object.pk,
                     combination=form.cleaned_data["combination"],
                     operation_id=form.cleaned_data["operation_id"],
@@ -1087,35 +1086,19 @@ class DrawEventSeriesDetailView(AdministratorModeRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["generated_events"] = self.object.events.select_related("product").order_by(
+        generated_queryset = self.object.events.select_related("product").order_by(
             "series_sequence",
-        )[:30]
+            "id",
+        )
+        generated_paginator = Paginator(generated_queryset, 30)
+        generated_page = generated_paginator.get_page(
+            self.request.GET.get("events_page")
+        )
+        context["generated_events_page"] = generated_page
         context["price_display"] = _format_virtual_minor(self.object.price_minor)
         context["prize_display"] = _format_virtual_minor(self.object.prize_minor)
-        context["generated_count"] = self.object.events.count()
+        context["generated_count"] = generated_paginator.count
         return context
-
-
-class DrawEventSeriesCreateView(AdministratorModeRequiredMixin, CreateView):
-    model = DrawEventSeries
-    form_class = DrawEventSeriesForm
-    template_name = "lottery/series_form.html"
-
-    def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        response = super().form_valid(form)
-        result = generate_series_events(
-            series_id=self.object.pk,
-            actor=self.request.user,
-        )
-        messages.success(
-            self.request,
-            f"Serie creada. Eventos generados: {len(result.created_event_ids)}.",
-        )
-        return response
-
-    def get_success_url(self):
-        return reverse("lottery:series_detail", kwargs={"pk": self.object.pk})
 
 
 class DrawEventSeriesUpdateView(AdministratorModeRequiredMixin, UpdateView):

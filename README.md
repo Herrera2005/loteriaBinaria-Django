@@ -1,191 +1,152 @@
-# Lotería Binaria — Taller #3 Django
+# Taller #3 — Lotería Binaria con Django
 
-Proyecto académico desarrollado con Django para el Taller #3. El estado de
-esta entrega llega hasta el **P-28 oficial**: P-27 y P-28A están cerrados,
-Finance/Core ya ofrecen consultas read-only y los tres CRUD evaluables de
-`accounts`, `vendors` y `lottery` se conservan sobre SQLite para la primera
-fase, con configuración portable a MySQL para la segunda.
+Aplicación académica monolítica desarrollada con Django 5.2, templates del servidor y Bootstrap 5.3. El proyecto se organiza en cinco apps: `accounts`, `core`, `finance`, `vendors` y `lottery`.
 
-## Autoridad y alcance
+## Estado ejecutable vigente
 
-1. Enunciado del Taller #3.
-2. Cinco documentos canónicos en `docs/referencias/`.
-3. Guía docente VideoClub.
-4. ZIP legado únicamente como referencia visual.
+El árbol actual corresponde al cierre **P-36E**, más las reparaciones de auditoría integral y de UX/accesibilidad. Están implementados y cubiertos por pruebas:
 
-No se usa PostgreSQL. Tampoco se incluyen pagos reales, tarjetas, API REST,
-Celery, Redis ni microservicios.
+- usuario personalizado, registro adulto, términos versionados, login, logout y cambio de contraseña;
+- roles `CLIENTE`, `VENDEDOR` y `ADMINISTRADOR`, con un único modo activo por sesión;
+- CRUD visuales de usuarios, perfiles vendedores, productos y eventos;
+- wallets REAL/VIRTUAL y movimientos históricos;
+- recargas simuladas, retiros, conversión VIRTUAL→REAL, transferencias y compra mayorista de inventario;
+- solicitudes Cliente–Vendedor: creación, reserva, asignación, liberación, confirmación, cancelación y expiración;
+- catálogo de sorteos, compra directa de boletos, unicidad de combinación, cancelación y reembolso;
+- publicación manual o automática de resultados, evaluación y acreditación idempotente de premios;
+- series de eventos manuales/automáticas, limitadas o sin límite, con pausa, reactivación, archivo lógico y observabilidad;
+- historial e inmutabilidad de movimientos, auditoría, boletos, resultados y transiciones;
+- interfaz responsive y accesible para 320, 375, 768, 1024 y 1440 px.
 
-## Estado actual
+La ejecución real más reciente encontró y aprobó **458 pruebas**:
 
-- Usuario personalizado creado antes de las migraciones generales.
-- Autenticación, registro, términos, roles y selección de modo.
-- CRUD administrativo de usuarios.
-- CRUD administrativo de perfiles vendedores y consulta read-only de
-  solicitudes de conversión.
-- CRUD administrativo de productos y eventos de lotería.
-- `Ticket` y `DrawResult` protegidos como historia y sin CRUD genérico.
-- Bootstrap 5.3 real con identidad azul profundo/dorada.
-- `finance.Wallet` con monedas REAL/VIRTUAL y saldos disponibles/reservados.
-- `finance.Movement` append-only, correlacionado por `operation_id`.
-- `core.AuditEvent` append-only y sin secretos.
-- Admin read-only para Wallet, Movement y AuditEvent.
-- Servicio y backfill idempotente para garantizar wallets.
-- Wallet propia y movimientos propios paginados, sin edición de saldos.
-- Auditoría administrativa list/detail, protegida por modo ADMINISTRADOR.
-- Home y dashboards con datos reales del backend.
-- 219 pruebas automatizadas diseñadas en el árbol actual.
+```text
+Ran 458 tests
+OK
+```
 
-La compra de boletos, recargas, conversiones y compra mayorista todavía no
-forman parte de este bloque y no se exponen como acciones funcionales.
+La cifra proviene de una ejecución completa con Django 5.2.16 y un hasher rápido externo usado únicamente para acelerar la auditoría. El código productivo y sus settings no fueron modificados para obtenerla.
 
-## Requisitos
+## Bases de datos
 
-- Python 3.12 recomendado.
-- SQLite incluido con Python.
-- MySQL 8 para la segunda fase, solo después de cerrar SQLite.
+- **Fase 1:** SQLite para desarrollo, migraciones, pruebas y entrega inicial.
+- **Fase 2:** MySQL con `utf8mb4` y modo estricto.
+- **PostgreSQL no forma parte de este taller.** Las referencias originales que lo mencionan se conservan en `docs/referencias/` como documentación de origen, pero son sustituidas operativamente por `docs/DECISION_T3_001_SQLITE_MYSQL.md`.
 
-## Instalación SQLite
+La migración más reciente es:
+
+```text
+lottery.0011_portable_series_sequence_unique
+```
+
+No se editan migraciones ya aplicadas; cualquier cambio de esquema requiere una migración nueva.
+
+## Instalación en PowerShell
 
 ```powershell
+cd D:\github\loteriaBinaria-Django
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 python manage.py migrate
 python manage.py seed_baseline
-python manage.py createsuperuser
-python manage.py backfill_wallets
+$env:DJANGO_DEMO_PASSWORD = "UnaClaveLocalSegura"
+python manage.py seed_demo
 python manage.py runserver
 ```
 
-También existe inicio guiado:
+No se deben incluir en el ZIP de entrega: `.venv`, `.env`, bases locales, `staticfiles`, logs, `__pycache__`, `.pyc` o `.pyo`.
+
+## Rutas principales
+
+| Área | Ruta base | Nombres URL principales |
+|---|---|---|
+| Público | `/` | `core:home`, `core:start` |
+| Cuentas | `/accounts/` | `login`, `logout`, `register`, `choose_mode`, `profile`, CRUD de usuarios |
+| Dashboards | `/dashboard/` | `core:client_dashboard`, `core:vendor_dashboard`, `core:admin_dashboard` |
+| Finanzas | `/finance/` | wallets, movimientos, operaciones REAL, conversión, transferencia e inventario |
+| Vendedores | `/vendors/` | CRUD de perfiles y solicitudes propias/globales |
+| Lotería | `/lottery/` | productos, eventos, boletos, resultados y series |
+| Auditoría | `/audit/` | `core:audit_list`, `core:audit_detail` |
+| Admin técnico | `/admin/` | Django Admin para usuarios `is_staff` |
+
+La visibilidad de enlaces no concede permisos: cada vista vuelve a validar autenticación, cuenta activa, rol, modo y recurso.
+
+## Comandos de operación
 
 ```powershell
-.\scripts\run_local.ps1
-```
-
-## Datos demo opcionales
-
-No existe una contraseña versionada. Define una clave local fuerte:
-
-```env
-DJANGO_DEMO_PASSWORD=su-clave-local-no-versionada
-```
-
-Después:
-
-```powershell
+python manage.py seed_baseline
 python manage.py seed_demo
+python manage.py backfill_wallets
+python manage.py process_expired_requests
+python manage.py sync_lottery_event_states
+python manage.py process_lottery_schedules
 ```
 
-El comando solo se permite con `DEBUG=True` y no imprime credenciales.
+- `seed_baseline`, `seed_demo` y `backfill_wallets` son repetibles sin duplicar datos esperados.
+- `process_expired_requests` resuelve solicitudes vencidas sin Celery.
+- `sync_lottery_event_states` actualiza estados temporales; las páginas GET no escriben estados.
+- `process_lottery_schedules` genera eventos de series y procesa resultados automáticos. Cada serie se procesa de forma aislada para que una serie inválida no revierta las válidas.
 
-## Rutas implementadas
+## Series y resultados automáticos
 
-| Ruta | Uso |
-|---|---|
-| `/` | landing pública |
-| `/accounts/login/` | inicio de sesión |
-| `/accounts/logout/` | cierre mediante POST |
-| `/accounts/register/` | registro de cliente adulto |
-| `/accounts/mode/` | selección de modo asignado |
-| `/dashboard/client/` | panel CLIENTE |
-| `/dashboard/vendor/` | panel VENDEDOR |
-| `/dashboard/admin/` | panel ADMINISTRADOR |
-| `/accounts/users/` | CRUD administrativo de usuarios |
-| `/vendors/` | CRUD administrativo de perfiles vendedores |
-| `/vendors/requests/` | solicitudes de conversión read-only |
-| `/lottery/products/` | CRUD de productos de lotería |
-| `/lottery/events/` | CRUD protegido de eventos |
-| `/finance/wallets/` | wallet propia read-only |
-| `/finance/movements/` | movimientos propios filtrables y paginados |
-| `/audit/` | auditoría administrativa read-only |
-| `/audit/<pk>/` | detalle de auditoría read-only |
-| `/admin/` | administración Django para staff |
+`DrawEventSeries` permite:
 
-Las rutas de `vendors` y `lottery` exigen cuenta administrativa activa y modo
-`ADMINISTRADOR`.
+- frecuencia y próxima fecha (`next_draw_at`);
+- generación limitada (`remaining_occurrences`) o sin límite;
+- modo de resultado manual o automático (`result_mode`);
+- pausa/reactivación sin modificar eventos ya creados;
+- archivo lógico con conservación del historial;
+- `last_synced_at` como observabilidad del último intento real de procesamiento;
+- relación con eventos generados y secuencia única portable `(series, series_sequence)`.
 
-## Reglas Lottery cerradas hasta P-27
+Editar una serie afecta únicamente generaciones futuras. Los eventos ya generados conservan producto, fechas, precio, premio y anticipación originales.
 
-- OCTAL: `0-7`, cuatro símbolos únicos.
-- DECIMAL: `0-9`, cinco símbolos únicos.
-- HEXADECIMAL: `0-9/A-F`, seis símbolos únicos.
-- Cierre de ventas: exactamente diez minutos antes de `draw_at`.
-- Montos: `BigIntegerField` con sufijo `_minor`.
-- `Ticket`: combinación única por evento y no eliminable.
-- `DrawResult`: `OneToOne`, protegido e inmutable.
-- Producto con eventos: no eliminable y configuración estructural protegida.
-- Evento fuera de Borrador: producto, fechas, precio, premio y estado no se
-  alteran mediante el CRUD normal.
-- Evento: solo eliminable en Borrador, sin tickets y sin resultado.
+Los resultados son únicos por evento e inmutables. La liquidación y la acreditación de premios son idempotentes y se realizan mediante servicios transaccionales.
 
-## Verificación completa
+## Verificación integral
+
+### SQLite
 
 ```powershell
 .\scripts\verify.ps1
 ```
 
-El script crea una base SQLite temporal, ejecuta auditoría estática,
-`check`, migraciones, seeds, smoke test, suite Django y verificación de
-archivos estáticos. No modifica `db.sqlite3`.
+Equivalente Bash:
 
-Validación manual equivalente:
-
-```powershell
-python scripts/audit_project.py
-python manage.py check
-python manage.py makemigrations --check --dry-run
-python manage.py migrate --noinput
-python manage.py showmigrations
-python manage.py seed_baseline
-python scripts/smoke_runserver.py
-python manage.py test --verbosity 2
-python manage.py findstatic css/app.css js/app.js img/logo-placeholder.png
-python manage.py collectstatic --noinput --clear
+```bash
+./scripts/verify.sh
 ```
 
-## MySQL — segunda fase
+La puerta incluye inventario del entorno, manifiesto, auditoría estática, `check`, migraciones, seeds/comandos repetidos, una batería funcional explícita posterior a P-28, smoke test, suite completa, static y `check --deploy` con variables seguras temporales.
 
-No cambies de motor mientras SQLite no esté completamente verde.
+El cierre demostrable de esta fase se documenta en:
+
+- `docs/REPORTE_FINAL_SQLITE.md`;
+- `docs/CIERRE_SQLITE_EVIDENCIA_REQUISITO.md`;
+- `docs/CIERRE_SQLITE_CHECKLIST_CAPTURAS.md`;
+- `docs/CIERRE_SQLITE_COMANDOS_EVIDENCIA.md`;
+- `docs/DEMOSTRACION_SQLITE_10_15_MIN.md`.
+
+### MySQL
 
 ```powershell
-pip install -r requirements-mysql.txt
+python -m pip install -r requirements-mysql.txt
+$env:DATABASE_URL = "mysql://usuario:clave@127.0.0.1:3306/loteria_taller3_test"
+.\scripts\verify_mysql.ps1
 ```
 
-Luego configura `DATABASE_URL` para MySQL, aplica las mismas migraciones y
-repite toda la suite. No uses `migrate --fake` para ocultar errores.
+MySQL no se considera aprobado hasta ejecutar esa puerta sobre un servidor MySQL real y repetir las pruebas críticas de concurrencia.
 
-## Auditoría y continuación
+## Documentación
 
-- Resultado de la revisión P-27:
-  `docs/AUDITORIA_P27_2026-08-01.md`.
-- Guía operativa para validar y continuar:
-  `docs/GUIA_CONTINUACION_DESDE_P27.md`.
-- Decisión de modelos y catálogos P-28A:
-  `docs/DECISION_P28A_MODELOS_FINANCE_AUDITORIA.md`.
-- Guía de aplicación y comprobación P-28A:
-  `docs/GUIA_APLICACION_P28A.md`.
-- Matriz de pruebas P-28A:
-  `docs/MATRIZ_PRUEBAS_P28A.md`.
-- Matriz vigente:
-  `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
-- Guía de aplicación P-28 oficial:
-  `docs/GUIA_APLICACION_P28_OFICIAL.md`.
-- Matriz de pruebas P-28 oficial:
-  `docs/MATRIZ_PRUEBAS_P28_OFICIAL.md`.
-- Resultado de implementación P-28 oficial:
-  `docs/RESULTADO_IMPLEMENTACION_P28_OFICIAL.md`.
+El índice y la autoridad documental están en:
 
-P-28 ya cubre consultas seguras de Finance/Core, dashboards con datos reales y
-pruebas de propiedad/permisos. El siguiente bloque es **P-29: navegación e
-integración final sin enlaces muertos**. No corresponde implementar todavía
-recargas, conversiones, compra mayorista ni compra de boletos.
+- `docs/INDICE_DOCUMENTACION.md`
+- `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`
+- `docs/INVENTARIO_FINAL.md`
+- `docs/ARCHIVOS_Y_RESPONSABILIDADES.md`
 
-## Respaldo visual
-
-El frontend antiguo se conserva en `respaldo_frontend/`. No se carga en el
-runtime Django y no se utiliza como fuente de usuarios, roles, saldos,
-boletos, solicitudes o resultados.
+Los documentos de fases intermedias se conservan por trazabilidad, pero no sustituyen al estado vigente.

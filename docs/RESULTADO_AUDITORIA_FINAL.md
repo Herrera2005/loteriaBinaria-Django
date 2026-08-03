@@ -1,35 +1,49 @@
-# Resultado vigente de auditoría — preparación P-28A
+# Resultado vigente de auditoría y verificación
 
-## Base confirmada
+## Evidencia ejecutada en la actualización documental
 
-El usuario confirmó que la puerta completa de P-27 pasó todas sus pruebas antes de iniciar P-28A.
-
-## Estado del paquete P-28A
-
-- modelos `Wallet`, `Movement` y `AuditEvent` implementados;
-- migraciones iniciales incluidas;
-- admin read-only;
-- servicio, señal y backfill idempotentes;
-- 28 pruebas nuevas;
-- inventario total: 195 pruebas diseñadas;
-- auditor estático ampliado a P-28A;
-- vistas, URLs y templates financieros no implementados intencionalmente.
-
-## Verificación realizada al preparar el paquete
-
-- compilación Python de archivos nuevos: correcta;
-- análisis AST: correcto;
-- restricciones y nombres revisados para portabilidad SQLite/MySQL;
-- frontend legado revisado únicamente como referencia visual.
-
-## Verificación pendiente en el equipo del usuario
-
-La suite Django P-28A debe ejecutarse en la `.venv` local con Django 5.2.16. La secuencia exacta está en:
+Entorno utilizado:
 
 ```text
-docs/GUIA_APLICACION_P28A.md
+Python 3.13.5
+Django 5.2.16 cargado desde las dependencias incluidas en el ZIP
 ```
 
-## Siguiente paso autorizado
+Resultados:
 
-Después de la puerta P-28A: P-28 oficial, limitado a wallet propia, movimientos paginados, auditoría administrativa y dashboard con datos reales, todo read-only.
+```text
+python manage.py check
+System check identified no issues (0 silenced).
+
+python manage.py makemigrations --check --dry-run
+No changes detected
+
+python manage.py test --settings=fast_settings -v 1
+Found 458 test(s).
+Ran 458 tests in 5.946s
+OK
+```
+
+`fast_settings` fue un archivo externo a la carpeta del proyecto que solo sustituyó `PASSWORD_HASHERS` por MD5 para acelerar la auditoría. No modificó modelos, migraciones, reglas, URLs ni settings productivos.
+
+## Estado actual
+
+- SQLite: verificado en esta ejecución.
+- Documentación: actualizada contra modelos, migraciones, URLs, comandos y pruebas reales.
+- UX/accesibilidad: pruebas específicas incluidas dentro de las 458.
+- MySQL: preparado, pero pendiente de ejecución sobre servidor real.
+- PostgreSQL: fuera de alcance.
+
+## Límites honestos
+
+No se ejecutó MySQL ni concurrencia real de filas en esta actualización. La aprobación de fase 2 depende de `scripts/verify_mysql.ps1` o su equivalente Bash.
+
+## Calificación documental
+
+La documentación se considera coherente con el árbol actual cuando:
+
+- el README no anuncia funciones pendientes que ya existen;
+- existe una única matriz vigente;
+- los documentos históricos están clasificados;
+- las cifras de pruebas provienen de ejecución real;
+- el manifiesto se regenera después de los cambios.

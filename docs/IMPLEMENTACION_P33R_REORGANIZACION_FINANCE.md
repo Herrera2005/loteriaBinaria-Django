@@ -1,5 +1,8 @@
 # P-33R — Reorganización de Finanzas Cliente
 
+> **DOCUMENTO HISTÓRICO / DE FASE.** Evidencia de reorganización P-33R; se conserva por trazabilidad. Para el estado vigente consulte `docs/INDICE_DOCUMENTACION.md`, `README.md` y `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+
+
 ## Decisión
 
 - Recarga y retiro REAL comparten `/finance/real-operations/` y se presentan mediante pestañas.
