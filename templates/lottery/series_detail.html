@@ -29,12 +29,16 @@
 </header>
 
 {% if series.is_archived %}
-<div class="alert alert-secondary">
-    Esta programación fue eliminada. No generará eventos nuevos; el historial permanece disponible.
+<div class="alert alert-secondary" role="status">
+    La programación fue archivada y no generará nuevos eventos.
 </div>
 {% elif series.remaining_occurrences == 0 %}
-<div class="alert alert-info">
-    La serie completó todas sus generaciones limitadas. Puede editarla y asignar nuevas generaciones restantes.
+<div class="alert alert-info" role="status">
+    Serie completada. No se generarán más sorteos.
+</div>
+{% elif not series.is_active %}
+<div class="alert alert-warning" role="status">
+    La programación está pausada. Los eventos existentes no se modifican.
 </div>
 {% endif %}
 
@@ -42,10 +46,19 @@
     <div class="col-12 col-lg-6">
         <section class="card shadow-sm h-100">
             <div class="card-body">
-                <h2 class="h5">Configuración editable</h2>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                    <h2 class="h5 mb-0">Estado y configuración</h2>
+                    {% if series.is_archived %}<span class="badge text-bg-dark">Eliminada</span>
+                    {% elif series.remaining_occurrences == 0 %}<span class="badge text-bg-info">Completada</span>
+                    {% elif series.is_active %}<span class="badge text-bg-success">Activa</span>
+                    {% else %}<span class="badge text-bg-warning">Pausada</span>{% endif %}
+                </div>
                 <dl class="row mb-0">
+                    <dt class="col-7">Estado exacto</dt><dd class="col-5 text-end">{{ series.generation_status_display }}</dd>
+                    <dt class="col-7">Última sincronización</dt>
+                    <dd class="col-5 text-end">{% if series.last_synced_at %}{{ series.last_synced_at|date:'d/m/Y H:i:s' }}{% else %}Todavía no sincronizada{% endif %}</dd>
                     <dt class="col-7">Primer sorteo histórico</dt><dd class="col-5 text-end">{{ series.first_draw_at|date:'d/m/Y H:i' }}</dd>
-                    <dt class="col-7">Próximo a generar</dt><dd class="col-5 text-end">{{ series.next_draw_at|date:'d/m/Y H:i' }}</dd>
+                    <dt class="col-7">Próximo evento por generar</dt><dd class="col-5 text-end">{% if series.next_draw_at %}{{ series.next_draw_at|date:'d/m/Y H:i' }}{% else %}Sin fecha pendiente{% endif %}</dd>
                     <dt class="col-7">Frecuencia</dt><dd class="col-5 text-end">{{ series.recurrence_minutes }} min</dd>
                     <dt class="col-7">Aparece antes</dt><dd class="col-5 text-end">{{ series.sales_lead_minutes }} min</dd>
                     <dt class="col-7">Precio</dt><dd class="col-5 text-end">{{ price_display }}</dd>

@@ -213,12 +213,13 @@ class DrawEventSeriesAdmin(admin.ModelAdmin):
         "result_mode",
         "next_sequence",
         "next_draw_at",
+        "last_synced_at",
         "is_active",
         "is_archived",
     )
     list_filter = ("result_mode", "is_active", "is_archived", "product")
     search_fields = ("name_prefix", "product__name", "product__code")
-    readonly_fields = ("next_sequence", "archived_at", "created_at", "updated_at")
+    readonly_fields = ("next_sequence", "archived_at", "last_synced_at", "created_at", "updated_at")
     list_select_related = ("product", "created_by")
 
     def has_delete_permission(self, request, obj=None):

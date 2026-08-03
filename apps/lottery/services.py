@@ -718,11 +718,20 @@ def generate_series_events(*, series_id: int, actor=None, now=None) -> SeriesGen
         .select_related("product")
         .get(pk=series_id)
     )
+
+    # P-36E: una sincronización es cada invocación real de este servicio una
+    # vez localizada y bloqueada la serie. También se registra para series
+    # pausadas, completadas o archivadas, aunque el intento cree cero eventos.
+    # El sello comparte la misma transacción y el mismo bloqueo de fila, por lo
+    # que no introduce una carrera adicional ni debilita la idempotencia.
+    series.last_synced_at = now
+
     if series.is_archived or not series.is_active:
+        series.save(update_fields=("last_synced_at", "updated_at"))
         return SeriesGenerationResult(series.pk, (), 0)
     if series.remaining_occurrences == 0:
         series.is_active = False
-        series.save(update_fields=("is_active", "updated_at"))
+        series.save(update_fields=("is_active", "last_synced_at", "updated_at"))
         return SeriesGenerationResult(series.pk, (), 0)
     if not series.product.is_active:
         raise ValidationError("El producto de la serie no está activo.")
@@ -787,6 +796,7 @@ def generate_series_events(*, series_id: int, actor=None, now=None) -> SeriesGen
             "next_draw_at",
             "remaining_occurrences",
             "is_active",
+            "last_synced_at",
             "updated_at",
         )
     )

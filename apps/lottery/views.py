@@ -1161,7 +1161,7 @@ class DrawEventSeriesArchiveView(AdministratorModeRequiredMixin, View):
         if result.deleted:
             messages.success(
                 request,
-                "La programación fue eliminada. Los eventos ya generados se conservan.",
+                "La programación fue archivada y no generará nuevos eventos.",
             )
             return redirect("lottery:series_list")
         messages.warning(request, result.reason)
@@ -1191,7 +1191,7 @@ class DrawEventSeriesToggleView(AdministratorModeRequiredMixin, View):
                 f"Serie reactivada. Eventos nuevos: {len(result.created_event_ids)}.",
             )
         else:
-            messages.success(request, "Serie pausada. Los eventos existentes se conservan.")
+            messages.success(request, "La programación está pausada. Los eventos existentes no se modifican.")
         return redirect("lottery:series_detail", pk=series.pk)
 
 

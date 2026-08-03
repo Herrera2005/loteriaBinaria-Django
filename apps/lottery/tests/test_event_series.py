@@ -142,3 +142,142 @@ class DrawEventSeriesLimitTests(DrawEventSeriesTests):
         self.assertFalse(self.series.is_active)
         self.assertEqual(second.created_event_ids, ())
         self.assertEqual(self.series.events.count(), 2)
+
+
+class DrawEventSeriesObservabilityTests(DrawEventSeriesTests):
+    def _login_as_admin(self):
+        from apps.accounts.access import ACTIVE_MODE_SESSION_KEY
+
+        self.client.force_login(self.admin)
+        session = self.client.session
+        session[ACTIVE_MODE_SESSION_KEY] = ADMINISTRATOR
+        session.save()
+
+    def test_last_synced_at_starts_as_none(self):
+        self.assertIsNone(self.series.last_synced_at)
+
+    def test_sync_sets_timestamp_and_second_run_updates_it_without_duplicates(self):
+        first_sync = timezone.now()
+        second_sync = first_sync + timedelta(minutes=5)
+
+        first = generate_series_events(
+            series_id=self.series.pk,
+            actor=self.admin,
+            now=first_sync,
+        )
+        second = generate_series_events(
+            series_id=self.series.pk,
+            actor=self.admin,
+            now=second_sync,
+        )
+
+        self.series.refresh_from_db()
+        self.assertEqual(len(first.created_event_ids), 2)
+        self.assertEqual(second.created_event_ids, ())
+        self.assertEqual(self.series.events.count(), 2)
+        self.assertEqual(self.series.last_synced_at, second_sync)
+
+    def test_paused_and_archived_attempts_are_observable_but_create_nothing(self):
+        paused_sync = timezone.now()
+        self.series.is_active = False
+        self.series.save(update_fields=("is_active", "updated_at"))
+
+        paused = generate_series_events(
+            series_id=self.series.pk,
+            actor=self.admin,
+            now=paused_sync,
+        )
+        self.series.refresh_from_db()
+        self.assertEqual(paused.created_event_ids, ())
+        self.assertEqual(self.series.last_synced_at, paused_sync)
+
+        from apps.lottery.services import archive_event_series
+
+        archive_event_series(series_id=self.series.pk, actor=self.admin)
+        archived_sync = paused_sync + timedelta(minutes=5)
+        archived = generate_series_events(
+            series_id=self.series.pk,
+            actor=self.admin,
+            now=archived_sync,
+        )
+        self.series.refresh_from_db()
+        self.assertEqual(archived.created_event_ids, ())
+        self.assertEqual(self.series.last_synced_at, archived_sync)
+        self.assertEqual(self.series.events.count(), 0)
+
+    def test_editing_future_parameters_does_not_rewrite_historical_event_fields(self):
+        generate_series_events(series_id=self.series.pk, actor=self.admin)
+        historical = {
+            event.pk: {
+                "series_sequence": event.series_sequence,
+                "product_id": event.product_id,
+                "name": event.name,
+                "sales_open_at": event.sales_open_at,
+                "sales_close_at": event.sales_close_at,
+                "draw_at": event.draw_at,
+                "price_minor": event.price_minor,
+                "prize_minor": event.prize_minor,
+                "status": event.status,
+            }
+            for event in self.series.events.order_by("pk")
+        }
+        last_draw_at = max(values["draw_at"] for values in historical.values())
+
+        self.series.refresh_from_db()
+        self.series.recurrence_minutes = 720
+        self.series.next_draw_at = last_draw_at + timedelta(hours=12)
+        self.series.price_minor = 250
+        self.series.prize_minor = 9000
+        self.series.sales_lead_minutes = 360
+        self.series.future_events_target = 3
+        self.series.save(
+            update_fields=(
+                "recurrence_minutes",
+                "next_draw_at",
+                "price_minor",
+                "prize_minor",
+                "sales_lead_minutes",
+                "future_events_target",
+                "updated_at",
+            )
+        )
+
+        generate_series_events(series_id=self.series.pk, actor=self.admin)
+
+        for event_id, expected in historical.items():
+            event = DrawEvent.objects.get(pk=event_id)
+            actual = {field: getattr(event, field) for field in expected}
+            self.assertEqual(actual, expected)
+
+        new_event = self.series.events.get(series_sequence=3)
+        self.assertEqual(new_event.draw_at, last_draw_at + timedelta(hours=12))
+        self.assertEqual(new_event.price_minor, 250)
+        self.assertEqual(new_event.prize_minor, 9000)
+        self.assertEqual(
+            new_event.sales_open_at,
+            new_event.draw_at - timedelta(minutes=360),
+        )
+
+    def test_detail_shows_unsynced_and_synced_observability(self):
+        from django.urls import reverse
+
+        self._login_as_admin()
+        url = reverse("lottery:series_detail", args=(self.series.pk,))
+
+        response = self.client.get(url)
+        self.assertContains(response, "Todavía no sincronizada")
+        self.assertContains(response, "Próximo evento por generar")
+        self.assertContains(response, "Sin límite")
+        self.assertContains(response, "Manual por Administrador")
+        self.assertContains(response, "Activa")
+
+        sync_time = timezone.now()
+        generate_series_events(
+            series_id=self.series.pk,
+            actor=self.admin,
+            now=sync_time,
+        )
+        response = self.client.get(url)
+        self.assertNotContains(response, "Todavía no sincronizada")
+        self.assertContains(response, timezone.localtime(sync_time).strftime("%d/%m/%Y %H:%M:%S"))
+        self.assertContains(response, reverse("lottery:event_detail", args=(self.series.events.first().pk,)))

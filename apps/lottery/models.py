@@ -487,6 +487,16 @@ class DrawEventSeries(models.Model):
         blank=True,
         editable=False,
     )
+    last_synced_at = models.DateTimeField(
+        "última sincronización",
+        null=True,
+        blank=True,
+        editable=False,
+        help_text=(
+            "Fecha del último intento real de procesar la serie mediante el "
+            "servicio de generación, incluso cuando no se creen eventos."
+        ),
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
