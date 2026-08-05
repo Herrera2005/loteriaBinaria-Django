@@ -19,7 +19,7 @@
         </a>
     </header>
 
-    <form method="get" class="card card-body shadow-sm mb-4" role="search">
+    <form method="get" role="search" aria-label="Filtrar resultados" class="card card-body shadow-sm mb-4" role="search">
         <div class="row g-3 align-items-end">
             <div class="col-12 col-lg">
                 <label class="form-label" for="user-search">
@@ -48,7 +48,7 @@
     </form>
 
     {% if users %}
-        <div class="table-responsive shadow-sm rounded">
+        <div data-table-label="Listado de usuarios" class="table-responsive shadow-sm rounded">
             <table class="table table-striped align-middle mb-0">
                 <thead>
                     <tr>

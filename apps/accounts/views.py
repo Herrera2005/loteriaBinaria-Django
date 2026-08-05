@@ -3,20 +3,19 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth import login
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth import login, logout
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
-    LogoutView,
-    redirect_to_login,
+    PasswordChangeDoneView,
+    PasswordChangeView,
 )
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
-from django.db.models.deletion import ProtectedError
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
@@ -24,21 +23,48 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView, V
 from .access import (
     ACTIVE_MODE_SESSION_KEY,
     assigned_mode_codes,
-    get_valid_active_mode,
 )
 from .forms import (
     ModeSelectionForm,
+    ProfileUpdateForm,
     RegistrationForm,
     TallerAuthenticationForm,
-    UserAdminChangeForm,
-    UserAdminCreationForm,
+    TallerPasswordChangeForm,
+    UserBusinessChangeForm,
+    UserBusinessCreationForm,
 )
+from .mixins import AdministratorModeRequiredMixin
 from .models import User
 from .roles import (
-    ADMINISTRATOR,
     DASHBOARD_URL_NAMES,
     ROLE_PRESENTATION,
+    VENDOR,
 )
+from .services import (
+    delete_or_deactivate_user,
+    user_has_related_history,
+)
+
+
+LOGIN_NEXT_SESSION_KEY = "accounts_safe_login_next"
+
+
+def _safe_next_url(request) -> str | None:
+    """Acepta redirecciones únicamente hacia este mismo host."""
+    candidate = (
+        request.POST.get("next")
+        or request.GET.get("next")
+        or ""
+    ).strip()
+    if not candidate:
+        return None
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return None
 
 
 def _client_ip(request) -> str | None:
@@ -54,16 +80,24 @@ class AccountLoginView(LoginView):
         user = form.get_user()
         login(self.request, user)
         modes = assigned_mode_codes(user)
+        safe_next = _safe_next_url(self.request)
 
         if len(modes) == 1:
             active_mode = modes[0]
             self.request.session[ACTIVE_MODE_SESSION_KEY] = active_mode
-            destination = reverse(DASHBOARD_URL_NAMES[active_mode])
+            destination = safe_next or reverse(
+                DASHBOARD_URL_NAMES[active_mode]
+            )
         elif len(modes) > 1:
             self.request.session.pop(ACTIVE_MODE_SESSION_KEY, None)
+            if safe_next:
+                self.request.session[LOGIN_NEXT_SESSION_KEY] = safe_next
+            else:
+                self.request.session.pop(LOGIN_NEXT_SESSION_KEY, None)
             destination = reverse("accounts:choose_mode")
         else:
             self.request.session.pop(ACTIVE_MODE_SESSION_KEY, None)
+            self.request.session.pop(LOGIN_NEXT_SESSION_KEY, None)
             messages.warning(
                 self.request,
                 "La cuenta no tiene roles asignados; contacta al administrador.",
@@ -74,9 +108,37 @@ class AccountLoginView(LoginView):
         return HttpResponseRedirect(destination)
 
 
-class AccountLogoutView(LogoutView):
-    next_page = "core:home"
+class AccountLogoutView(View):
     http_method_names = ["post", "options"]
+
+    def post(self, request, *args, **kwargs):
+        logout(request)
+        messages.success(request, "Sesión cerrada correctamente.")
+        return redirect("core:home")
+
+
+class AccountPasswordChangeView(
+    LoginRequiredMixin,
+    PasswordChangeView,
+):
+    form_class = TallerPasswordChangeForm
+    template_name = "accounts/password_change_form.html"
+    success_url = reverse_lazy("accounts:password_change_done")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Tu contraseña se actualizó correctamente.",
+        )
+        return response
+
+
+class AccountPasswordChangeDoneView(
+    LoginRequiredMixin,
+    PasswordChangeDoneView,
+):
+    template_name = "accounts/password_change_done.html"
 
 
 @require_http_methods(["GET", "POST"])
@@ -101,7 +163,7 @@ def register(request):
 
 
 @require_http_methods(["GET", "POST"])
-def choose_mode(request):
+def change_mode(request):
     if not request.user.is_authenticated:
         return redirect("accounts:login")
     if not request.user.is_active or request.user.status != User.Status.ACTIVE:
@@ -121,6 +183,13 @@ def choose_mode(request):
             request,
             f"Modo {ROLE_PRESENTATION[selected]['label']} activado.",
         )
+        safe_next = request.session.pop(LOGIN_NEXT_SESSION_KEY, None)
+        if safe_next and url_has_allowed_host_and_scheme(
+            safe_next,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(safe_next)
         return redirect(DASHBOARD_URL_NAMES[selected])
 
     assigned_modes = [
@@ -138,35 +207,45 @@ def choose_mode(request):
     )
 
 
-class AdministratorModeRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Exige cuenta activa, staff, rol y modo ADMINISTRADOR vigente."""
+class ProfileDetailView(LoginRequiredMixin, DetailView):
+    """Muestra únicamente el perfil del usuario autenticado."""
 
-    raise_exception = True
+    model = User
+    template_name = "accounts/profile_detail.html"
+    context_object_name = "profile_user"
 
-    def test_func(self) -> bool:
-        user = self.request.user
-        if not user.is_authenticated:
-            return False
+    def get_object(self, queryset=None):
         return (
-            user.is_active
-            and user.status == User.Status.ACTIVE
-            and user.is_staff
-            and ADMINISTRATOR in assigned_mode_codes(user)
-            and get_valid_active_mode(self.request) == ADMINISTRATOR
-        )
-    
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
+            User.objects
+            .prefetch_related(
+                "groups",
+                "terms_acceptances__terms_version",
             )
-
-        raise PermissionDenied(
-            "Se requiere una cuenta administrativa activa y el modo "
-            "ADMINISTRADOR."
+            .get(pk=self.request.user.pk)
         )
+
+
+class ProfileUpdateView(LoginRequiredMixin, UpdateView):
+    """Permite editar solo los datos personales del usuario autenticado."""
+
+    model = User
+    form_class = ProfileUpdateForm
+    template_name = "accounts/profile_form.html"
+    context_object_name = "profile_user"
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_success_url(self):
+        return reverse("accounts:profile")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Tu información personal se actualizó correctamente.",
+        )
+        return response
 
 
 class UserListView(AdministratorModeRequiredMixin, ListView):
@@ -204,10 +283,28 @@ class UserDetailView(AdministratorModeRequiredMixin, DetailView):
     context_object_name = "managed_user"
 
     def get_queryset(self):
-        return User.objects.prefetch_related(
-            "groups",
-            "terms_acceptances__terms_version",
+        return (
+            User.objects
+            .select_related("vendor_profile")
+            .prefetch_related(
+                "groups",
+                "terms_acceptances__terms_version",
+            )
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        managed_user = context["managed_user"]
+        context["has_vendor_role"] = managed_user.groups.filter(
+            name=VENDOR
+        ).exists()
+
+        try:
+            context["vendor_profile"] = managed_user.vendor_profile
+        except ObjectDoesNotExist:
+            context["vendor_profile"] = None
+
+        return context
 
 
 class CrudBootstrapFormMixin:
@@ -216,9 +313,10 @@ class CrudBootstrapFormMixin:
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
 
-        if not self.request.user.is_superuser:
-            form.fields.pop("is_superuser", None)
-            form.fields.pop("user_permissions", None)
+        # El panel visual administra roles de negocio. Los permisos
+        # individuales y el superusuario permanecen en Django Admin.
+        form.fields.pop("is_superuser", None)
+        form.fields.pop("user_permissions", None)
 
         for field in form.fields.values():
             widget = field.widget
@@ -241,7 +339,7 @@ class CrudBootstrapFormMixin:
 
 class UserCreateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, CreateView):
     model = User
-    form_class = UserAdminCreationForm
+    form_class = UserBusinessCreationForm
     template_name = "accounts/user_form.html"
 
     def get_success_url(self):
@@ -261,7 +359,7 @@ class UserCreateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, Cre
 
 class UserUpdateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, UpdateView):
     model = User
-    form_class = UserAdminChangeForm
+    form_class = UserBusinessChangeForm
     template_name = "accounts/user_form.html"
     context_object_name = "managed_user"
 
@@ -286,39 +384,6 @@ class UserUpdateView(CrudBootstrapFormMixin, AdministratorModeRequiredMixin, Upd
         return response
 
 
-def _has_related_history(user: User) -> bool:
-    """Detecta relaciones históricas reales sin acoplarse a apps futuras."""
-    for relation in user._meta.related_objects:
-        if relation.many_to_many:
-            continue
-
-        accessor_name = relation.get_accessor_name()
-
-        if relation.one_to_one:
-            try:
-                getattr(user, accessor_name)
-            except relation.related_model.DoesNotExist:
-                continue
-            return True
-
-        related_manager = getattr(user, accessor_name, None)
-        if related_manager is not None and related_manager.exists():
-            return True
-
-    return False
-
-
-def _deactivate_user(user: User) -> None:
-    user.status = User.Status.DISABLED
-    user.is_active = False
-    user.save(
-        update_fields=(
-            "status",
-            "is_active",
-            "updated_at",
-        )
-    )
-
 
 class UserDeleteDeactivateView(
     AdministratorModeRequiredMixin,
@@ -327,7 +392,10 @@ class UserDeleteDeactivateView(
     template_name = "accounts/user_confirm_delete.html"
 
     def get_object(self) -> User:
-        return get_object_or_404(User, pk=self.kwargs["pk"])
+        return get_object_or_404(
+            User,
+            pk=self.kwargs["pk"],
+        )
 
     def get(self, request, *args, **kwargs):
         managed_user = self.get_object()
@@ -336,66 +404,47 @@ class UserDeleteDeactivateView(
             self.template_name,
             {
                 "managed_user": managed_user,
-                "has_history": _has_related_history(managed_user),
+                "has_history": user_has_related_history(managed_user),
             },
         )
 
-    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        managed_user = get_object_or_404(
-            User.objects.select_for_update(),
-            pk=self.kwargs["pk"],
-        )
+        managed_user = self.get_object()
 
-        if managed_user.pk == request.user.pk:
-            messages.error(
-                request,
-                "No puedes eliminar ni desactivar tu propia cuenta desde esta operación.",
+        try:
+            result = delete_or_deactivate_user(
+                actor=request.user,
+                target_id=managed_user.pk,
             )
+        except ValidationError as exc:
+            message = (
+                exc.messages[0]
+                if getattr(exc, "messages", None)
+                else str(exc)
+            )
+            messages.error(request, message)
             return redirect(
                 "accounts:user_detail",
                 pk=managed_user.pk,
             )
 
-        if managed_user.is_superuser:
-            messages.error(
-                request,
-                "Los superusuarios no se eliminan ni desactivan desde este CRUD.",
-            )
-            return redirect(
-                "accounts:user_detail",
-                pk=managed_user.pk,
-            )
-
-        if _has_related_history(managed_user):
-            _deactivate_user(managed_user)
+        if result.action == "deactivated":
             messages.warning(
                 request,
                 (
-                    f"El usuario {managed_user.username} conserva historia "
-                    "relacionada y fue desactivado sin eliminar sus registros."
+                    f"El usuario {result.username} conserva historia "
+                    "relacionada y fue desactivado sin eliminar sus "
+                    "registros."
                 ),
             )
         else:
-            username = managed_user.username
-            try:
-                managed_user.delete()
-            except ProtectedError:
-                _deactivate_user(managed_user)
-                messages.warning(
-                    request,
-                    (
-                        f"El usuario {username} recibió historia relacionada "
-                        "durante la operación y fue desactivado sin eliminarla."
-                    ),
-                )
-            else:
-                messages.success(
-                    request,
-                    (
-                        f"El usuario {username} fue eliminado físicamente "
-                        "porque no tenía historia."
-                    ),
-                )
+            messages.success(
+                request,
+                (
+                    f"El usuario {result.username} fue eliminado "
+                    "físicamente porque no tenía historia."
+                ),
+            )
 
         return redirect("accounts:user_list")
+

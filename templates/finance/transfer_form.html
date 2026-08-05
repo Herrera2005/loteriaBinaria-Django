@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Transferir VIRTUAL | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+    <h1 class="h2 mb-2">Transferir VIRTUAL</h1>
+    <p class="text-body-secondary mb-0">
+        Envía saldo VIRTUAL a otra cuenta Cliente activa. No se permite autoenvío ni
+        transferencia de saldo REAL.
+    </p>
+</header>
+
+{% include "finance/_wallet_summary.html" %}
+
+<section class="card shadow-sm" aria-labelledby="transfer-form-title">
+    <div class="card-body p-4">
+        <h2 id="transfer-form-title" class="h3 mb-3">
+            Datos de la transferencia
+        </h2>
+        {% include "finance/_operation_form.html" with submit_label="Confirmar transferencia" %}
+    </div>
+</section>
+{% endblock %}

@@ -72,10 +72,18 @@ class FinanceReadOnlyViewTests(TestCase):
                     reverse("finance:wallet_detail")
                 )
                 movement_response = self.client.get(
+                    reverse("finance:wallet_detail"),
+                    {"tab": "movements"},
+                )
+                legacy_response = self.client.get(
                     reverse("finance:movement_list")
                 )
                 self.assertEqual(wallet_response.status_code, 200)
                 self.assertEqual(movement_response.status_code, 200)
+                self.assertRedirects(
+                    legacy_response,
+                    f"{reverse('finance:wallet_detail')}?tab=movements",
+                )
 
             self.client.logout()
 
@@ -177,8 +185,8 @@ class FinanceReadOnlyViewTests(TestCase):
         self.activate(owner, CLIENT)
 
         response = self.client.get(
-            reverse("finance:movement_list"),
-            {"user": other.pk},
+            reverse("finance:wallet_detail"),
+            {"tab": "movements", "user": other.pk},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -204,8 +212,9 @@ class FinanceReadOnlyViewTests(TestCase):
         self.activate(user, CLIENT)
 
         response = self.client.get(
-            reverse("finance:movement_list"),
+            reverse("finance:wallet_detail"),
             {
+                "tab": "movements",
                 "currency": Wallet.Currency.VIRTUAL,
                 "type": Movement.Type.TICKET_PURCHASE,
                 "direction": Movement.Direction.DEBIT,
@@ -227,10 +236,13 @@ class FinanceReadOnlyViewTests(TestCase):
             )
         self.activate(user, CLIENT)
 
-        first_page = self.client.get(reverse("finance:movement_list"))
+        first_page = self.client.get(
+            reverse("finance:wallet_detail"),
+            {"tab": "movements"},
+        )
         second_page = self.client.get(
-            reverse("finance:movement_list"),
-            {"page": 2},
+            reverse("finance:wallet_detail"),
+            {"tab": "movements", "page": 2},
         )
 
         self.assertEqual(len(first_page.context["movement_rows"]), 15)

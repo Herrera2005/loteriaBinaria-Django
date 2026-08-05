@@ -278,7 +278,7 @@ class TicketModelTests(TestCase):
         ticket.full_clean()
         ticket.save()
 
-        self.assertEqual(ticket.normalized_key, "AB12EF")
+        self.assertEqual(ticket.normalized_key, "12ABEF")
 
     def test_ticket_rejects_repeated_symbols(self):
         event = create_event()
@@ -331,6 +331,32 @@ class TicketModelTests(TestCase):
             document="CLI-LOT-002",
             roles=(CLIENT,),
         )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Ticket.objects.create(
+                user=second_user,
+                event=event,
+                normalized_key="0123",
+                price_minor=event.price_minor,
+            )
+
+    def test_ticket_permutations_share_the_same_canonical_key(self):
+        event = create_event()
+        first_user = create_client()
+        second_user = create_user(
+            username="cliente_permutation",
+            email="cliente-permutation@example.test",
+            document="CLI-PERM-002",
+            roles=(CLIENT,),
+        )
+
+        first = Ticket.objects.create(
+            user=first_user,
+            event=event,
+            normalized_key="3210",
+            price_minor=event.price_minor,
+        )
+        self.assertEqual(first.normalized_key, "0123")
+
         with self.assertRaises(IntegrityError), transaction.atomic():
             Ticket.objects.create(
                 user=second_user,

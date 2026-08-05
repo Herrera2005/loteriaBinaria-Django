@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Operaciones REAL | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-warning mb-2">Modo CLIENTE</span>
+    <h1 class="h2 mb-2">Operaciones REAL</h1>
+    <p class="text-body-secondary mb-0">
+        Recarga o retira saldo REAL desde una sola sección.
+    </p>
+</header>
+
+{% include "finance/_wallet_summary.html" %}
+
+<section class="card shadow-sm" aria-labelledby="real-operation-title">
+    <div class="card-body p-4">
+        <h2 id="real-operation-title" class="visually-hidden">
+            Elegir operación REAL
+        </h2>
+
+        <nav class="nav nav-tabs mb-4" aria-label="Operaciones REAL">
+            <a
+                class="nav-link {% if active_tab == 'topup' %}active{% endif %}"
+                href="{% url 'finance:real_operations' %}?tab=topup"
+                {% if active_tab == 'topup' %}aria-current="page"{% endif %}
+            >
+                Recargar REAL
+            </a>
+            <a
+                class="nav-link {% if active_tab == 'withdrawal' %}active{% endif %}"
+                href="{% url 'finance:real_operations' %}?tab=withdrawal"
+                {% if active_tab == 'withdrawal' %}aria-current="page"{% endif %}
+            >
+                Retirar REAL
+            </a>
+        </nav>
+
+        {% if active_tab == "withdrawal" %}
+            <h2 class="h3 mb-2">Retiro académico</h2>
+            <p class="text-body-secondary">
+                Debita saldo REAL sin una segunda comisión. No solicita datos bancarios.
+            </p>
+            {% include "finance/_operation_form.html" with form=withdrawal_form action_value="withdrawal" submit_label="Confirmar retiro" %}
+        {% else %}
+            <h2 class="h3 mb-2">Recargar REAL</h2>
+            <p class="text-body-secondary">
+                Acredita el mismo monto en la wallet REAL, sin comisión.
+            </p>
+            {% include "finance/_operation_form.html" with form=topup_form action_value="topup" submit_label="Confirmar recarga" %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

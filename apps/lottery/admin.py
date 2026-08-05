@@ -5,25 +5,37 @@ from __future__ import annotations
 from django.contrib import admin
 
 from .forms import DrawEventForm, LotteryProductForm
-from .models import DrawEvent, DrawResult, LotteryProduct, Ticket
+from .models import (
+    DrawEvent,
+    DrawEventSeries,
+    DrawEventStatusTransition,
+    DrawResult,
+    LotteryProduct,
+    Ticket,
+)
 
 
 @admin.register(LotteryProduct)
 class LotteryProductAdmin(admin.ModelAdmin):
     form = LotteryProductForm
     list_display = (
+        "kind",
         "code",
         "name",
-        "allowed_symbols",
+        "symbol_universe",
         "selection_count",
         "is_active",
         "updated_at",
     )
-    list_filter = ("code", "is_active")
+    list_filter = ("kind", "is_active")
     search_fields = ("code", "name")
     ordering = ("id",)
     list_per_page = 25
     readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Símbolos")
+    def symbol_universe(self, obj):
+        return obj.symbol_universe_display
 
     def has_delete_permission(self, request, obj=None) -> bool:
         if obj is not None and obj.events.exists():
@@ -124,6 +136,7 @@ class TicketAdmin(HistoricalReadOnlyAdminMixin, admin.ModelAdmin):
         "ownership_status",
         "evaluation_status",
         "award_minor",
+        "award_operation_id",
         "credited_at",
         "created_at",
     )
@@ -137,10 +150,11 @@ class DrawResultAdmin(
     list_display = (
         "event",
         "winning_key",
+        "publication_source",
         "published_by",
         "published_at",
     )
-    list_filter = ("event__product", "published_at")
+    list_filter = ("publication_source", "event__product", "published_at")
     search_fields = (
         "event__name",
         "winning_key",
@@ -157,7 +171,56 @@ class DrawResultAdmin(
     readonly_fields = (
         "event",
         "winning_key",
+        "publication_source",
         "published_by",
         "reason",
         "published_at",
     )
+
+
+@admin.register(DrawEventStatusTransition)
+class DrawEventStatusTransitionAdmin(HistoricalReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "event",
+        "from_status",
+        "to_status",
+        "changed_by",
+        "created_at",
+    )
+    list_filter = ("from_status", "to_status", "created_at")
+    search_fields = ("event__name", "reason", "public_message")
+    list_select_related = ("event", "changed_by")
+    ordering = ("-created_at", "-id")
+    readonly_fields = (
+        "event",
+        "from_status",
+        "to_status",
+        "reason",
+        "public_message",
+        "changed_by",
+        "created_at",
+    )
+
+
+@admin.register(DrawEventSeries)
+class DrawEventSeriesAdmin(admin.ModelAdmin):
+    list_display = (
+        "name_prefix",
+        "product",
+        "recurrence_minutes",
+        "future_events_target",
+        "remaining_occurrences",
+        "result_mode",
+        "next_sequence",
+        "next_draw_at",
+        "last_synced_at",
+        "is_active",
+        "is_archived",
+    )
+    list_filter = ("result_mode", "is_active", "is_archived", "product")
+    search_fields = ("name_prefix", "product__name", "product__code")
+    readonly_fields = ("next_sequence", "archived_at", "last_synced_at", "created_at", "updated_at")
+    list_select_related = ("product", "created_by")
+
+    def has_delete_permission(self, request, obj=None):
+        return False

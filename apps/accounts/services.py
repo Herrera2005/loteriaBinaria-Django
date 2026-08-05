@@ -8,6 +8,7 @@ from datetime import date
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from .models import TermsAcceptance, TermsVersion, User
@@ -149,3 +150,75 @@ def register_client(
         ip_address=ip_address,
     )
     return user
+
+
+@dataclass(frozen=True)
+class UserRemovalResult:
+    """Resultado estable de la baja física o desactivación lógica."""
+
+    action: str
+    username: str
+
+
+def user_has_related_history(user: User) -> bool:
+    """Detecta relaciones históricas reales sin depender de apps concretas."""
+    for relation in user._meta.related_objects:
+        if relation.many_to_many:
+            continue
+
+        accessor_name = relation.get_accessor_name()
+
+        if relation.one_to_one:
+            try:
+                getattr(user, accessor_name)
+            except relation.related_model.DoesNotExist:
+                continue
+            return True
+
+        related_manager = getattr(user, accessor_name, None)
+        if related_manager is not None and related_manager.exists():
+            return True
+
+    return False
+
+
+def _deactivate_user(user: User) -> None:
+    user.status = User.Status.DISABLED
+    user.is_active = False
+    user.save(update_fields=("status", "is_active", "updated_at"))
+
+
+@transaction.atomic
+def delete_or_deactivate_user(
+    *,
+    actor: User,
+    target_id: int,
+) -> UserRemovalResult:
+    """Elimina solo sin historia; de lo contrario desactiva preservando historial."""
+    target = User.objects.select_for_update().get(pk=target_id)
+
+    if target.pk == actor.pk:
+        raise ValidationError(
+            "No puedes eliminar ni desactivar tu propia cuenta desde esta operación."
+        )
+
+    if target.is_superuser:
+        raise ValidationError(
+            "Los superusuarios no se eliminan ni desactivan desde este CRUD."
+        )
+
+    username = target.username
+
+    if user_has_related_history(target):
+        _deactivate_user(target)
+        return UserRemovalResult(action="deactivated", username=username)
+
+    try:
+        target.delete()
+    except ProtectedError:
+        # Una relación protegida pudo aparecer después de la comprobación inicial.
+        target = User.objects.select_for_update().get(pk=target_id)
+        _deactivate_user(target)
+        return UserRemovalResult(action="deactivated", username=username)
+
+    return UserRemovalResult(action="deleted", username=username)

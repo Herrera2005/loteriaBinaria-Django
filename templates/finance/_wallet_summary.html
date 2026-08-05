@@ -1,0 +1,57 @@
+{% load static %}
+
+<section class="mb-4" aria-labelledby="wallet-reference-title">
+    <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+        <div>
+            <h2 id="wallet-reference-title" class="h4 mb-1">
+                Saldos de referencia
+            </h2>
+            <p class="text-body-secondary mb-0">
+                Disponible es el saldo que puedes usar ahora. Reservado es saldo bloqueado
+                temporalmente por una solicitud u operación en curso.
+            </p>
+        </div>
+        <a class="btn btn-outline-primary align-self-md-start" href="{% url 'finance:wallet_detail' %}">
+            Ver billeteras y movimientos
+        </a>
+    </div>
+
+    {% if missing_currencies %}
+        <div class="alert alert-danger" role="alert">
+            Faltan wallets requeridas para operar:
+            {{ missing_currencies|join:", " }}.
+        </div>
+    {% endif %}
+
+    <div class="row g-3">
+        {% for card in wallet_cards %}
+            <div class="col-12 col-md-6">
+                <article class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <p class="text-body-secondary mb-1">
+                                    {{ card.currency_label }} disponible
+                                </p>
+                                <p class="h3 mb-1">{{ card.available_display }}</p>
+                            </div>
+                            <span class="badge text-bg-secondary">
+                                {{ card.status_label }}
+                            </span>
+                        </div>
+                        <p class="small text-body-secondary mb-0">
+                            Reservado: {{ card.reserved_display }}
+                            <span class="d-block">No puede usarse hasta completar o liberar la operación.</span>
+                        </p>
+                    </div>
+                </article>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-danger mb-0" role="alert">
+                    No hay wallets disponibles para esta cuenta.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>

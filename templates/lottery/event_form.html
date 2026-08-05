@@ -1,105 +1,119 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}
-    {% if object %}Editar evento{% else %}Crear evento{% endif %}
-    | Lotería Binaria
-{% endblock %}
+{% block title %}{% if form.instance.pk %}Editar evento{% else %}Crear sorteos{% endif %} | Lotería Binaria{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-xl-9">
-        <section
-            class="card shadow-sm"
-            aria-labelledby="event-form-title"
-        >
-            <div class="card-body p-4 p-lg-5">
-                <span class="badge text-bg-warning mb-2">
-                    Modo ADMINISTRADOR
-                </span>
+<section class="card shadow-sm mx-auto" style="max-width: 68rem;">
+    <div class="card-body p-4 p-lg-5">
+        <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
 
-                <h1 id="event-form-title" class="h2">
-                    {% if object %}
-                        Editar evento
-                    {% else %}
-                        Crear evento
-                    {% endif %}
-                </h1>
+        <h1 class="h2 mb-2">{% if form.instance.pk %}Editar evento{% else %}Crear sorteos{% endif %}</h1>
 
-                <p class="text-body-secondary">
-                    El cierre se calcula en el backend diez minutos antes
-                    del sorteo.
-                </p>
+        {% if form.instance.pk %}
+            <p class="text-body-secondary">
+                El cierre se calcula diez minutos antes del sorteo. El estado avanza mediante acciones específicas.
+            </p>
 
-                {% if object and object.status != "DRAFT" %}
-                    <div class="alert alert-info" role="note">
-                        El evento ya no está en Borrador. Producto, precio,
-                        premio y fechas permanecen bloqueados.
+            {% if form.instance.status != "DRAFT" %}
+                <div class="alert alert-info">
+                    Estado actual: <strong>{{ form.instance.get_status_display }}</strong>.
+                    Producto, precio, premio y fechas permanecen bloqueados.
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="row g-3">
+                    {% for field in form %}
+                        <div class="col-12 {% if field.name == 'name' or field.name == 'product' or field.name == 'sales_open_at' or field.name == 'draw_at' or field.name == 'price_minor' or field.name == 'prize_minor' %}col-md-6{% endif %}">
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                            {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a class="btn btn-outline-secondary" href="{% url 'lottery:event_detail' form.instance.pk %}">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Guardar cambios</button>
+                </div>
+            </form>
+        {% else %}
+            <p class="text-body-secondary mb-4">
+                Cree un evento individual o configure una serie automática editable.
+                El cierre ocurre diez minutos antes de cada sorteo.
+            </p>
+
+            <div class="card bg-body-tertiary border-0 mb-4" data-draw-creation-switch>
+                <div class="card-body">
+                    <h2 class="h5">¿Cómo desea crear los sorteos?</h2>
+                    <div class="btn-group" role="group" aria-label="Tipo de creación">
+                        <button
+                            class="btn {% if creation_mode == 'single' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                            type="button"
+                            data-creation-mode-button="single"
+                            aria-pressed="{% if creation_mode == 'single' %}true{% else %}false{% endif %}"
+                        >
+                            Evento individual
+                        </button>
+                        <button
+                            class="btn {% if creation_mode == 'series' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                            type="button"
+                            data-creation-mode-button="series"
+                            aria-pressed="{% if creation_mode == 'series' %}true{% else %}false{% endif %}"
+                        >
+                            Serie automática
+                        </button>
                     </div>
-                {% endif %}
+                </div>
+            </div>
 
-                {% if form.non_field_errors %}
-                    <div class="alert alert-danger" role="alert">
-                        {% for error in form.non_field_errors %}
-                            <p class="mb-0">{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
+            <section data-creation-panel="single" {% if creation_mode != 'single' %}hidden{% endif %}>
+                <h2 class="h4">Evento individual</h2>
+                <p class="text-body-secondary">Crea un solo sorteo con nombre, fechas y valores propios.</p>
                 <form method="post" novalidate>
                     {% csrf_token %}
-
+                    <input type="hidden" name="creation_mode" value="single">
+                    {% if event_form.non_field_errors %}<div class="alert alert-danger">{{ event_form.non_field_errors }}</div>{% endif %}
                     <div class="row g-3">
-                        {% for field in form %}
-                            <div class="{% if field.name == 'cancellation_reason' %}col-12{% else %}col-12 col-md-6{% endif %}">
-                                <label
-                                    class="form-label"
-                                    for="{{ field.id_for_label }}"
-                                >
-                                    {{ field.label }}
-                                </label>
-
+                        {% for field in event_form %}
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 {{ field }}
-
-                                {% if field.help_text %}
-                                    <div class="form-text">
-                                        {{ field.help_text }}
-                                    </div>
-                                {% endif %}
-
-                                {% for error in field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ error }}
-                                    </div>
-                                {% endfor %}
+                                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                                {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                             </div>
                         {% endfor %}
                     </div>
-
-                    <div class="d-grid d-sm-flex justify-content-sm-end gap-2 mt-4">
-                        {% if object %}
-                            <a
-                                class="btn btn-outline-secondary"
-                                href="{% url 'lottery:event_detail' object.pk %}"
-                            >
-                                Cancelar
-                            </a>
-                        {% else %}
-                            <a
-                                class="btn btn-outline-secondary"
-                                href="{% url 'lottery:event_list' %}"
-                            >
-                                Cancelar
-                            </a>
-                        {% endif %}
-
-                        <button class="btn btn-primary" type="submit">
-                            Guardar evento
-                        </button>
+                    <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+                        <a class="btn btn-outline-secondary" href="{% url 'lottery:event_list' %}">Cancelar</a>
+                        <button class="btn btn-outline-primary" type="submit" name="submit_action" value="draft">Guardar borrador</button>
+                        <button class="btn btn-primary" type="submit" name="submit_action" value="schedule">Crear y programar</button>
                     </div>
                 </form>
-            </div>
-        </section>
+            </section>
+
+            <section data-creation-panel="series" {% if creation_mode != 'series' %}hidden{% endif %}>
+                <h2 class="h4">Serie automática</h2>
+                <p class="text-body-secondary">
+                    Genera eventos numerados con los mismos parámetros. Puede ser ilimitada o tener un número de generaciones restantes.
+                </p>
+                <div class="alert alert-info" role="note">
+                    Cambiar una serie afecta únicamente eventos futuros todavía no generados. Los sorteos ya creados conservan sus datos históricos.
+                </div>
+                <form method="post" novalidate data-series-form>
+                    {% csrf_token %}
+                    <input type="hidden" name="creation_mode" value="series">
+                    {% include "lottery/_series_form_fields.html" %}
+                    <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+                        <a class="btn btn-outline-secondary" href="{% url 'lottery:event_list' %}">Cancelar</a>
+                        <button class="btn btn-primary" type="submit">Crear serie y generar eventos</button>
+                    </div>
+                </form>
+            </section>
+        {% endif %}
     </div>
-</div>
+</section>
 {% endblock %}

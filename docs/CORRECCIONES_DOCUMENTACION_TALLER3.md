@@ -1,5 +1,8 @@
 # Correcciones documentales necesarias para el Taller #3
 
+> **DOCUMENTO HISTÓRICO / DE FASE.** Plan de corrección aplicado durante fases anteriores. Para el estado vigente consulte `docs/INDICE_DOCUMENTACION.md`, `README.md` y `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+
+
 > **DOCUMENTO HISTÓRICO:** describe una fase anterior a Vendors/Lottery. Para el estado vigente P-27 consulta `AUDITORIA_P27_2026-08-01.md`, `MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md` y `GUIA_CONTINUACION_DESDE_P27.md`.
 
 

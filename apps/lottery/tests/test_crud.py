@@ -283,13 +283,14 @@ class ProductCrudTests(AdminModeTestCase):
 
 class EventCrudTests(AdminModeTestCase):
     def valid_data(self, product):
-        draw_at = timezone.now() + timedelta(days=3)
+        local_now = timezone.localtime()
+        draw_at = local_now + timedelta(days=3)
 
         return {
             "product": product.pk,
             "name": "Evento creado",
             "sales_open_at": (
-                timezone.now() + timedelta(hours=1)
+                local_now + timedelta(hours=1)
             ).strftime("%Y-%m-%dT%H:%M"),
             "draw_at": draw_at.strftime("%Y-%m-%dT%H:%M"),
             "price_minor": 100,
@@ -321,6 +322,30 @@ class EventCrudTests(AdminModeTestCase):
             event.sales_close_at,
             event.draw_at - timedelta(minutes=10),
         )
+
+    def test_create_and_schedule_with_started_opening_is_visible_to_admin(self):
+        product = create_product()
+        data = self.valid_data(product)
+        data["name"] = "Evento programado visible"
+        data["sales_open_at"] = (
+            timezone.localtime() - timedelta(minutes=5)
+        ).strftime("%Y-%m-%dT%H:%M")
+        data["submit_action"] = "schedule"
+
+        response = self.client.post(
+            reverse("lottery:event_create"),
+            data,
+        )
+
+        event = DrawEvent.objects.get(name="Evento programado visible")
+        self.assertRedirects(
+            response,
+            reverse("lottery:event_detail", args=(event.pk,)),
+        )
+        self.assertEqual(event.status, DrawEvent.Status.SALES_OPEN)
+
+        list_response = self.client.get(reverse("lottery:event_list"))
+        self.assertContains(list_response, event.name)
 
     def test_published_event_keeps_critical_fields(self):
         product = create_product()

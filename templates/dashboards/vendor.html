@@ -15,9 +15,9 @@
         <a class="btn btn-outline-primary" href="{{ choose_mode_url }}">Cambiar modo</a>
     </header>
 
-    <div class="alert alert-warning" role="note">
-        En modo VENDEDOR no se compran boletos. La compra mayorista y las
-        conversiones todavía no están habilitadas en P-28.
+    <div class="alert alert-info" role="note">
+        En modo VENDEDOR no se compran boletos. Ya puedes recargar o retirar
+        REAL, comprar inventario VIRTUAL al 0,90 y convertir VIRTUAL a REAL.
     </div>
 
     {% if not vendor_profile %}
@@ -73,9 +73,33 @@
     </section>
 
     <section class="mb-5" aria-labelledby="vendor-actions-title">
-        <h2 id="vendor-actions-title" class="h3">Consultas disponibles</h2>
+        <h2 id="vendor-actions-title" class="h3">Acciones del vendedor</h2>
         <div class="row g-3">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6 col-xl-3">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ vendor_real_operations_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Operaciones REAL</h3>
+                        <p class="text-body-secondary mb-0">Recargar o retirar capital REAL académico.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ vendor_currency_operations_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Monedas e inventario</h3>
+                        <p class="text-body-secondary mb-0">Comprar VIRTUAL o convertirlo a REAL.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <a class="card h-100 shadow-sm text-decoration-none" href="{{ vendor_requests_url }}">
+                    <div class="card-body">
+                        <h3 class="h5 text-body">Solicitudes</h3>
+                        <p class="text-body-secondary mb-0">Consultar asignaciones propias en una sección separada.</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
                 <a class="card h-100 shadow-sm text-decoration-none" href="{{ wallet_url }}">
                     <div class="card-body">
                         <h3 class="h5 text-body">Mi wallet</h3>
@@ -85,7 +109,7 @@
                     </div>
                 </a>
             </div>
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6 col-xl-3">
                 <a class="card h-100 shadow-sm text-decoration-none" href="{{ movement_url }}">
                     <div class="card-body">
                         <h3 class="h5 text-body">Mis movimientos</h3>
@@ -107,7 +131,7 @@
         </div>
 
         {% if assigned_requests %}
-            <div class="table-responsive shadow-sm rounded">
+            <div data-table-label="Actividad y movimientos del vendedor" class="table-responsive shadow-sm rounded">
                 <table class="table table-striped align-middle mb-0">
                     <thead>
                         <tr>
@@ -150,7 +174,7 @@
         </div>
 
         {% if recent_movements %}
-            <div class="table-responsive shadow-sm rounded">
+            <div data-table-label="Actividad y movimientos del vendedor" class="table-responsive shadow-sm rounded">
                 <table class="table table-striped align-middle mb-0">
                     <thead>
                         <tr>

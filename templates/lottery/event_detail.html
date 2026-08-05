@@ -1,125 +1,109 @@
 {% extends "base.html" %}
 {% load static %}
-
-{% block title %}{{ event.name }} | Evento{% endblock %}
-
+{% block title %}{{ event.name }} | Administración{% endblock %}
 {% block content %}
-<section aria-labelledby="event-detail-title">
-    <header class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
-        <div>
-            <span class="badge text-bg-secondary mb-2">
-                {{ event.get_status_display }}
-            </span>
-            <h1 id="event-detail-title" class="h2 mb-1">
-                {{ event.name }}
-            </h1>
-            <p class="text-body-secondary mb-0">
-                {{ event.product.name }}
-            </p>
-        </div>
-
-        <div class="d-grid d-sm-flex gap-2">
-            <a
-                class="btn btn-primary"
-                href="{% url 'lottery:event_update' event.pk %}"
-            >
-                Editar
-            </a>
-            {% if can_delete %}
-                <a
-                    class="btn btn-outline-danger"
-                    href="{% url 'lottery:event_delete' event.pk %}"
-                >
-                    Eliminar
-                </a>
-            {% endif %}
-        </div>
-    </header>
-
-    <div class="row g-4">
-        <div class="col-12 col-lg-7">
-            <article class="card shadow-sm h-100">
-                <div class="card-header">
-                    <h2 class="h5 mb-0">Programación y montos</h2>
-                </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-5">Apertura</dt>
-                        <dd class="col-sm-7">
-                            {{ event.sales_open_at|date:"d/m/Y H:i" }}
-                        </dd>
-
-                        <dt class="col-sm-5">Cierre</dt>
-                        <dd class="col-sm-7">
-                            {{ event.sales_close_at|date:"d/m/Y H:i" }}
-                        </dd>
-
-                        <dt class="col-sm-5">Sorteo</dt>
-                        <dd class="col-sm-7">
-                            {{ event.draw_at|date:"d/m/Y H:i" }}
-                        </dd>
-
-                        <dt class="col-sm-5">Precio minor</dt>
-                        <dd class="col-sm-7">{{ event.price_minor }}</dd>
-
-                        <dt class="col-sm-5">Premio fijo minor</dt>
-                        <dd class="col-sm-7">{{ event.prize_minor }}</dd>
-                    </dl>
-                </div>
-            </article>
-        </div>
-
-        <div class="col-12 col-lg-5">
-            <article class="card shadow-sm h-100">
-                <div class="card-header">
-                    <h2 class="h5 mb-0">Historia relacionada</h2>
-                </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-7">Boletos</dt>
-                        <dd class="col-5 text-end">{{ event.tickets_count }}</dd>
-
-                        <dt class="col-7">Resultado</dt>
-                        <dd class="col-5 text-end">
-                            {% if has_result %}
-                                <span class="badge text-bg-success">Publicado</span>
-                            {% else %}
-                                <span class="badge text-bg-secondary">Sin resultado</span>
-                            {% endif %}
-                        </dd>
-                    </dl>
-                </div>
-            </article>
-        </div>
+<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+        <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+        <h1 class="h2">{{ event.name }}</h1>
+        <p class="text-body-secondary mb-0">Estado actual: <strong>{{ event.get_status_display }}</strong></p>
     </div>
-
-    {% if event.status != "DRAFT" %}
-        <div class="alert alert-info mt-4" role="note">
-            El evento ya no está en Borrador. Producto, precio, premio y fechas
-            están protegidos contra cambios desde el CRUD normal.
-        </div>
-    {% endif %}
-
-    {% if not can_delete %}
-        <div class="alert alert-warning mt-3" role="note">
-            Este evento no cumple las condiciones de eliminación física.
-        </div>
-    {% endif %}
-
-    {% if event.cancellation_reason %}
-        <div class="alert alert-danger mt-3" role="note">
-            <strong>Motivo de cancelación:</strong>
-            {{ event.cancellation_reason }}
-        </div>
-    {% endif %}
-
-    <div class="mt-4">
-        <a
-            class="btn btn-outline-secondary"
-            href="{% url 'lottery:event_list' %}"
-        >
-            Volver a eventos
-        </a>
+    <div class="d-flex flex-wrap gap-2 align-self-lg-start">
+        {% if event.status == "DRAFT" %}<a class="btn btn-outline-primary" href="{% url 'lottery:event_update' event.pk %}">Editar</a>{% endif %}
+        <a class="btn btn-outline-secondary" href="{% url 'lottery:event_list' %}">Volver</a>
     </div>
-</section>
+</header>
+
+{% if event.status == "CANCELLED" %}
+<div class="alert alert-danger"><strong>Evento cancelado.</strong> {{ event.cancellation_reason }}</div>
+{% endif %}
+
+<div class="row g-4">
+    <section class="col-12 col-lg-7">
+        <div class="card shadow-sm mb-4"><div class="card-body">
+            <h2 class="h4">Configuración</h2>
+            <dl class="row mb-0">
+                <dt class="col-sm-5">Producto</dt><dd class="col-sm-7">{{ event.product.name }}</dd>
+                <dt class="col-sm-5">Apertura</dt><dd class="col-sm-7">{{ event.sales_open_at|date:"d/m/Y H:i" }}</dd>
+                <dt class="col-sm-5">Cierre</dt><dd class="col-sm-7">{{ event.sales_close_at|date:"d/m/Y H:i" }}</dd>
+                <dt class="col-sm-5">Sorteo</dt><dd class="col-sm-7">{{ event.draw_at|date:"d/m/Y H:i" }}</dd>
+                <dt class="col-sm-5">Precio</dt><dd class="col-sm-7">{{ price_display }}</dd>
+                <dt class="col-sm-5">Premio</dt><dd class="col-sm-7">{{ prize_display }}</dd>
+                <dt class="col-sm-5">Boletos</dt><dd class="col-sm-7">{{ event.tickets_count }}</dd>
+            </dl>
+        </div></div>
+
+        {% if result %}
+        <div class="card shadow-sm mb-4"><div class="card-body">
+            <div class="d-flex flex-column flex-sm-row justify-content-between gap-3">
+                <div>
+                    <h2 class="h4">Resultado oficial</h2>
+                    <div class="d-flex flex-wrap gap-2" aria-label="Combinación ganadora {{ result.winning_key }}">
+                        {% for token in result.key_tokens %}
+                            <span class="badge text-bg-primary fs-6 font-monospace">{{ token }}</span>
+                        {% endfor %}
+                    </div>
+                    <p class="small text-body-secondary mt-3 mb-0">
+                        Origen: <strong>{{ result.get_publication_source_display }}</strong>.
+                        {% if result.published_by %}
+                            Publicado por {{ result.published_by.username }}
+                        {% else %}
+                            Publicado automáticamente por el sistema
+                        {% endif %}
+                        el {{ result.published_at|date:"d/m/Y H:i" }}.
+                    </p>
+                </div>
+                <a class="btn btn-outline-primary align-self-sm-start" href="{% url 'lottery:public_result_detail' result.pk %}">Ver página pública</a>
+            </div>
+        </div></div>
+        {% endif %}
+
+        <div class="card shadow-sm"><div class="card-body">
+            <h2 class="h4">Historial de estados</h2>
+            {% if transition_history %}
+                <div class="list-group list-group-flush">
+                {% for transition in transition_history %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between gap-2"><strong>{{ transition.get_from_status_display }} → {{ transition.get_to_status_display }}</strong><small>{{ transition.created_at|date:"d/m/Y H:i" }}</small></div>
+                        <div>{{ transition.reason }}</div>
+                        {% if transition.public_message %}<div class="text-body-secondary">Público: {{ transition.public_message }}</div>{% endif %}
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}<p class="text-body-secondary mb-0">Todavía no existen transiciones registradas.</p>{% endif %}
+        </div></div>
+    </section>
+
+    <aside class="col-12 col-lg-5">
+        <div class="card shadow-sm"><div class="card-body">
+            <h2 class="h4">Acciones permitidas</h2>
+            <div class="d-grid gap-2">
+                {% if event.status == "DRAFT" %}
+                    <a class="btn btn-primary" href="{% url 'lottery:event_transition' event.pk 'SCHEDULED' %}">Programar evento</a>
+                {% elif event.status == "SCHEDULED" or event.status == "PUBLISHED" %}
+                    <a class="btn btn-primary" href="{% url 'lottery:event_transition' event.pk 'SALES_OPEN' %}">Abrir ventas ahora</a>
+                {% elif event.status == "SALES_OPEN" %}
+                    <a class="btn btn-primary" href="{% url 'lottery:event_transition' event.pk 'SALES_CLOSED' %}">Cerrar ventas</a>
+                {% endif %}
+
+                {% if can_publish_result %}
+                    <a class="btn btn-success" href="{% url 'lottery:result_publish' event.pk %}">Publicar resultado</a>
+                {% elif event.status == "SALES_CLOSED" and not has_result and is_automatic_result %}
+                    <div class="alert alert-info mb-0">
+                        Esta serie usa resultado automático. El comando programado lo publicará y liquidará al llegar la hora del sorteo.
+                    </div>
+                {% elif event.status == "SALES_CLOSED" and not has_result %}
+                    <div class="alert alert-info mb-0">El resultado podrá publicarse al llegar la hora del sorteo.</div>
+                {% endif %}
+
+                {% if event.status == "DRAFT" or event.status == "SCHEDULED" or event.status == "PUBLISHED" or event.status == "SALES_OPEN" or event.status == "SALES_CLOSED" %}
+                    <a class="btn btn-outline-danger" href="{% url 'lottery:event_transition' event.pk 'CANCELLED' %}">Cancelar y reembolsar</a>
+                {% endif %}
+
+                {% if can_delete %}<a class="btn btn-outline-secondary" href="{% url 'lottery:event_delete' event.pk %}">Eliminar borrador sin historial</a>{% endif %}
+            </div>
+            <p class="small text-body-secondary mt-3 mb-0">Los estados solo avanzan. No se puede retroceder a un estado anterior.</p>
+        </div></div>
+    </aside>
+</div>
 {% endblock %}

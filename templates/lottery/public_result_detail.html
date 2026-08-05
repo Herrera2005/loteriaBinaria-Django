@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resultado {{ result.event.name }} | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-success mb-2">Resultado oficial</span>
+    <h1 class="h2">{{ result.event.name }}</h1>
+    <p class="text-body-secondary mb-0">
+        {{ result.event.product.name }} · Publicado {{ result.published_at|date:"d/m/Y H:i" }}
+    </p>
+</header>
+
+<div class="row g-4">
+    <section class="col-12 col-lg-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h4">Combinación ganadora</h2>
+                <div class="d-flex flex-wrap gap-2" aria-label="Combinación ganadora {{ result.winning_key }}">
+                    {% for token in result.key_tokens %}
+                        <span class="badge text-bg-primary fs-5 font-monospace">{{ token }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info" role="note">
+            Esta página publica únicamente datos agregados del sorteo. No muestra nombres, documentos, correos, teléfonos ni saldos de participantes.
+        </div>
+    </section>
+
+    <aside class="col-12 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Resumen público</h2>
+                <dl class="row mb-0">
+                    <dt class="col-7">Estado</dt><dd class="col-5 text-end">{{ result.event.get_status_display }}</dd>
+                    <dt class="col-7">Boletos evaluados</dt><dd class="col-5 text-end">{{ ticket_count }}</dd>
+                    <dt class="col-7">Ganadores</dt><dd class="col-5 text-end">{{ winner_count }}</dd>
+                    <dt class="col-7">Devoluciones</dt><dd class="col-5 text-end">{{ refund_count }}</dd>
+                    <dt class="col-7">No ganadores</dt><dd class="col-5 text-end">{{ not_winner_count }}</dd>
+                    <dt class="col-7">Premio fijo</dt><dd class="col-5 text-end">{{ prize_display }}</dd>
+                </dl>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

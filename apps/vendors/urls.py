@@ -9,6 +9,16 @@ app_name = "vendors"
 
 urlpatterns = [
     path(
+        "requests/mine/",
+        views.client_conversionrequest_list,
+        name="client_conversionrequest_list",
+    ),
+    path(
+        "requests/mine/<int:pk>/",
+        views.client_conversionrequest_detail,
+        name="client_conversionrequest_detail",
+    ),
+    path(
         "",
         views.VendorProfileListView.as_view(),
         name="vendorprofile_list",

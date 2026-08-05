@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
-from django.shortcuts import get_object_or_404, render
+from django.db.models import Case, IntegerField, Q, Value, When
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 
 from apps.accounts.access import active_mode_required, get_valid_active_mode
 from apps.accounts.roles import ADMINISTRATOR, CLIENT, DASHBOARD_URL_NAMES, VENDOR
@@ -21,11 +23,31 @@ from apps.vendors.models import (
     ConversionRequest,
     VendorProfile,
 )
+from apps.vendors.services import (
+    assign_conversion_request,
+    complete_conversion_request,
+    eligible_conversion_requests,
+    release_conversion_assignment,
+)
 
+from .date_utils import local_date_bounds
 from .models import AuditEvent
 
 
 AUDIT_EVENTS_PER_PAGE = 20
+
+@require_GET
+def start_redirect(request):
+    """Dirige al inicio público, selector o dashboard según la sesión."""
+
+    if not request.user.is_authenticated:
+        return redirect("core:home")
+
+    active_mode = get_valid_active_mode(request)
+    if active_mode is None:
+        return redirect("accounts:choose_mode")
+
+    return redirect(DASHBOARD_URL_NAMES[active_mode])
 
 
 def _format_minor(amount_minor: int, currency: str, *, signed: bool = False) -> str:
@@ -136,37 +158,62 @@ def _movement_rows(user, *, limit: int = 5) -> list[dict[str, object]]:
 
 
 def _visible_event_rows(*, limit: int = 6) -> list[dict[str, object]]:
+    """Devuelve sorteos visibles, con abiertos primero y estado visual explícito."""
+
     now = timezone.now()
     events = (
         DrawEvent.objects
         .filter(
             product__is_active=True,
             status__in=(
+                DrawEvent.Status.SCHEDULED,
                 DrawEvent.Status.PUBLISHED,
                 DrawEvent.Status.SALES_OPEN,
             ),
             sales_close_at__gt=now,
         )
         .select_related("product")
-        .order_by("draw_at", "id")[:limit]
+        .annotate(
+            open_rank=Case(
+                When(status=DrawEvent.Status.SALES_OPEN, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("open_rank", "sales_close_at", "draw_at", "id")[:limit]
     )
 
-    return [
-        {
-            "event": event,
-            "product_label": event.product.name,
-            "status_label": event.get_status_display(),
-            "price_display": _format_minor(
-                event.price_minor,
-                Wallet.Currency.VIRTUAL,
-            ),
-            "prize_display": _format_minor(
-                event.prize_minor,
-                Wallet.Currency.VIRTUAL,
-            ),
-        }
-        for event in events
-    ]
+    rows = []
+    for event in events:
+        is_open_now = (
+            event.status == DrawEvent.Status.SALES_OPEN
+            and now < event.sales_close_at
+        )
+        is_upcoming = (
+            event.status in (
+                DrawEvent.Status.SCHEDULED,
+                DrawEvent.Status.PUBLISHED,
+            )
+            and event.sales_open_at > now
+        )
+        rows.append(
+            {
+                "event": event,
+                "product_label": event.product.name,
+                "status_label": event.get_status_display(),
+                "is_open_now": is_open_now,
+                "is_upcoming": is_upcoming,
+                "price_display": _format_minor(
+                    event.price_minor,
+                    Wallet.Currency.VIRTUAL,
+                ),
+                "prize_display": _format_minor(
+                    event.prize_minor,
+                    Wallet.Currency.VIRTUAL,
+                ),
+            }
+        )
+    return rows
 
 
 def home(request):
@@ -294,6 +341,18 @@ def vendor_dashboard(request):
                     assignment.request.get_status_display()
                 ),
                 "assignment_status_label": assignment.get_status_display(),
+                "can_complete": (
+                    assignment.status == ConversionAssignment.Status.ACTIVE
+                    and assignment.request.status
+                    == ConversionRequest.Status.IN_PROGRESS
+                    and assignment.request.expires_at > timezone.now()
+                ),
+                "can_release": (
+                    assignment.status == ConversionAssignment.Status.ACTIVE
+                    and assignment.request.status
+                    == ConversionRequest.Status.IN_PROGRESS
+                    and assignment.request.expires_at > timezone.now()
+                ),
             }
             for assignment in assignments[:5]
         ]
@@ -302,6 +361,14 @@ def vendor_dashboard(request):
         "choose_mode_url": reverse("accounts:choose_mode"),
         "wallet_url": reverse("finance:wallet_detail"),
         "movement_url": reverse("finance:movement_list"),
+        "vendor_real_operations_url": reverse(
+            "finance:vendor_real_operations"
+        ),
+        "vendor_currency_operations_url": reverse(
+            "finance:vendor_currency_operations"
+        ),
+        "vendor_inventory_url": reverse("finance:vendor_inventory"),
+        "vendor_requests_url": reverse("core:vendor_requests"),
         "vendor_profile": vendor_profile,
         "pending_request_count": pending_request_count,
         "completed_request_count": completed_request_count,
@@ -311,6 +378,153 @@ def vendor_dashboard(request):
     context.update(wallet_context)
 
     return render(request, "dashboards/vendor.html", context)
+
+
+@active_mode_required(VENDOR)
+@require_http_methods(["GET", "POST"])
+def vendor_requests(request):
+    """Cola elegible y asignaciones propias del vendedor."""
+
+    vendor_profile = (
+        VendorProfile.objects
+        .filter(user=request.user)
+        .first()
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action", "take")
+
+        try:
+            if action == "complete":
+                assignment_id = int(request.POST.get("assignment_id", ""))
+                assignment, completed_now = complete_conversion_request(
+                    vendor=request.user,
+                    assignment_id=assignment_id,
+                )
+                if completed_now:
+                    messages.success(
+                        request,
+                        (
+                            "Solicitud completada. El Cliente recibió VIRTUAL "
+                            "y el Vendedor recibió REAL."
+                        ),
+                    )
+                else:
+                    messages.info(
+                        request,
+                        f"La asignación #{assignment.pk} ya estaba completada.",
+                    )
+            elif action == "release":
+                assignment_id = int(request.POST.get("assignment_id", ""))
+                assignment, released_now = release_conversion_assignment(
+                    vendor=request.user,
+                    assignment_id=assignment_id,
+                )
+                if released_now:
+                    messages.success(
+                        request,
+                        (
+                            "Asignación liberada. El VIRTUAL volvió a tu "
+                            "saldo disponible y la solicitud quedó disponible "
+                            "para otro vendedor."
+                        ),
+                    )
+                else:
+                    messages.info(
+                        request,
+                        f"La asignación #{assignment.pk} ya estaba liberada.",
+                    )
+            elif action == "take":
+                request_id = int(request.POST.get("request_id", ""))
+                assignment = assign_conversion_request(
+                    vendor=request.user,
+                    request_id=request_id,
+                )
+                messages.success(
+                    request,
+                    (
+                        "Solicitud tomada correctamente. "
+                        f"Asignación #{assignment.pk} creada."
+                    ),
+                )
+            else:
+                raise ValidationError("La acción indicada no es válida.")
+        except (TypeError, ValueError):
+            messages.error(request, "El identificador indicado no es válido.")
+        except ValidationError as exc:
+            message = (
+                exc.messages[0]
+                if getattr(exc, "messages", None)
+                else str(exc)
+            )
+            messages.error(request, message)
+
+        if action in {"complete", "release"}:
+            return redirect(f'{reverse("core:vendor_requests")}?tab=mine')
+        return redirect("core:vendor_requests")
+
+    requested_tab = request.GET.get("tab", "available")
+    active_tab = requested_tab if requested_tab in {"available", "mine"} else "available"
+
+    available_rows = []
+    assignment_rows = []
+
+    if vendor_profile is not None and vendor_profile.status == VendorProfile.Status.ACTIVE:
+        available_rows = [
+            {
+                "request": item,
+                "client_label": f"Cliente #{item.client_id}",
+                "amount_display": _format_minor(
+                    item.amount_minor,
+                    Wallet.Currency.VIRTUAL,
+                ),
+            }
+            for item in eligible_conversion_requests(vendor=request.user)
+        ]
+
+        assignments = (
+            ConversionAssignment.objects
+            .filter(vendor=vendor_profile)
+            .select_related("request", "request__client")
+            .order_by("-assigned_at", "-id")
+        )
+        assignment_rows = [
+            {
+                "assignment": assignment,
+                "request": assignment.request,
+                "client_label": f"Cliente #{assignment.request.client_id}",
+                "amount_display": _format_minor(
+                    assignment.request.amount_minor,
+                    Wallet.Currency.VIRTUAL,
+                ),
+                "request_status_label": assignment.request.get_status_display(),
+                "assignment_status_label": assignment.get_status_display(),
+                "can_complete": (
+                    assignment.status == ConversionAssignment.Status.ACTIVE
+                    and assignment.request.status
+                    == ConversionRequest.Status.IN_PROGRESS
+                    and assignment.request.expires_at > timezone.now()
+                ),
+                "can_release": (
+                    assignment.status == ConversionAssignment.Status.ACTIVE
+                    and assignment.request.status
+                    == ConversionRequest.Status.IN_PROGRESS
+                    and assignment.request.expires_at > timezone.now()
+                ),
+            }
+            for assignment in assignments
+        ]
+
+    return render(
+        request,
+        "core/vendor_requests.html",
+        {
+            "vendor_profile": vendor_profile,
+            "available_rows": available_rows,
+            "assignment_rows": assignment_rows,
+            "active_tab": active_tab,
+        },
+    )
 
 
 @active_mode_required(ADMINISTRATOR)
@@ -468,14 +682,16 @@ def audit_list(request):
     date_from_value = request.GET.get("date_from", "").strip()
     date_from = _parse_iso_date(date_from_value)
     if date_from is not None:
-        queryset = queryset.filter(created_at__date__gte=date_from)
+        date_from_start, _ = local_date_bounds(date_from)
+        queryset = queryset.filter(created_at__gte=date_from_start)
     else:
         date_from_value = ""
 
     date_to_value = request.GET.get("date_to", "").strip()
     date_to = _parse_iso_date(date_to_value)
     if date_to is not None:
-        queryset = queryset.filter(created_at__date__lte=date_to)
+        _, date_to_end = local_date_bounds(date_to)
+        queryset = queryset.filter(created_at__lt=date_to_end)
     else:
         date_to_value = ""
 

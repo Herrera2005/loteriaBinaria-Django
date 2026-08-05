@@ -1,13 +1,15 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Acceso denegado | Lotería Binaria{% endblock %}
+{% block title %}Acceso no permitido | Lotería Binaria{% endblock %}
 {% block content %}
-    <section class="text-center py-5" aria-labelledby="error-title">
-        <span class="badge text-bg-danger mb-3">403</span>
-        <h1 id="error-title" class="h2">Acceso no permitido</h1>
-        <p class="text-body-secondary">
-            La ruta no corresponde a tu rol o al modo activo de la sesión.
-        </p>
-        <a class="btn btn-primary" href="{% url 'core:home' %}">Volver al inicio</a>
-    </section>
+<section class="error-state text-center py-5 px-3" aria-labelledby="error-title">
+    <span class="badge text-bg-danger mb-3">Error 403</span>
+    <h1 id="error-title" class="h2">Acceso no permitido</h1>
+    <p class="text-body-secondary mx-auto" style="max-width: 42rem;">La ruta no corresponde a tu rol o al modo activo de la sesión.</p>
+    <div class="action-group justify-content-center mt-4">
+        <button type="button" class="btn btn-outline-secondary" data-history-back data-fallback-url="{% url 'core:home' %}">
+            Volver a la página anterior
+        </button>
+        <a class="btn btn-primary" href="{% url 'core:start' %}">Ir al inicio seguro</a>
+    </div>
+</section>
 {% endblock %}

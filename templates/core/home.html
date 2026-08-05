@@ -59,8 +59,8 @@
                         la base de datos; el navegador no es fuente de verdad.
                     </p>
                     <div class="alert alert-warning mb-0" role="note">
-                        Las operaciones financieras son simuladas y todavía no están
-                        habilitadas desde esta página pública.
+                        Las operaciones financieras son simuladas y se realizan únicamente
+                        dentro de una sesión autenticada y autorizada.
                     </div>
                 </div>
             </div>
@@ -126,9 +126,9 @@
                             <div class="card-body">
                                 <dl class="row mb-0">
                                     <dt class="col-6">Código</dt>
-                                    <dd class="col-6 text-end">{{ product.get_code_display }}</dd>
+                                    <dd class="col-6 text-end">{{ product.code }}</dd>
                                     <dt class="col-6">Símbolos</dt>
-                                    <dd class="col-6 text-end">{{ product.allowed_symbols }}</dd>
+                                    <dd class="col-6 text-end">{{ product.symbol_universe_display }}</dd>
                                     <dt class="col-7">Longitud exacta</dt>
                                     <dd class="col-5 text-end">{{ product.selection_count }}</dd>
                                 </dl>

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ series.name_prefix }} | Series{% endblock %}
+{% block content %}
+<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+        <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+        <h1 class="h2 mb-1">{{ series.name_prefix }}</h1>
+        <p class="text-body-secondary mb-0">
+            {{ series.product.name }} · {{ series.generation_status_display }}
+        </p>
+    </div>
+    <div class="action-group">
+        {% if not series.is_archived %}
+            <a class="btn btn-outline-primary" href="{% url 'lottery:series_update' series.pk %}">Editar parámetros</a>
+            <form method="post" action="{% url 'lottery:series_generate' series.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-primary" {% if not series.is_active %}disabled{% endif %}>Sincronizar ahora</button>
+            </form>
+            <form method="post" action="{% url 'lottery:series_toggle' series.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-outline-secondary">
+                    {% if series.is_active %}Pausar{% else %}Reactivar{% endif %}
+                </button>
+            </form>
+            <a class="btn btn-outline-danger" href="{% url 'lottery:series_archive' series.pk %}">Eliminar programación</a>
+        {% endif %}
+    </div>
+</header>
+
+{% if series.is_archived %}
+<div class="alert alert-secondary" role="status">
+    La programación fue archivada y no generará nuevos eventos.
+</div>
+{% elif series.remaining_occurrences == 0 %}
+<div class="alert alert-info" role="status">
+    Serie completada. No se generarán más sorteos.
+</div>
+{% elif not series.is_active %}
+<div class="alert alert-warning" role="status">
+    La programación está pausada. Los eventos existentes no se modifican.
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+        <section class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                    <h2 class="h5 mb-0">Estado y configuración</h2>
+                    {% if series.is_archived %}<span class="badge text-bg-dark series-status-badge series-status--archived">Archivada</span>
+                    {% elif series.remaining_occurrences == 0 %}<span class="badge text-bg-info series-status-badge series-status--completed">Completada</span>
+                    {% elif series.is_active %}<span class="badge text-bg-success series-status-badge series-status--active">Activa</span>
+                    {% else %}<span class="badge text-bg-warning series-status-badge series-status--paused">Pausada</span>{% endif %}
+                </div>
+                <dl class="row mb-0 responsive-definition-list">
+                    <dt class="col-7">Estado exacto</dt><dd class="col-5 text-end">{{ series.generation_status_display }}</dd>
+                    <dt class="col-7">Última sincronización</dt>
+                    <dd class="col-5 text-end">{% if series.last_synced_at %}{{ series.last_synced_at|date:'d/m/Y H:i:s' }}{% else %}Todavía no sincronizada{% endif %}</dd>
+                    <dt class="col-7">Primer sorteo histórico</dt><dd class="col-5 text-end">{{ series.first_draw_at|date:'d/m/Y H:i' }}</dd>
+                    <dt class="col-7">Próximo evento por generar</dt><dd class="col-5 text-end">{% if series.next_draw_at %}{{ series.next_draw_at|date:'d/m/Y H:i' }}{% else %}Sin fecha pendiente{% endif %}</dd>
+                    <dt class="col-7">Frecuencia</dt><dd class="col-5 text-end">{{ series.recurrence_minutes }} min</dd>
+                    <dt class="col-7">Aparece antes</dt><dd class="col-5 text-end">{{ series.sales_lead_minutes }} min</dd>
+                    <dt class="col-7">Precio</dt><dd class="col-5 text-end">{{ price_display }}</dd>
+                    <dt class="col-7">Premio</dt><dd class="col-5 text-end">{{ prize_display }}</dd>
+                    <dt class="col-7">Futuros simultáneos</dt><dd class="col-5 text-end">{{ series.future_events_target }}</dd>
+                    <dt class="col-7">Resultado</dt><dd class="col-5 text-end">{{ series.get_result_mode_display }}</dd>
+                    <dt class="col-7">Generaciones restantes</dt>
+                    <dd class="col-5 text-end">
+                        {% if series.remaining_occurrences == None %}Sin límite{% else %}{{ series.remaining_occurrences }}{% endif %}
+                    </dd>
+                    <dt class="col-7">Próxima secuencia</dt><dd class="col-5 text-end">#{{ series.next_sequence }}</dd>
+                    <dt class="col-7">Eventos ya generados</dt><dd class="col-5 text-end">{{ generated_count }}</dd>
+                </dl>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-lg-6">
+        <section class="card shadow-sm h-100">
+            <div class="card-body">
+                <h2 class="h5">Cómo funciona</h2>
+                <p>Los nombres se generan como <strong>{{ series.name_prefix }} #N</strong>.</p>
+                <ul class="mb-0">
+                    <li>Editar no modifica sorteos ya creados.</li>
+                    <li>Pausar conserva la programación para reactivarla después.</li>
+                    <li>Eliminar programación detiene definitivamente nuevas generaciones, pero conserva el historial.</li>
+                    <li>La sincronización es idempotente: repetirla no duplica eventos ni resultados.</li>
+                    <li>En modo automático, el resultado se genera y liquida al llegar la hora del sorteo.</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+</div>
+
+<section>
+    <h2 class="h4">Eventos generados</h2>
+    <div data-table-label="Eventos generados por la serie" class="table-responsive shadow-sm rounded">
+        <table class="table table-striped align-middle mb-0">
+            <thead><tr><th>#</th><th>Evento</th><th>Apertura</th><th>Cierre</th><th>Sorteo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+                {% for event in generated_events_page.object_list %}
+                    <tr>
+                        <td>{{ event.series_sequence }}</td>
+                        <td>{{ event.name }}</td>
+                        <td>{{ event.sales_open_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ event.sales_close_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ event.draw_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ event.get_status_display }}</td>
+                        <td><a class="btn btn-sm btn-outline-primary" href="{% url 'lottery:event_detail' event.pk %}">Ver</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="text-center py-4">Todavía no hay eventos generados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if generated_events_page.has_other_pages %}
+        <nav class="mt-3" aria-label="Paginación de eventos generados">
+            <ul class="pagination justify-content-center mb-0">
+                {% if generated_events_page.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?events_page={{ generated_events_page.previous_page_number }}">Anterior</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ generated_events_page.number }} de {{ generated_events_page.paginator.num_pages }}</span></li>
+                {% if generated_events_page.has_next %}
+                    <li class="page-item"><a class="page-link" href="?events_page={{ generated_events_page.next_page_number }}">Siguiente</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Publicar resultado | {{ event.name }}{% endblock %}
+
+{% block content %}
+<header class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+        <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+        <h1 class="h2">Publicar resultado</h1>
+        <p class="text-body-secondary mb-0">
+            {{ event.name }} · {{ event.product.name }}
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary align-self-lg-start" href="{% url 'lottery:event_detail' event.pk %}">
+        Volver sin publicar
+    </a>
+</header>
+
+<div class="row g-4">
+    <section class="col-12 col-lg-7">
+        <form method="post" class="card shadow-sm" novalidate
+              data-confirm-title="Publicar resultado definitivo"
+              data-confirm-message="El resultado será inmutable, se evaluarán todos los boletos y se acreditarán los premios. Esta acción no se puede deshacer.">
+            {% csrf_token %}
+            {{ form.winning_key }}
+
+            <div class="card-body p-4">
+                <div class="alert alert-warning" role="alert">
+                    <strong>Acción definitiva.</strong>
+                    Verifique el resultado antes de continuar. Después de publicarlo no podrá editarse ni eliminarse.
+                </div>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                    </div>
+                {% endif %}
+
+                <fieldset class="mb-4" data-result-selection>
+                    <legend class="h5">Combinación ganadora</legend>
+                    <p class="text-body-secondary small">
+                        Seleccione {{ event.product.selection_count }} símbolos distintos del universo del producto.
+                        El servidor normalizará el orden antes de guardar.
+                    </p>
+                    <div class="row g-3">
+                        {% for field in form.position_fields %}
+                            <div class="col-6 col-sm-4 col-md">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+
+                <div class="mb-4">
+                    <label class="form-label" for="{{ form.reason.id_for_label }}">{{ form.reason.label }}</label>
+                    {{ form.reason }}
+                    {% if form.reason.help_text %}<div class="form-text">{{ form.reason.help_text }}</div>{% endif %}
+                    {% for error in form.reason.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-grid d-sm-flex gap-2">
+                    <button class="btn btn-primary" type="submit">Publicar, evaluar y finalizar</button>
+                    <a class="btn btn-outline-secondary" href="{% url 'lottery:event_detail' event.pk %}">Cancelar</a>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <aside class="col-12 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Resumen antes de publicar</h2>
+                <dl class="row mb-0">
+                    <dt class="col-6">Estado</dt><dd class="col-6">{{ event.get_status_display }}</dd>
+                    <dt class="col-6">Sorteo</dt><dd class="col-6">{{ event.draw_at|date:"d/m/Y H:i" }}</dd>
+                    <dt class="col-6">Boletos</dt><dd class="col-6">{{ event.tickets.count }}</dd>
+                    <dt class="col-6">Premio fijo</dt><dd class="col-6">{{ prize_display }}</dd>
+                </dl>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

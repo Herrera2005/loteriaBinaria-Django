@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if form.instance.pk %}Editar serie{% else %}Crear serie{% endif %} | Lotería Binaria{% endblock %}
+{% block content %}
+<section class="card shadow-sm mx-auto" style="max-width: 68rem;">
+    <div class="card-body p-4 p-lg-5">
+        <span class="badge text-bg-warning mb-2">Modo ADMINISTRADOR</span>
+        <h1 class="h2">{% if form.instance.pk %}Editar serie automática{% else %}Crear serie automática{% endif %}</h1>
+        <p class="text-body-secondary">
+            Puede cambiar la frecuencia, el próximo sorteo por generar y la cantidad restante.
+            Los eventos ya generados no se reescriben.
+        </p>
+        <form method="post" novalidate data-series-form>
+            {% csrf_token %}
+            {% with series_form=form %}{% include "lottery/_series_form_fields.html" %}{% endwith %}
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a class="btn btn-outline-secondary" href="{% if form.instance.pk %}{% url 'lottery:series_detail' form.instance.pk %}{% else %}{% url 'lottery:series_list' %}{% endif %}">Cancelar</a>
+                <button class="btn btn-primary" type="submit">Guardar y sincronizar</button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

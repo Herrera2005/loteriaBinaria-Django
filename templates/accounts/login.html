@@ -14,7 +14,7 @@
                         <span class="brand-logo mx-auto mb-3" aria-hidden="true">LB</span>
                         <h1 id="login-title" class="h2 mb-2">Iniciar sesión</h1>
                         <p class="text-body-secondary mb-0">
-                            Accede con tu cuenta registrada en el sistema.
+                            Accede con tu nombre de usuario o correo electrónico.
                         </p>
                     </div>
 
@@ -31,6 +31,10 @@
 
                     <form method="post" novalidate>
                         {% csrf_token %}
+
+                        {% if next %}
+                            <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
 
                         <div class="mb-3">
                             <label

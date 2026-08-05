@@ -12,7 +12,7 @@
                 Productos de lotería
             </h1>
             <p class="text-body-secondary mb-0">
-                Configuraciones oficiales Octal, Decimal y Hexadecimal.
+                Configuraciones oficiales y productos personalizados por símbolos independientes.
             </p>
         </div>
 
@@ -32,7 +32,7 @@
         </div>
     </header>
 
-    <form method="get" class="card card-body shadow-sm mb-4">
+    <form method="get" role="search" aria-label="Filtrar resultados" class="card card-body shadow-sm mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-12 col-lg">
                 <label class="form-label" for="product-search">
@@ -90,13 +90,11 @@
         <div class="row g-4">
             {% for product in products %}
                 <div class="col-12 col-md-6 col-xl-4">
-                    <article class="card h-100 shadow-sm">
+                    <article class="card h-100 shadow-sm lottery-event-card" style="--lottery-accent: {{ product.accent_color }};">
                         <div class="card-body">
                             <div class="d-flex justify-content-between gap-3">
                                 <div>
-                                    <span class="badge text-bg-primary">
-                                        {{ product.code }}
-                                    </span>
+                                    <span class="badge lottery-code-badge">{{ product.code }}</span>
                                     <h2 class="h5 mt-2 mb-1">
                                         {{ product.name }}
                                     </h2>
@@ -114,7 +112,11 @@
                             <dl class="row small mt-3 mb-0">
                                 <dt class="col-6">Símbolos</dt>
                                 <dd class="col-6 text-end">
-                                    <code>{{ product.allowed_symbols }}</code>
+                                    <span class="d-flex flex-wrap justify-content-end gap-1">
+                                        {% for token in product.symbol_tokens %}
+                                            <span class="badge lottery-symbol-badge font-monospace">{{ token }}</span>
+                                        {% endfor %}
+                                    </span>
                                 </dd>
 
                                 <dt class="col-6">Selección</dt>
@@ -185,7 +187,7 @@
         <div class="empty-state" role="status">
             <h2 class="h5">No se encontraron productos</h2>
             <p class="text-body-secondary mb-0">
-                Cambia los filtros o crea una configuración oficial.
+                Cambia los filtros o crea una configuración oficial o personalizada.
             </p>
         </div>
     {% endif %}

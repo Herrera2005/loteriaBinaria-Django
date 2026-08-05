@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from django import forms
+import uuid
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from apps.accounts.roles import VENDOR
 
-from .models import ACTIVE_USER_STATUS, VendorProfile
+from .models import (
+    ACTIVE_USER_STATUS,
+    VendorProfile,
+    validate_vendor_account,
+)
 
 
 User = get_user_model()
@@ -83,15 +89,15 @@ class VendorProfileForm(forms.ModelForm):
         )
 
         if not is_current_user:
-            if not user.groups.filter(name=VENDOR).exists():
-                raise ValidationError(
-                    "El usuario debe tener asignado el rol VENDEDOR."
-                )
-
-            if not user.is_active or user.status != ACTIVE_USER_STATUS:
-                raise ValidationError(
-                    "La cuenta del vendedor debe estar activa."
-                )
+            try:
+                validate_vendor_account(user, require_active=True)
+            except ValidationError as exc:
+                messages = [
+                    message
+                    for field_messages in exc.message_dict.values()
+                    for message in field_messages
+                ]
+                raise ValidationError(" ".join(messages)) from exc
 
         duplicate = VendorProfile.objects.filter(user=user)
         if self.instance.pk:
@@ -109,18 +115,44 @@ class VendorProfileForm(forms.ModelForm):
         status = cleaned_data.get("status")
 
         if user is not None and status == VendorProfile.Status.ACTIVE:
-            has_vendor_role = user.groups.filter(name=VENDOR).exists()
-            if (
-                not has_vendor_role
-                or not user.is_active
-                or user.status != ACTIVE_USER_STATUS
-            ):
-                self.add_error(
-                    "status",
-                    (
-                        "Solo una cuenta activa con el rol VENDEDOR puede "
-                        "operar como vendedor."
-                    ),
-                )
+            try:
+                validate_vendor_account(user, require_active=True)
+            except ValidationError as exc:
+                for field_name, messages in exc.message_dict.items():
+                    target_field = field_name if field_name in self.fields else "status"
+                    for message in messages:
+                        self.add_error(target_field, message)
 
         return cleaned_data
+
+
+class ConversionRequestCreateForm(forms.Form):
+    """Captura un monto REAL sin usar float y una clave idempotente."""
+
+    amount = forms.DecimalField(
+        label="Monto REAL a convertir",
+        min_value=Decimal("0.01"),
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0.01",
+                "inputmode": "decimal",
+            }
+        ),
+        help_text=(
+            "El monto se reservará en tu wallet REAL hasta que la "
+            "solicitud se complete, cancele o expire."
+        ),
+    )
+    operation_id = forms.UUIDField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial.setdefault("operation_id", uuid.uuid4())
+
+    def amount_minor(self) -> int:
+        return int(self.cleaned_data["amount"] * 100)

@@ -20,6 +20,29 @@ from apps.accounts.roles import VENDOR
 ACTIVE_USER_STATUS = "ACTIVE"
 
 
+def validate_vendor_account(user, *, require_active: bool = True) -> None:
+    """Valida en un único lugar el rol y estado operativo del vendedor."""
+
+    if user is None:
+        return
+
+    errors = {}
+    if not user.groups.filter(name=VENDOR).exists():
+        errors["user"] = (
+            "El usuario debe tener asignado el rol VENDEDOR antes de "
+            "crear o activar su perfil."
+        )
+    if require_active and (
+        not user.is_active or user.status != ACTIVE_USER_STATUS
+    ):
+        errors["status"] = (
+            "Solo una cuenta de usuario activa puede tener el perfil "
+            "vendedor en estado Activo."
+        )
+    if errors:
+        raise ValidationError(errors)
+
+
 class HistoricalFlowQuerySet(models.QuerySet):
     """Bloquea borrados masivos de solicitudes y asignaciones históricas."""
 
@@ -79,35 +102,12 @@ class VendorProfile(models.Model):
         if not self.user_id:
             return
 
-        has_vendor_role = self.user.groups.filter(name=VENDOR).exists()
-
         requires_valid_vendor = (
             self._state.adding
             or self.status == self.Status.ACTIVE
         )
-
-        if requires_valid_vendor and not has_vendor_role:
-            raise ValidationError(
-                {
-                    "user": (
-                        "El usuario debe tener asignado el rol VENDEDOR antes "
-                        "de crear o activar su perfil."
-                    )
-                }
-            )
-
-        if requires_valid_vendor and (
-            not self.user.is_active
-            or self.user.status != ACTIVE_USER_STATUS
-        ):
-            raise ValidationError(
-                {
-                    "status": (
-                        "Solo una cuenta de usuario activa puede tener el "
-                        "perfil vendedor en estado Activo."
-                    )
-                }
-            )
+        if requires_valid_vendor:
+            validate_vendor_account(self.user, require_active=True)
 
     def save(self, *args, **kwargs) -> None:
         if self.status == self.Status.ACTIVE and self.activated_at is None:

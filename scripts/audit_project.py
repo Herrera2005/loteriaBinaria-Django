@@ -1,696 +1,446 @@
 #!/usr/bin/env python3
-"""Auditoría estática reproducible hasta P-28A del Taller #3.
-
-No sustituye ``manage.py check`` ni la suite Django. Detecta fallos de
-estructura, alcance, templates, seguridad básica y residuos del frontend
-legado antes de ejecutar el proyecto con SQLite.
-"""
+"""Auditoría estática de cierre del Taller #3 — estado P-36E reparado."""
 
 from __future__ import annotations
 
+import argparse
 import ast
-import hashlib
 import re
 import subprocess
 import sys
-from collections import defaultdict
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
-ACTIVE_ROOTS = ("apps", "config", "templates", "static")
-TEXT_SUFFIXES = {
-    ".py",
-    ".html",
-    ".css",
-    ".js",
-    ".md",
-    ".txt",
-    ".ps1",
-    ".sh",
-}
 
 REQUIRED_FILES = (
     "manage.py",
     "config/settings.py",
     "config/urls.py",
+    ".env.example",
+    ".gitignore",
+    "requirements.txt",
+    "requirements-mysql.txt",
+    "README.md",
+    "MANIFEST_SHA256.txt",
     "apps/accounts/models.py",
     "apps/accounts/forms.py",
     "apps/accounts/services.py",
     "apps/accounts/views.py",
     "apps/accounts/urls.py",
+    "apps/core/models.py",
+    "apps/core/views.py",
+    "apps/core/date_utils.py",
+    "apps/finance/models.py",
+    "apps/finance/services.py",
+    "apps/finance/views.py",
     "apps/vendors/models.py",
     "apps/vendors/forms.py",
     "apps/vendors/services.py",
     "apps/vendors/views.py",
-    "apps/vendors/urls.py",
-    "apps/vendors/migrations/0001_initial.py",
-    "apps/vendors/tests/test_models.py",
-    "apps/vendors/tests/test_views.py",
     "apps/lottery/models.py",
     "apps/lottery/forms.py",
-    "apps/lottery/admin.py",
     "apps/lottery/services.py",
     "apps/lottery/views.py",
     "apps/lottery/urls.py",
-    "apps/lottery/migrations/0001_initial.py",
-    "apps/lottery/tests/test_models.py",
-    "apps/lottery/tests/test_forms.py",
-    "apps/lottery/tests/test_crud.py",
-    "apps/core/context_processors.py",
-    "apps/core/models.py",
-    "apps/core/admin.py",
-    "apps/core/migrations/0001_initial.py",
-    "apps/core/tests/test_models.py",
-    "apps/finance/models.py",
-    "apps/finance/admin.py",
-    "apps/finance/apps.py",
-    "apps/finance/services.py",
-    "apps/finance/signals.py",
-    "apps/finance/migrations/0001_initial.py",
-    "apps/finance/management/commands/backfill_wallets.py",
-    "apps/finance/tests/test_models.py",
+    "apps/lottery/migrations/0010_draweventseries_last_synced_at.py",
+    "apps/lottery/migrations/0011_portable_series_sequence_unique.py",
+    "apps/lottery/management/commands/process_lottery_schedules.py",
+    "apps/lottery/tests/test_event_series.py",
+    "apps/lottery/tests/test_automatic_results.py",
+    "apps/lottery/tests/test_closure_repairs.py",
     "templates/base.html",
-    "templates/includes/_messages.html",
-    "templates/includes/_confirm_modal.html",
-    "templates/core/home.html",
-    "templates/core/audit_list.html",
-    "templates/core/audit_detail.html",
-    "templates/dashboards/client.html",
-    "templates/dashboards/vendor.html",
-    "templates/dashboards/admin.html",
-    "templates/finance/wallet_detail.html",
-    "templates/finance/movement_list.html",
-    "templates/vendors/vendorprofile_list.html",
-    "templates/vendors/vendorprofile_detail.html",
-    "templates/vendors/vendorprofile_form.html",
-    "templates/vendors/vendorprofile_confirm_delete.html",
-    "templates/vendors/conversionrequest_list.html",
-    "templates/lottery/product_list.html",
-    "templates/lottery/product_detail.html",
-    "templates/lottery/product_form.html",
-    "templates/lottery/product_confirm_delete.html",
-    "templates/lottery/event_list.html",
+    "templates/lottery/series_list.html",
+    "templates/lottery/series_detail.html",
+    "templates/lottery/series_form.html",
     "templates/lottery/event_detail.html",
-    "templates/lottery/event_form.html",
-    "templates/lottery/event_confirm_delete.html",
     "static/css/app.css",
     "static/js/app.js",
-    "static/img/logo-placeholder.png",
-    "scripts/smoke_runserver.py",
+    "scripts/manifest_project.py",
+    "scripts/verify.sh",
     "scripts/verify.ps1",
-    "docs/referencias/01_Reglas_Maestras_MVP_Django_v1.1.0.md",
-    "docs/referencias/02_Plan_Tecnico_MVP_Django_v1.1.0.md",
-    "docs/referencias/03_Matriz_Trazabilidad_Pruebas_MVP_Django_v1.1.0.md",
-    "docs/referencias/04_Diseno_Interfaz_MVP_Django_v1.0.0.md",
-    "docs/referencias/05_Auditoria_Coherencia_Interfaz_MVP_Django_v1.0.0.md",
-    "docs/GUIA_APLICACION_P28_OFICIAL.md",
-    "docs/MATRIZ_PRUEBAS_P28_OFICIAL.md",
-    "docs/RESULTADO_IMPLEMENTACION_P28_OFICIAL.md",
-    "docs/referencias/Manual_Intercalado_Taller_3_Loteria_Binaria_Django_v4.0.pdf",
+    "scripts/verify_mysql.sh",
+    "scripts/verify_mysql.ps1",
+    "docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md",
+    "docs/INVENTARIO_FINAL.md",
+    "docs/RESULTADO_AUDITORIA_FINAL.md",
+    "docs/PLAN_SIGUIENTE_TRABAJO.md",
+    "docs/REPARACION_HALLAZGOS_CIERRE.md",
     "respaldo_frontend/Proyecto_HerreraNietoCristhian_legacy.zip",
 )
 
-FORBIDDEN_PATTERNS = {
-    "localStorage": re.compile(r"\blocalStorage\b"),
-    "sessionStorage": re.compile(r"\bsessionStorage\b"),
-    "fetch JSON": re.compile(r"\bfetch\s*\("),
-    "usuarios.json": re.compile(r"usuarios\.json", re.I),
-    "enlace pages/*.html": re.compile(
-        r"(?:href|action)=[\"'][^\"']*pages/[^\"']+\.html",
-        re.I,
-    ),
-    "CLIENTE_FINANCIERO": re.compile(r"CLIENTE_FINANCIERO"),
-    "credencial demo heredada": re.compile(
-        r"(?<![A-Za-z0-9])123456(?![A-Za-z0-9])"
-    ),
-    "porcentaje legado": re.compile(r"(?<!\d)(?:5|15|75)\s*%"),
+FORBIDDEN_ROOT_NAMES = {".venv", "venv", "env", "staticfiles", "__pycache__"}
+FORBIDDEN_FILE_NAMES = {".env", "db.sqlite3", "verification.sqlite3"}
+FORBIDDEN_SUFFIXES = {".pyc", ".pyo", ".bak", ".log", ".sqlite3", ".db"}
+DEAD_TEMPLATES = {
+    "templates/finance/conversion_form.html",
+    "templates/finance/movement_list.html",
+    "templates/finance/topup_form.html",
+    "templates/finance/withdrawal_form.html",
+}
+CURRENT_DOCS = (
+    "README.md",
+    "docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md",
+    "docs/INVENTARIO_FINAL.md",
+    "docs/RESULTADO_AUDITORIA_FINAL.md",
+    "docs/PLAN_SIGUIENTE_TRABAJO.md",
+    "docs/AUDITORIA_REPARACION_P36_VISUAL.md",
+)
+STALE_CURRENT_PATTERNS = (
+    "llega hasta el P-28",
+    "El siguiente bloque es P-29",
+    "compra de boletos, recargas, conversiones y compra mayorista todavía no",
+    "finance`, `vendors` y `lottery` están vacías",
+    "396 pruebas automatizadas diseñadas",
+    "219 pruebas automatizadas diseñadas",
+)
+EXPECTED_PROJECT_URLS = {
+    "accounts:login",
+    "accounts:logout",
+    "accounts:register",
+    "accounts:choose_mode",
+    "accounts:profile",
+    "core:home",
+    "core:client_dashboard",
+    "core:vendor_dashboard",
+    "core:admin_dashboard",
+    "core:audit_list",
+    "finance:wallet_detail",
+    "finance:real_operations",
+    "finance:wallet_conversion",
+    "finance:virtual_transfer",
+    "vendors:vendorprofile_list",
+    "vendors:conversionrequest_list",
+    "lottery:product_list",
+    "lottery:event_list",
+    "lottery:event_create",
+    "lottery:series_list",
+    "lottery:series_detail",
+    "lottery:series_update",
+    "lottery:series_toggle",
+    "lottery:series_archive",
+    "lottery:series_generate",
+    "lottery:client_event_list",
+    "lottery:client_ticket_list",
 }
 
-EXPECTED_URL_NAMES = {
-    "apps/vendors/urls.py": {
-        "vendorprofile_list",
-        "vendorprofile_create",
-        "vendorprofile_detail",
-        "vendorprofile_update",
-        "vendorprofile_delete",
-        "conversionrequest_list",
-    },
-    "apps/lottery/urls.py": {
-        "product_list",
-        "product_create",
-        "product_detail",
-        "product_update",
-        "product_delete",
-        "event_list",
-        "event_create",
-        "event_detail",
-        "event_update",
-        "event_delete",
-    },
-    "apps/finance/urls.py": {
-        "wallet_detail",
-        "movement_list",
-    },
-    "apps/core/urls.py": {
-        "home",
-        "client_dashboard",
-        "vendor_dashboard",
-        "admin_dashboard",
-        "audit_list",
-        "audit_detail",
-    },
-}
 
-BINARY_SUFFIXES = {
-    ".zip",
-    ".pdf",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".ico",
-    ".webp",
+SOURCE_SCAN_EXCLUDED_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    "staticfiles",
+    "Respaldos",
+}
+SOURCE_SCAN_EXCLUDED_NAMES = {
+    ".env",
+    "db.sqlite3",
+    "verification.sqlite3",
+}
+SOURCE_SCAN_EXCLUDED_SUFFIXES = {
+    ".pyc",
+    ".pyo",
+    ".bak",
+    ".log",
     ".sqlite3",
+    ".db",
 }
 
 
-def tracked_relative_paths() -> list[Path]:
-    """Usa Git cuando existe y permite auditar un ZIP limpio sin ``.git``."""
+def project_files():
+    """Recorre únicamente archivos fuente auditables.
 
-    result = subprocess.run(
-        ["git", "ls-files", "-z"],
-        cwd=ROOT,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode == 0 and result.stdout:
-        return [
-            Path(item.decode("utf-8"))
-            for item in result.stdout.split(b"\0")
-            if item
-        ]
-
-    excluded_directories = {
-        ".git",
-        ".venv",
-        "venv",
-        "env",
-        "node_modules",
-        "staticfiles",
-    }
-    relative_paths = []
+    Los residuos de entrega se revisan por separado con ``check_residue``
+    cuando se usa ``--package``. La auditoría normal no debe interpretar
+    templates, Python ni recursos pertenecientes al entorno virtual.
+    """
     for path in ROOT.rglob("*"):
         if not path.is_file():
             continue
         relative = path.relative_to(ROOT)
-        if any(part in excluded_directories for part in relative.parts):
+        if any(part in SOURCE_SCAN_EXCLUDED_DIRS for part in relative.parts):
             continue
-        relative_paths.append(relative)
-    return sorted(relative_paths, key=lambda item: item.as_posix())
+        if relative.name in SOURCE_SCAN_EXCLUDED_NAMES:
+            continue
+        if relative.suffix.lower() in SOURCE_SCAN_EXCLUDED_SUFFIXES:
+            continue
+        yield relative, path
 
 
-def tracked_files() -> list[Path]:
-    return [
-        ROOT / relative
-        for relative in tracked_relative_paths()
-        if (ROOT / relative).is_file()
-    ]
-
-
-def iter_active_files():
-    for path in tracked_files():
-        relative = path.relative_to(ROOT)
-        if (
-            relative.parts
-            and relative.parts[0] in ACTIVE_ROOTS
-            and path.suffix.lower() in TEXT_SUFFIXES
-        ):
-            yield path
-
-
-def check_required(errors: list[str]) -> None:
+def check_required(errors):
     for relative in REQUIRED_FILES:
         if not (ROOT / relative).is_file():
-            errors.append(f"Falta archivo obligatorio: {relative}")
+            errors.append(f"Falta archivo requerido: {relative}")
+    for relative in DEAD_TEMPLATES:
+        if (ROOT / relative).exists():
+            errors.append(f"Template muerto todavía presente: {relative}")
 
 
-def check_python_syntax(errors: list[str]) -> None:
-    for path in tracked_files():
-        if path.suffix.lower() != ".py":
+def check_residue(errors):
+    for relative, path in project_files():
+        if any(part in FORBIDDEN_ROOT_NAMES for part in relative.parts):
+            errors.append(f"Residuo de entrega: {relative}")
+            continue
+        if relative.name in FORBIDDEN_FILE_NAMES:
+            errors.append(f"Archivo prohibido en entrega: {relative}")
+            continue
+        if relative.suffix.lower() in FORBIDDEN_SUFFIXES:
+            errors.append(f"Residuo generado: {relative}")
+
+
+def check_python(errors):
+    for relative, path in project_files():
+        if path.suffix != ".py":
             continue
         try:
-            ast.parse(
-                path.read_text(encoding="utf-8"),
-                filename=str(path),
-            )
+            ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(relative))
         except (SyntaxError, UnicodeDecodeError) as exc:
-            errors.append(
-                f"Python inválido en {path.relative_to(ROOT)}: {exc}"
-            )
+            errors.append(f"Python inválido en {relative}: {exc}")
 
 
-def check_generated_residue(errors: list[str]) -> None:
-    for relative in tracked_relative_paths():
-        relative_text = relative.as_posix()
+def url_names_from_file(path: Path) -> set[str]:
+    text = path.read_text(encoding="utf-8-sig")
+    app_match = re.search(r'app_name\s*=\s*["\']([^"\']+)', text)
+    if not app_match:
+        return set()
+    namespace = app_match.group(1)
+    return {
+        f"{namespace}:{name}"
+        for name in re.findall(r'name\s*=\s*["\']([^"\']+)', text)
+    }
 
-        if "__pycache__" in relative.parts:
-            errors.append(
-                f"Directorio generado versionado: {relative_text}"
-            )
-        elif relative.suffix.lower() == ".pyc":
-            errors.append(
-                f"Bytecode generado versionado: {relative_text}"
-            )
 
-    for relative in (
-        ".env",
-        "db.sqlite3",
-        "verification.sqlite3",
-        "staticfiles",
+def check_urls(errors):
+    defined = set()
+    for path in ROOT.glob("apps/*/urls.py"):
+        defined.update(url_names_from_file(path))
+    missing_expected = sorted(EXPECTED_PROJECT_URLS - defined)
+    for name in missing_expected:
+        errors.append(f"URL requerida no definida: {name}")
+    if "lottery:series_create" in defined:
+        errors.append("La ruta muerta lottery:series_create sigue definida.")
+
+    reference_pattern = re.compile(
+        r"(?:url\s+|reverse(?:_lazy)?\(\s*|redirect\(\s*)[\"']([a-z_]+:[a-z0-9_]+)",
+        re.I,
+    )
+    for relative, path in project_files():
+        if path.suffix.lower() not in {".py", ".html"}:
+            continue
+        text = path.read_text(encoding="utf-8-sig", errors="ignore")
+        for name in reference_pattern.findall(text):
+            if name.startswith("admin:"):
+                continue
+            if (
+                name == "lottery:series_create"
+                and relative.as_posix()
+                in {
+                    "apps/lottery/tests/test_closure_repairs.py",
+                    "scripts/audit_project.py",
+                }
+            ):
+                continue
+            if name not in defined:
+                errors.append(f"Referencia a URL inexistente {name} en {relative}")
+
+
+def check_templates(errors):
+    for relative, path in project_files():
+        if path.suffix != ".html":
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        for form in re.findall(r"<form\b.*?</form>", text, flags=re.I | re.S):
+            method = re.search(r'method\s*=\s*["\']([^"\']+)', form, flags=re.I)
+            if method and method.group(1).lower() == "post" and "{% csrf_token %}" not in form:
+                errors.append(f"Formulario POST sin CSRF en {relative}")
+
+
+def check_get_safety(errors):
+    core_text = (ROOT / "apps/core/views.py").read_text(encoding="utf-8")
+    if "sync_lottery_event_states" in core_text:
+        errors.append("Core todavía sincroniza estados desde vistas GET.")
+
+    path = ROOT / "apps/lottery/views.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+    class Visitor(ast.NodeVisitor):
+        def __init__(self):
+            self.function_stack = []
+
+        def visit_FunctionDef(self, node):
+            self.function_stack.append(node.name)
+            self.generic_visit(node)
+            self.function_stack.pop()
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+        def visit_Call(self, node):
+            name = None
+            if isinstance(node.func, ast.Name):
+                name = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                name = node.func.attr
+            if name == "sync_lottery_event_states":
+                current = self.function_stack[-1] if self.function_stack else "<module>"
+                if current != "post":
+                    errors.append(
+                        "sync_lottery_event_states fuera de POST en "
+                        f"apps/lottery/views.py ({current})."
+                    )
+            self.generic_visit(node)
+
+    Visitor().visit(tree)
+
+
+def check_rules(errors):
+    models_text = (ROOT / "apps/lottery/models.py").read_text(encoding="utf-8")
+    services_text = (ROOT / "apps/lottery/services.py").read_text(encoding="utf-8")
+    settings_text = (ROOT / "config/settings.py").read_text(encoding="utf-8")
+    core_views = (ROOT / "apps/core/views.py").read_text(encoding="utf-8")
+    finance_views = (ROOT / "apps/finance/views.py").read_text(encoding="utf-8")
+
+    for required in (
+        "class ImmutableTransitionQuerySet",
+        "objects = ImmutableTransitionQuerySet.as_manager()",
+        "class SeriesBatchProcessingResult",
+        "last_synced_at",
+        "can_purchase_ticket_for_mode",
     ):
-        if relative in {
-            path.as_posix()
-            for path in tracked_relative_paths()
-        }:
-            errors.append(
-                f"Artefacto local versionado y no entregable: {relative}"
-            )
+        haystack = models_text + services_text + (ROOT / "apps/accounts/policies.py").read_text(encoding="utf-8")
+        if required not in haystack:
+            errors.append(f"Control de cierre no localizado: {required}")
 
+    constraint_match = re.search(
+        r'models\.UniqueConstraint\(\s*fields=\("series", "series_sequence"\).*?name="lot_event_unique_series_sequence"',
+        models_text,
+        flags=re.S,
+    )
+    if not constraint_match or "condition=" in constraint_match.group(0):
+        errors.append("La unicidad de secuencia de serie no es portable.")
 
-def check_forbidden(errors: list[str]) -> None:
-    for path in iter_active_files():
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for label, pattern in FORBIDDEN_PATTERNS.items():
-            if pattern.search(text):
-                errors.append(
-                    f"Residuo prohibido ({label}) en "
-                    f"{path.relative_to(ROOT)}"
-                )
+    if "created_at__date" in core_views or "created_at__date" in finance_views:
+        errors.append("Persisten filtros __date no portables para MySQL.")
 
-
-def check_templates(errors: list[str]) -> None:
-    template_root = ROOT / "templates"
-    hashes: dict[str, list[Path]] = defaultdict(list)
-
-    for path in template_root.rglob("*.html"):
-        relative = path.relative_to(ROOT)
-        text = path.read_text(encoding="utf-8")
-        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        hashes[digest].append(path)
-
-        if re.search(r"{%\s*\n", text):
-            errors.append(
-                f"Tag Django partido por salto de línea en {relative}"
-            )
-
-        is_partial = "includes" in path.parts
-        is_base = relative.as_posix() == "templates/base.html"
-
-        if not is_partial and not is_base:
-            h1_count = len(
-                re.findall(r"<h1\b", text, flags=re.I)
-            )
-            if h1_count != 1:
-                errors.append(
-                    f"{relative}: se esperaba 1 h1 y "
-                    f"se encontraron {h1_count}"
-                )
-            if '{% extends "base.html" %}' not in text:
-                errors.append(
-                    f"{relative}: no extiende base.html"
-                )
-            if "{% load static %}" not in text:
-                errors.append(
-                    f"{relative}: no carga static"
-                )
-
-        for match in re.finditer(
-            r"<form\b[^>]*method=[\"']post[\"'][^>]*>"
-            r"(.*?)</form>",
-            text,
-            flags=re.I | re.S,
-        ):
-            if "{% csrf_token %}" not in match.group(1):
-                errors.append(
-                    f"Formulario POST sin CSRF en {relative}"
-                )
-
-    for paths in hashes.values():
-        if len(paths) > 1:
-            joined = ", ".join(
-                str(path.relative_to(ROOT))
-                for path in paths
-            )
-            errors.append(
-                f"Templates duplicados byte a byte: {joined}"
-            )
-
-    base_path = template_root / "base.html"
-    if base_path.is_file():
-        base = base_path.read_text(encoding="utf-8")
-        for expected in (
-            "bootstrap@5.3",
-            "navbar-expand",
-            "offcanvas",
-            "{% static 'css/app.css' %}",
-            "{% static 'js/app.js' %}",
-            "includes/_messages.html",
-            "includes/_confirm_modal.html",
-            "Simulación académica",
-        ):
-            if expected not in base:
-                errors.append(
-                    f"base.html no contiene: {expected}"
-                )
-
-
-def check_runtime_configuration(errors: list[str]) -> None:
-    requirements = (
-        ROOT / "requirements.txt"
-    ).read_text(encoding="utf-8").lower()
-    mysql_requirements = (
-        ROOT / "requirements-mysql.txt"
-    ).read_text(encoding="utf-8").lower()
-    settings_text = (
-        ROOT / "config/settings.py"
-    ).read_text(encoding="utf-8").lower()
-    env_example = (
-        ROOT / ".env.example"
-    ).read_text(encoding="utf-8").lower()
-
-    for forbidden in ("psycopg", "psycopg-binary"):
-        if (
-            forbidden in requirements
-            or forbidden in mysql_requirements
-        ):
-            errors.append(
-                f"Dependencia runtime prohibida: {forbidden}"
-            )
+    for setting in (
+        "SECURE_SSL_REDIRECT",
+        "SESSION_COOKIE_SECURE",
+        "CSRF_COOKIE_SECURE",
+        "SECURE_HSTS_SECONDS",
+    ):
+        if setting not in settings_text:
+            errors.append(f"Falta configuración productiva: {setting}")
 
     if "django.db.backends.postgresql" in settings_text:
-        errors.append(
-            "Backend PostgreSQL prohibido en settings.py"
-        )
-
-    for label, text in (
-        ("requirements.txt", requirements),
-        ("requirements-mysql.txt", mysql_requirements),
-        (".env.example", env_example),
-    ):
-        if "postgresql://" in text or "postgres://" in text:
-            errors.append(
-                f"URL PostgreSQL prohibida en {label}"
-            )
-
-    if "sqlite" not in settings_text or "mysql" not in settings_text:
-        errors.append(
-            "settings.py debe admitir SQLite y MySQL explícitamente"
-        )
+        errors.append("PostgreSQL no pertenece al Taller #3.")
+    for engine in ("django.db.backends.sqlite3", "django.db.backends.mysql"):
+        if engine not in settings_text:
+            errors.append(f"Motor requerido no configurado: {engine}")
 
 
-def check_scope_and_models(errors: list[str]) -> None:
-    active_text = "\n".join(
-        path.read_text(encoding="utf-8", errors="replace")
-        for path in iter_active_files()
-    )
-
-    for forbidden in (
-        "FloatField(",
-        "ArrayField(",
-        "JSONField(",
-        "django.contrib.postgres",
-        "celery",
-        "redis",
-        "rest_framework",
-    ):
-        if forbidden.lower() in active_text.lower():
-            errors.append(
-                f"Tecnología/campo fuera de alcance en runtime: "
-                f"{forbidden}"
-            )
-
-    lottery_models = (
-        ROOT / "apps/lottery/models.py"
-    ).read_text(encoding="utf-8")
-
-    for expected in (
-        'OCTAL = "OCTAL"',
-        'DECIMAL = "DECIMAL"',
-        'HEXADECIMAL = "HEXADECIMAL"',
-        '"allowed_symbols": "01234567"',
-        '"selection_count": 4',
-        '"allowed_symbols": "0123456789"',
-        '"selection_count": 5',
-        '"allowed_symbols": "0123456789ABCDEF"',
-        '"selection_count": 6',
-        "DRAW_CLOSE_OFFSET = timedelta(minutes=10)",
-        "models.BigIntegerField",
-        "models.OneToOneField",
-        "on_delete=models.PROTECT",
-        'fields=("event", "normalized_key")',
-    ):
-        if expected not in lottery_models:
-            errors.append(
-                "Regla Lottery no localizada en models.py: "
-                f"{expected}"
-            )
-
-    forms = (
-        ROOT / "apps/lottery/forms.py"
-    ).read_text(encoding="utf-8")
-
-    if (
-        "class TicketForm" in forms
-        or "class DrawResultForm" in forms
-    ):
-        errors.append(
-            "Ticket/DrawResult no deben tener ModelForm genérico"
-        )
-
-    services = (
-        ROOT / "apps/lottery/services.py"
-    ).read_text(encoding="utf-8")
-
-    if services.count("@transaction.atomic") < 2:
-        errors.append(
-            "Las dos eliminaciones Lottery deben ser "
-            "transaccionales"
-        )
-
-    finance_views = (
-        ROOT / "apps/finance/views.py"
-    ).read_text(encoding="utf-8")
-    core_views = (
-        ROOT / "apps/core/views.py"
-    ).read_text(encoding="utf-8")
-    for forbidden_view in ("CreateView", "UpdateView", "DeleteView"):
-        if forbidden_view in finance_views:
-            errors.append(
-                "Finance read-only no debe usar "
-                f"{forbidden_view}."
-            )
-        if forbidden_view in core_views:
-            errors.append(
-                "Core AuditEvent read-only no debe usar "
-                f"{forbidden_view}."
-            )
-
-
-
-def check_p28a_models(errors: list[str]) -> None:
-    finance_models = (
-        ROOT / "apps/finance/models.py"
-    ).read_text(encoding="utf-8")
-    core_models = (
-        ROOT / "apps/core/models.py"
-    ).read_text(encoding="utf-8")
-    finance_services = (
-        ROOT / "apps/finance/services.py"
-    ).read_text(encoding="utf-8")
-
-    for expected in (
-        "class Wallet(models.Model)",
-        "class Movement(models.Model)",
-        "available_minor = models.BigIntegerField",
-        "reserved_minor = models.BigIntegerField",
-        "amount_minor = models.BigIntegerField",
-        "balance_after_minor = models.BigIntegerField",
-        "fin_wallet_user_curr_uq",
-        "on_delete=models.PROTECT",
-        "HistoricalMovementQuerySet",
-    ):
-        if expected not in finance_models:
-            errors.append(
-                f"Regla P-28A Finance no localizada: {expected}"
-            )
-
-    for expected in (
-        "@transaction.atomic",
-        "def ensure_user_wallets",
-        "Wallet.Currency.REAL",
-        "Wallet.Currency.VIRTUAL",
-        "get_or_create",
-    ):
-        if expected not in finance_services:
-            errors.append(
-                f"Servicio P-28A no localizado: {expected}"
-            )
-
-    for expected in (
-        "class AuditEvent(models.Model)",
-        "HistoricalAuditQuerySet",
-        "on_delete=models.PROTECT",
-        "resource_type",
-        "resource_id",
-        "metadata = models.TextField",
-    ):
-        if expected not in core_models:
-            errors.append(
-                f"Regla P-28A AuditEvent no localizada: {expected}"
-            )
-
-    for forbidden in (
-        "models.FloatField(",
-        "models.DecimalField(",
-        "models.JSONField(",
-    ):
-        if forbidden in finance_models or forbidden in core_models:
-            errors.append(
-                f"Campo prohibido en P-28A: {forbidden}"
-            )
-
-def check_urls(errors: list[str]) -> None:
-    config_urls = (
-        ROOT / "config/urls.py"
-    ).read_text(encoding="utf-8")
-
-    for include_path in (
-        "apps.accounts.urls",
-        "apps.core.urls",
-        "apps.vendors.urls",
-        "apps.lottery.urls",
-        "apps.finance.urls",
-    ):
-        if include_path not in config_urls:
-            errors.append(
-                f"config/urls.py no integra {include_path}"
-            )
-
-    for relative, expected_names in EXPECTED_URL_NAMES.items():
-        text = (
-            ROOT / relative
-        ).read_text(encoding="utf-8")
-
-        for name in expected_names:
-            if f'name="{name}"' not in text:
-                errors.append(
-                    f"Falta URL name={name} en {relative}"
-                )
-
-
-def check_legacy_runtime(errors: list[str]) -> None:
-    for relative in ("index.html", "pages"):
-        if (ROOT / relative).exists():
-            errors.append(
-                "Ruta legado activa en raíz; debe vivir solo "
-                f"en respaldo: {relative}"
-            )
-
-
-def check_text_controls(errors: list[str]) -> None:
-    for path in tracked_files():
-        if path.suffix.lower() in BINARY_SUFFIXES:
+def check_current_docs(errors):
+    for relative in CURRENT_DOCS:
+        path = ROOT / relative
+        if not path.exists():
+            errors.append(f"Documento vigente ausente: {relative}")
             continue
-        if path.suffix.lower() not in TEXT_SUFFIXES:
-            continue
+        text = path.read_text(encoding="utf-8-sig")
+        for stale in STALE_CURRENT_PATTERNS:
+            if stale.lower() in text.lower():
+                errors.append(f"Texto obsoleto en {relative}: {stale}")
 
-        data = path.read_bytes()
-        controls = sorted(
-            {
-                byte
-                for byte in data
-                if byte < 32 and byte not in (9, 10, 13)
-            }
-        )
-
-        if controls:
-            errors.append(
-                f"Caracteres de control en "
-                f"{path.relative_to(ROOT)}: {controls}"
-            )
+    duplicate_docs = list((ROOT / "docs").glob("* (*)*.md"))
+    for path in duplicate_docs:
+        errors.append(f"Documento duplicado sin clasificar: {path.relative_to(ROOT)}")
 
 
-def check_test_inventory(errors: list[str]) -> int:
-    test_count = 0
+def check_forbidden_runtime(errors):
+    patterns = {
+        "localStorage": re.compile(r"\blocalStorage\b"),
+        "sessionStorage": re.compile(r"\bsessionStorage\b"),
+        "CLIENTE_FINANCIERO": re.compile(r"CLIENTE_FINANCIERO"),
+        "usuarios.json": re.compile(r"usuarios\.json", re.I),
+    }
+    active_roots = (ROOT / "apps", ROOT / "config", ROOT / "templates", ROOT / "static")
+    for base in active_roots:
+        for path in base.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in {".py", ".html", ".js", ".css"}:
+                continue
+            text = path.read_text(encoding="utf-8-sig", errors="ignore")
+            for label, pattern in patterns.items():
+                if pattern.search(text):
+                    errors.append(f"Persistencia o término legado {label} en {path.relative_to(ROOT)}")
 
+
+def check_test_inventory(errors):
+    count = 0
     for path in ROOT.glob("apps/*/tests/test_*.py"):
-        tree = ast.parse(
-            path.read_text(encoding="utf-8"),
-            filename=str(path),
-        )
-        test_count += sum(
-            1
-            for node in ast.walk(tree)
-            if isinstance(
-                node,
-                (ast.FunctionDef, ast.AsyncFunctionDef),
-            )
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        count += sum(
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and node.name.startswith("test_")
+            for node in ast.walk(tree)
         )
-
-    if test_count < 200:
-        errors.append(
-            "Inventario insuficiente para el estado P-28: "
-            f"{test_count}; se esperaban al menos 200 pruebas "
-            "diseñadas"
-        )
-
-    return test_count
+    if count < 430:
+        errors.append(f"Inventario de pruebas insuficiente para cierre: {count}")
+    return count
 
 
-def main() -> int:
-    errors: list[str] = []
+def check_manifest(errors):
+    result = subprocess.run(
+        [sys.executable, "scripts/manifest_project.py"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stdout + result.stderr).strip()
+        errors.append(f"Manifiesto inválido: {detail}")
 
-    try:
-        check_required(errors)
-        check_python_syntax(errors)
-        check_generated_residue(errors)
-        check_forbidden(errors)
-        check_templates(errors)
-        check_runtime_configuration(errors)
-        check_scope_and_models(errors)
-        check_p28a_models(errors)
-        check_urls(errors)
-        check_legacy_runtime(errors)
-        check_text_controls(errors)
-        test_count = check_test_inventory(errors)
-    except RuntimeError as exc:
-        print(f"AUDITORÍA ESTÁTICA P-28: FALLÓ\n- {exc}")
-        return 1
+
+def main(package_strict: bool = False) -> int:
+    errors = []
+    check_required(errors)
+    if package_strict:
+        check_residue(errors)
+    check_python(errors)
+    check_urls(errors)
+    check_templates(errors)
+    check_get_safety(errors)
+    check_rules(errors)
+    check_current_docs(errors)
+    check_forbidden_runtime(errors)
+    test_count = check_test_inventory(errors)
+    check_manifest(errors)
 
     if errors:
-        print("AUDITORÍA ESTÁTICA P-28: FALLÓ")
+        print("AUDITORÍA ESTÁTICA DE CIERRE: FALLÓ")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print("AUDITORÍA ESTÁTICA P-28: OK")
-    print("- Estructura Accounts/Vendors/Lottery/Finance/Core presente")
-    print("- Python parseable y sin bytecode versionado")
-    print("- Templates base, H1, CSRF y duplicados verificados")
-    print("- URLs de Core, Finance, Vendors y Lottery integradas")
-    print("- Sin localStorage, JSON de negocio ni pages/*.html activos")
-    print("- SQLite/MySQL permitidos y PostgreSQL excluido")
-    print(
-        "- Reglas 4/5/6, cierre 10 min, wallets e históricos "
-        "protegidos localizados"
-    )
-    print(
-        f"- {test_count} pruebas automatizadas diseñadas"
-    )
+    print("AUDITORÍA ESTÁTICA DE CIERRE: OK")
+    if package_strict:
+        print("- Paquete sin entorno, base local, secretos ni bytecode")
+    else:
+        print("- Estructura fuente revisada; use --package para validar residuos del ZIP")
+    print("- Python, templates, URLs y CSRF revisados")
+    print("- GET sin sincronizaciones persistentes")
+    print("- Históricos e idempotencia de series protegidos")
+    print("- SQLite/MySQL documentados y constraint de series portable")
+    print("- Documentación vigente alineada con P-36E")
+    print(f"- {test_count} pruebas automatizadas inventariadas")
+    print("- Manifiesto SHA-256 verificado")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--package",
+        action="store_true",
+        help="Valida además que el árbol entregable no contenga entorno, base ni residuos.",
+    )
+    arguments = parser.parse_args()
+    sys.exit(main(package_strict=arguments.package))

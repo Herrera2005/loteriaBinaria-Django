@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from django.contrib.auth.models import Group
+from django import forms
+from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.access import ACTIVE_MODE_SESSION_KEY
 from apps.accounts.models import TermsAcceptance, User
-from apps.accounts.roles import ADMINISTRATOR, CLIENT
+from apps.accounts.roles import ADMINISTRATOR, CLIENT, ROLE_CODES, VENDOR
+
+from apps.vendors.models import VendorProfile
 
 from .factories import (
     VALID_PASSWORD,
@@ -292,3 +295,260 @@ class UserCrudTests(TestCase):
         self.assertFalse(
             User.objects.filter(username="nuevo_usuario").exists()
         )
+
+    def test_visual_form_renders_iso_date_and_role_checkboxes(self):
+        for role_code in ROLE_CODES:
+            Group.objects.get_or_create(name=role_code)
+        managed_user = create_user(
+            username="fecha_roles",
+            email="fecha-roles@example.test",
+            document="FECHA-ROLES",
+            roles=(CLIENT, VENDOR),
+        )
+
+        response = self.client.get(
+            reverse("accounts:user_update", args=(managed_user.pk,))
+        )
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertIsInstance(
+            form.fields["groups"].widget,
+            forms.CheckboxSelectMultiple,
+        )
+        self.assertEqual(
+            list(form.fields["groups"].queryset.values_list("name", flat=True)),
+            list(ROLE_CODES),
+        )
+        self.assertNotIn("user_permissions", form.fields)
+        self.assertNotIn("is_superuser", form.fields)
+        self.assertContains(
+            response,
+            f'value="{managed_user.birth_date.isoformat()}"',
+            html=False,
+        )
+
+    def test_visual_create_ignores_posted_superuser_and_direct_permissions(self):
+        permission = Permission.objects.first()
+        self.assertIsNotNone(permission)
+
+        response = self.client.post(
+            reverse("accounts:user_create"),
+            self.creation_payload(
+                username="sin_escalamiento",
+                email="sin-escalamiento@example.test",
+                document="SIN-ESCALAMIENTO",
+                is_superuser="on",
+                user_permissions=[permission.pk],
+            ),
+        )
+
+        user = User.objects.get(username="sin_escalamiento")
+        self.assertRedirects(
+            response,
+            reverse("accounts:user_detail", args=(user.pk,)),
+        )
+        self.assertFalse(user.is_superuser)
+        self.assertFalse(user.user_permissions.exists())
+
+    def test_vendor_role_without_profile_shows_profile_creation_link(self):
+        vendor_user = create_user(
+            username="vendedor_sin_perfil",
+            email="vendedor-sin-perfil@example.test",
+            document="VND-SIN-PERFIL",
+            roles=(VENDOR,),
+        )
+
+        response = self.client.get(
+            reverse("accounts:user_detail", args=(vendor_user.pk,))
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "todavía no posee un perfil vendedor",
+        )
+        self.assertContains(
+            response,
+            reverse("vendors:vendorprofile_create"),
+        )
+
+    def test_vendor_role_with_profile_links_to_profile_detail(self):
+        vendor_user = create_user(
+            username="vendedor_con_perfil",
+            email="vendedor-con-perfil@example.test",
+            document="VND-CON-PERFIL",
+            roles=(VENDOR,),
+        )
+        profile = VendorProfile.objects.create(
+            user=vendor_user,
+            status=VendorProfile.Status.ACTIVE,
+        )
+
+        response = self.client.get(
+            reverse("accounts:user_detail", args=(vendor_user.pk,))
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("vendors:vendorprofile_detail", args=(profile.pk,)),
+        )
+        self.assertNotContains(
+            response,
+            "todavía no posee un perfil vendedor",
+        )
+
+
+class ProfileViewTests(TestCase):
+    def setUp(self):
+        self.user = create_user(
+            username="perfil_cliente",
+            email="perfil.cliente@example.test",
+            document="PERFIL-CLIENTE",
+            roles=(CLIENT,),
+        )
+
+    def profile_payload(self, **overrides):
+        data = {
+            "username": self.user.username,
+            "email": self.user.email,
+            "document": self.user.document,
+            "phone": self.user.phone,
+            "birth_date": self.user.birth_date.isoformat(),
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+        }
+        data.update(overrides)
+        return data
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        profile_url = reverse("accounts:profile")
+
+        response = self.client.get(profile_url)
+
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={profile_url}",
+        )
+
+    def test_authenticated_user_only_sees_own_profile(self):
+        other = create_user(
+            username="perfil_ajeno",
+            email="ajeno@example.test",
+            document="PERFIL-AJENO",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("accounts:profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["profile_user"], self.user)
+        self.assertContains(response, self.user.email)
+        self.assertNotContains(response, other.email)
+
+    def test_profile_edit_renders_existing_birth_date_in_iso_format(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("accounts:profile_edit"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'value="{self.user.birth_date.isoformat()}"',
+            html=False,
+        )
+
+    def test_profile_update_without_birth_date_is_rejected_and_preserved(self):
+        original_birth_date = self.user.birth_date
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(
+                birth_date="",
+                first_name="No debe guardarse",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "birth_date",
+            "La fecha de nacimiento es obligatoria.",
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.birth_date, original_birth_date)
+
+    def test_profile_update_changes_only_allowed_personal_fields(self):
+        original_status = self.user.status
+        original_is_staff = self.user.is_staff
+        original_groups = list(
+            self.user.groups.values_list("pk", flat=True)
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(
+                username=" perfil_actualizado ",
+                email=" PERFIL.ACTUALIZADO@EXAMPLE.TEST ",
+                document=" perfil-actualizado ",
+                phone=" 0993333333 ",
+                first_name="Nombre",
+                last_name="Actualizado",
+                status=User.Status.DISABLED,
+                is_staff="on",
+                groups=[],
+            ),
+        )
+
+        self.assertRedirects(response, reverse("accounts:profile"))
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "perfil_actualizado")
+        self.assertEqual(
+            self.user.email,
+            "perfil.actualizado@example.test",
+        )
+        self.assertEqual(self.user.document, "PERFIL-ACTUALIZADO")
+        self.assertEqual(self.user.phone, "0993333333")
+        self.assertEqual(self.user.status, original_status)
+        self.assertEqual(self.user.is_staff, original_is_staff)
+        self.assertEqual(
+            list(self.user.groups.values_list("pk", flat=True)),
+            original_groups,
+        )
+
+    def test_profile_update_rejects_duplicate_email(self):
+        create_user(
+            username="perfil_duplicado",
+            email="duplicado@example.test",
+            document="PERFIL-DUPLICADO",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(email="DUPLICADO@EXAMPLE.TEST"),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "email",
+            "Ya existe una cuenta con este correo.",
+        )
+
+    def test_profile_post_requires_csrf(self):
+        from django.test import Client
+
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+
+        response = csrf_client.post(
+            reverse("accounts:profile_edit"),
+            self.profile_payload(first_name="Sin CSRF"),
+        )
+
+        self.assertEqual(response.status_code, 403)

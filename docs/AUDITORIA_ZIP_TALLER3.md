@@ -1,5 +1,8 @@
 # Auditoría del ZIP legado — Taller #3 Lotería Binaria con Django
 
+> **DOCUMENTO HISTÓRICO / DE FASE.** Auditoría inicial del ZIP legado; no describe el código Django actual. Para el estado vigente consulte `docs/INDICE_DOCUMENTACION.md`, `README.md` y `docs/MATRIZ_TRAZABILIDAD_FASE_ACTUAL.md`.
+
+
 ## 1. Diagnóstico breve
 
 Se revisaron dos paquetes disponibles:

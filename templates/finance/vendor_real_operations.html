@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Operaciones REAL del vendedor | Lotería Binaria{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <span class="badge text-bg-warning mb-2">Modo VENDEDOR</span>
+    <h1 class="h2 mb-2">Operaciones REAL</h1>
+    <p class="text-body-secondary mb-0">
+        Recarga capital REAL académico o solicita un retiro sin datos bancarios.
+    </p>
+</header>
+
+{% include "finance/_wallet_summary.html" %}
+
+<section class="card shadow-sm" aria-labelledby="vendor-real-options-title">
+    <div class="card-body p-4">
+        <h2 id="vendor-real-options-title" class="visually-hidden">
+            Opciones REAL del vendedor
+        </h2>
+
+        <nav class="nav nav-tabs mb-4" aria-label="Operaciones REAL">
+            <a class="nav-link {% if active_tab == 'topup' %}active{% endif %}"
+               href="{% url 'finance:vendor_real_operations' %}?tab=topup"
+               {% if active_tab == "topup" %}aria-current="page"{% endif %}>
+                Recargar REAL
+            </a>
+            <a class="nav-link {% if active_tab == 'withdrawal' %}active{% endif %}"
+               href="{% url 'finance:vendor_real_operations' %}?tab=withdrawal"
+               {% if active_tab == "withdrawal" %}aria-current="page"{% endif %}>
+                Retirar REAL
+            </a>
+        </nav>
+
+        {% if active_tab == "withdrawal" %}
+            <h2 class="h3">Retiro académico</h2>
+            <p class="text-body-secondary">
+                Debita el saldo REAL disponible sin una segunda comisión.
+            </p>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {{ withdrawal_form.operation_id }}
+                {% if withdrawal_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ withdrawal_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ withdrawal_form.amount.id_for_label }}">
+                        {{ withdrawal_form.amount.label }}
+                    </label>
+                    {{ withdrawal_form.amount }}
+                    {% for error in withdrawal_form.amount.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="action" value="withdrawal">
+                <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="{{ dashboard_url }}">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Confirmar retiro</button>
+                </div>
+            </form>
+        {% else %}
+            <h2 class="h3">Recargar REAL</h2>
+            <p class="text-body-secondary">
+                La recarga académica acredita el mismo monto en la wallet REAL.
+            </p>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {{ topup_form.operation_id }}
+                {% if topup_form.non_field_errors %}
+                    <div class="alert alert-danger">{{ topup_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ topup_form.amount.id_for_label }}">
+                        {{ topup_form.amount.label }}
+                    </label>
+                    {{ topup_form.amount }}
+                    {% for error in topup_form.amount.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="action" value="topup">
+                <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="{{ dashboard_url }}">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Confirmar recarga</button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
