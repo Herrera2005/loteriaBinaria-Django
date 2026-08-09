@@ -9,6 +9,7 @@ admin.site.site_title = "Lotería Binaria"
 admin.site.index_title = "Simulación académica"
 
 urlpatterns = [
+    path("api/", include("apps.api.urls", namespace="api")),
     path("admin/", admin.site.urls),
     path(
         "accounts/",

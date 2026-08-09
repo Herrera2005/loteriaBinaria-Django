@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cliente externo de la API pública de Lotería Binaria">
+  <title>Explorador de Lotería Binaria</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <p class="eyebrow">Cliente externo de API REST</p>
+      <h1>Lotería Binaria</h1>
+      <p>Consulta productos, sorteos y resultados publicados por Django en AlwaysData.</p>
+      <div class="api-badge">
+        <span class="api-dot" aria-hidden="true"></span>
+        <span id="api-state">Comprobando API…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" aria-label="Secciones de la API">
+      <button class="tab active" type="button" data-section="products">Productos</button>
+      <button class="tab" type="button" data-section="events">Sorteos</button>
+      <button class="tab" type="button" data-section="results">Resultados</button>
+    </nav>
+
+    <section class="summary-grid" aria-label="Resumen de datos">
+      <article class="summary-card">
+        <span class="summary-label">Productos</span>
+        <strong id="count-products">—</strong>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">Sorteos</span>
+        <strong id="count-events">—</strong>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">Resultados</span>
+        <strong id="count-results">—</strong>
+      </article>
+    </section>
+
+    <section class="controls" aria-labelledby="filters-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Explorar datos</p>
+          <h2 id="filters-title">Buscar y filtrar</h2>
+        </div>
+        <button id="reload" type="button">Recargar API</button>
+      </div>
+
+      <div class="control-grid">
+        <label>
+          Buscar
+          <input id="search" type="search" placeholder="Ej.: Decimal, Sorteo..." autocomplete="off">
+        </label>
+
+        <label id="product-kind-control">
+          Tipo de producto
+          <select id="kind-filter">
+            <option value="">Todos</option>
+            <option value="OFFICIAL">Oficial</option>
+            <option value="CUSTOM">Personalizado</option>
+          </select>
+        </label>
+
+        <label id="event-status-control" hidden>
+          Estado del sorteo
+          <select id="status-filter">
+            <option value="">Todos</option>
+          </select>
+        </label>
+
+        <label id="product-filter-control" hidden>
+          Producto
+          <select id="product-filter">
+            <option value="">Todos</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite">Cargando información…</p>
+
+    <section id="products-section" class="data-section" aria-labelledby="products-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Catálogo</p>
+          <h2 id="products-title">Productos disponibles</h2>
+        </div>
+      </div>
+      <div id="products" class="card-list"></div>
+    </section>
+
+    <section id="events-section" class="data-section" aria-labelledby="events-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Programación</p>
+          <h2 id="events-title">Sorteos publicados</h2>
+        </div>
+      </div>
+      <div id="events" class="card-list"></div>
+    </section>
+
+    <section id="results-section" class="data-section" aria-labelledby="results-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Historial público</p>
+          <h2 id="results-title">Resultados</h2>
+        </div>
+      </div>
+      <div id="results" class="card-list"></div>
+    </section>
+
+    <section id="detail-panel" class="detail-panel" aria-labelledby="detail-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Consulta individual</p>
+          <h2 id="detail-title">Detalle</h2>
+        </div>
+        <button id="close-detail" type="button" class="secondary">Cerrar</button>
+      </div>
+      <div id="detail-content"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      InfinityFree → Fetch API → Django/AlwaysData → MariaDB
+    </div>
+  </footer>
+
+  <script src="js/app.js" defer></script>
+</body>
+</html>

@@ -25,9 +25,9 @@ function Invoke-CheckedPython {
 
 Write-Host "=== Taller #3: verificación integral SQLite limpia ===" -ForegroundColor Cyan
 Write-Host "Python:" -ForegroundColor DarkCyan
-Invoke-CheckedPython @("--version")
-Invoke-CheckedPython @("-m", "pip", "check")
-Invoke-CheckedPython @("-c", "import django, environ; print('Django', django.get_version()); print('django-environ', environ.__version__)")
+Invoke-CheckedPython "--version"
+Invoke-CheckedPython "-m" "pip" "check"
+Invoke-CheckedPython "-c" "import django, environ; print('Django', django.get_version()); print('django-environ', environ.__version__)"
 
 try {
     if (Test-Path $VerificationDatabase) { Remove-Item $VerificationDatabase -Force }
