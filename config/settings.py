@@ -209,4 +209,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    "DATETIME_FORMAT": "iso-8601",
+    "DATE_FORMAT": "iso-8601",
+    "EXCEPTION_HANDLER": "apps.api.v1.exceptions.api_exception_handler",
 }

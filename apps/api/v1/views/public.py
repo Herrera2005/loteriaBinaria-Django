@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from rest_framework import generics
+from rest_framework import filters, generics
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 
 from apps.lottery.models import DrawEvent, DrawResult, LotteryProduct
 
+from ..pagination import PublicApiPagination
 from ..serializers.public import (
     EventSerializer,
     ProductSerializer,
@@ -26,9 +26,9 @@ PUBLIC_EVENT_STATUSES = (
 
 def public_events_queryset():
     """
-    Eventos que pueden aparecer en superficies públicas.
+    QuerySet base de eventos visibles públicamente.
 
-    DRAFT queda deliberadamente excluido.
+    Los eventos DRAFT nunca forman parte de la API pública.
     """
     return (
         DrawEvent.objects
@@ -41,44 +41,30 @@ def public_events_queryset():
     )
 
 
-class PublicListAPIView(generics.ListAPIView):
-    """
-    Respuesta temporal de colección compatible con la API pública existente.
-
-    B4 sustituirá esto por paginación DRF real:
-    count / next / previous / results.
-    """
-
-    pagination_class = None
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(
-            self.get_queryset()
-        )
-
-        serializer = self.get_serializer(
-            queryset,
-            many=True,
-        )
-
-        return Response(
-            {
-                "count": queryset.count(),
-                "results": serializer.data,
-            }
-        )
-
-
-class PublicProductListView(PublicListAPIView):
+class PublicProductListView(generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
+    pagination_class = PublicApiPagination
+
+    filter_backends = [
+        filters.OrderingFilter,
+    ]
+
+    ordering_fields = (
+        "id",
+        "name",
+        "code",
+    )
+
+    ordering = (
+        "id",
+    )
 
     def get_queryset(self):
         queryset = (
             LotteryProduct.objects
             .filter(is_active=True)
-            .order_by("id")
         )
 
         query = self.request.query_params.get(
@@ -102,7 +88,9 @@ class PublicProductListView(PublicListAPIView):
         }
 
         if kind in valid_kinds:
-            queryset = queryset.filter(kind=kind)
+            queryset = queryset.filter(
+                kind=kind,
+            )
 
         return queryset
 
@@ -118,10 +106,30 @@ class PublicProductDetailView(generics.RetrieveAPIView):
         )
 
 
-class PublicEventListView(PublicListAPIView):
+class PublicEventListView(generics.ListAPIView):
     serializer_class = EventSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
+    pagination_class = PublicApiPagination
+
+    filter_backends = [
+        filters.OrderingFilter,
+    ]
+
+    ordering_fields = (
+        "id",
+        "name",
+        "draw_at",
+        "sales_open_at",
+        "sales_close_at",
+        "price_minor",
+        "prize_minor",
+    )
+
+    ordering = (
+        "-draw_at",
+        "-id",
+    )
 
     def get_queryset(self):
         queryset = public_events_queryset()
@@ -173,10 +181,26 @@ class PublicEventDetailView(generics.RetrieveAPIView):
         return public_events_queryset()
 
 
-class PublicResultListView(PublicListAPIView):
+class PublicResultListView(generics.ListAPIView):
     serializer_class = ResultSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
+    pagination_class = PublicApiPagination
+
+    filter_backends = [
+        filters.OrderingFilter,
+    ]
+
+    ordering_fields = (
+        "id",
+        "published_at",
+        "event__draw_at",
+    )
+
+    ordering = (
+        "-published_at",
+        "-id",
+    )
 
     def get_queryset(self):
         queryset = (
@@ -184,10 +208,6 @@ class PublicResultListView(PublicListAPIView):
             .select_related(
                 "event",
                 "event__product",
-            )
-            .order_by(
-                "-published_at",
-                "-id",
             )
         )
 
