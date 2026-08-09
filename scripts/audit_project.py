@@ -213,8 +213,41 @@ def url_names_from_file(path: Path) -> set[str]:
 
 def check_urls(errors):
     defined = set()
-    for path in ROOT.glob("apps/*/urls.py"):
-        defined.update(url_names_from_file(path))
+
+    for app_urls in ROOT.glob("apps/*/urls.py"):
+        app_text = app_urls.read_text(
+            encoding="utf-8-sig",
+            errors="ignore",
+        )
+
+        app_match = re.search(
+            r'app_name\s*=\s*["\']([^"\']+)["\']',
+            app_text,
+        )
+
+        if not app_match:
+            continue
+
+        namespace = app_match.group(1)
+
+        # URLs declaradas directamente por la aplicación.
+        defined.update(url_names_from_file(app_urls))
+
+        # URLs declaradas en submódulos como apps/api/v1/urls.py.
+        for nested_urls in app_urls.parent.rglob("urls.py"):
+            if nested_urls == app_urls:
+                continue
+
+            nested_text = nested_urls.read_text(
+                encoding="utf-8-sig",
+                errors="ignore",
+            )
+
+            for name in re.findall(
+                r'name\s*=\s*["\']([^"\']+)["\']',
+                nested_text,
+            ):
+                defined.add(f"{namespace}:{name}")
     missing_expected = sorted(EXPECTED_PROJECT_URLS - defined)
     for name in missing_expected:
         errors.append(f"URL requerida no definida: {name}")
@@ -222,7 +255,7 @@ def check_urls(errors):
         errors.append("La ruta muerta lottery:series_create sigue definida.")
 
     reference_pattern = re.compile(
-        r"(?:url\s+|reverse(?:_lazy)?\(\s*|redirect\(\s*)[\"']([a-z_]+:[a-z0-9_]+)",
+        r"(?:url\s+|reverse(?:_lazy)?\(\s*|redirect\(\s*)[\"']([a-z_][a-z0-9_]*:[a-z0-9_-]+)",
         re.I,
     )
     for relative, path in project_files():

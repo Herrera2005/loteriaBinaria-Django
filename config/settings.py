@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.finance.apps.FinanceConfig",
     "apps.vendors.apps.VendorsConfig",
     "apps.lottery.apps.LotteryConfig",
+    "rest_framework",
 ]
 
 MIDDLEWARE = [
@@ -197,3 +198,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
 DEMO_PASSWORD = env("DJANGO_DEMO_PASSWORD")
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+}

@@ -1,10 +1,12 @@
-from django.urls import path
+from django.urls import path,include
 
 from . import views
 
 app_name = "api"
 
 urlpatterns = [
+    path("v1/", include("apps.api.v1.urls")),
+
     path("", views.api_root, name="root"),
     path("products/", views.product_list, name="product_list"),
     path("products/<int:pk>/", views.product_detail, name="product_detail"),
