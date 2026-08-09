@@ -16,11 +16,17 @@ env = environ.Env(
     DJANGO_DEBUG=(bool, True),
     DJANGO_ALLOWED_HOSTS=(list, ["127.0.0.1", "localhost"]),
     DJANGO_DEMO_PASSWORD=(str, ""),
+    DJANGO_CSRF_TRUSTED_ORIGINS=(list, []),
+    PUBLIC_API_CORS_ALLOWED_ORIGINS=(list, []),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
 DEBUG = env.bool("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS")
+PUBLIC_API_CORS_ALLOWED_ORIGINS = tuple(
+    env.list("PUBLIC_API_CORS_ALLOWED_ORIGINS")
+)
 
 _development_key = "django-insecure-development-only-change-me"
 SECRET_KEY = env("DJANGO_SECRET_KEY", default=_development_key)
@@ -36,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "apps.api.apps.ApiConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.core.apps.CoreConfig",
     "apps.finance.apps.FinanceConfig",
@@ -45,6 +52,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "apps.api.middleware.PublicApiCorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -154,6 +163,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 X_FRAME_OPTIONS = "DENY"
 
 # En desarrollo permanecen desactivadas. Con DEBUG=False se habilitan de forma
