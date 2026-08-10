@@ -208,12 +208,15 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     "DATETIME_FORMAT": "iso-8601",
     "DATE_FORMAT": "iso-8601",
     "EXCEPTION_HANDLER": "apps.api.v1.exceptions.api_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "login": "20/minute",
+        "ticket_purchase": "120/minute",
+        "vendor_conversion_action": "60/minute",
+        "vendor_inventory_purchase": "30/minute",
     },
 }

@@ -378,3 +378,59 @@ class ApiV1VendorReadTests(TestCase):
             response.status_code,
             403,
         )
+
+    def test_invalid_vendor_movement_filter_returns_bad_request(self):
+        response = self.client.get(
+            reverse(
+                "api:v1-vendor-movement-list"
+            ),
+            {
+                "currency": "NO_EXISTE",
+            },
+            **self._headers(),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        payload = response.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "currency",
+            payload["error"]["fields"],
+        )
+
+    def test_invalid_vendor_ordering_returns_bad_request(self):
+        response = self.client.get(
+            reverse(
+                "api:v1-vendor-movement-list"
+            ),
+            {
+                "ordering": "password",
+            },
+            **self._headers(),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        payload = response.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "ordering",
+            payload["error"]["fields"],
+        )

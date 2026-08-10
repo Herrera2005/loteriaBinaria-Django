@@ -3,22 +3,14 @@ from __future__ import annotations
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.lottery.models import DrawEvent, DrawResult, LotteryProduct
+from apps.finance.models import Wallet
+from apps.lottery.models import (
+    DrawEvent,
+    DrawResult,
+    LotteryProduct,
+)
 
-
-def _money_data(amount_minor: int) -> dict[str, object]:
-    """
-    Representación pública de un monto almacenado en unidades menores.
-
-    La API expone siempre el entero original y una representación visual.
-    La lógica financiera nunca debe depender del texto formateado.
-    """
-    amount_minor = int(amount_minor)
-
-    return {
-        "minor": amount_minor,
-        "display": f"V {amount_minor / 100:,.2f}",
-    }
+from ..money import money_data
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -33,6 +25,7 @@ class ProductSerializer(serializers.ModelSerializer):
         source="get_kind_display",
         read_only=True,
     )
+
     symbols = serializers.SerializerMethodField()
 
     class Meta:
@@ -50,8 +43,13 @@ class ProductSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_symbols(self, obj: LotteryProduct) -> list[str]:
-        return list(obj.symbol_tokens)
+    def get_symbols(
+        self,
+        obj: LotteryProduct,
+    ) -> list[str]:
+        return list(
+            obj.symbol_tokens
+        )
 
 
 class EventSerializer(serializers.ModelSerializer):
@@ -62,11 +60,15 @@ class EventSerializer(serializers.ModelSerializer):
     utilizado por la API existente.
     """
 
-    product = ProductSerializer(read_only=True)
+    product = ProductSerializer(
+        read_only=True,
+    )
+
     status_label = serializers.CharField(
         source="get_status_display",
         read_only=True,
     )
+
     price = serializers.SerializerMethodField()
     prize = serializers.SerializerMethodField()
     is_open_now = serializers.SerializerMethodField()
@@ -88,16 +90,33 @@ class EventSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_price(self, obj: DrawEvent) -> dict[str, object]:
-        return _money_data(obj.price_minor)
+    def get_price(
+        self,
+        obj: DrawEvent,
+    ) -> dict[str, object]:
+        return money_data(
+            obj.price_minor,
+            currency=Wallet.Currency.VIRTUAL,
+        )
 
-    def get_prize(self, obj: DrawEvent) -> dict[str, object]:
-        return _money_data(obj.prize_minor)
+    def get_prize(
+        self,
+        obj: DrawEvent,
+    ) -> dict[str, object]:
+        return money_data(
+            obj.prize_minor,
+            currency=Wallet.Currency.VIRTUAL,
+        )
 
-    def get_is_open_now(self, obj: DrawEvent) -> bool:
+    def get_is_open_now(
+        self,
+        obj: DrawEvent,
+    ) -> bool:
         return (
-            obj.status == DrawEvent.Status.SALES_OPEN
-            and timezone.now() < obj.sales_close_at
+            obj.status
+            == DrawEvent.Status.SALES_OPEN
+            and timezone.now()
+            < obj.sales_close_at
         )
 
 
@@ -109,7 +128,9 @@ class ResultEventSerializer(serializers.ModelSerializer):
     precio, premio, estado y horarios de venta completos.
     """
 
-    product = ProductSerializer(read_only=True)
+    product = ProductSerializer(
+        read_only=True,
+    )
 
     class Meta:
         model = DrawEvent
@@ -129,8 +150,12 @@ class ResultSerializer(serializers.ModelSerializer):
     No expone usuario administrador, motivo interno ni información privada.
     """
 
-    event = ResultEventSerializer(read_only=True)
+    event = ResultEventSerializer(
+        read_only=True,
+    )
+
     winning_symbols = serializers.SerializerMethodField()
+
     publication_source_label = serializers.CharField(
         source="get_publication_source_display",
         read_only=True,
@@ -149,5 +174,10 @@ class ResultSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_winning_symbols(self, obj: DrawResult) -> list[str]:
-        return list(obj.key_tokens)
+    def get_winning_symbols(
+        self,
+        obj: DrawResult,
+    ) -> list[str]:
+        return list(
+            obj.key_tokens
+        )

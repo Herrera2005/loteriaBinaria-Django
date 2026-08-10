@@ -1,17 +1,25 @@
 from __future__ import annotations
 
-from rest_framework import filters, generics
+from rest_framework import generics
 from rest_framework.permissions import AllowAny
 
-from apps.lottery.models import DrawEvent, DrawResult, LotteryProduct
+from apps.lottery.models import (
+    DrawEvent,
+    DrawResult,
+    LotteryProduct,
+)
 
 from ..pagination import PublicApiPagination
+from ..query import (
+    choice_query_param,
+    positive_int_query_param,
+)
 from ..serializers.public import (
     EventSerializer,
     ProductSerializer,
     ResultSerializer,
 )
-
+from ..filters import StrictOrderingFilter
 
 PUBLIC_EVENT_STATUSES = (
     DrawEvent.Status.SCHEDULED,
@@ -41,14 +49,18 @@ def public_events_queryset():
     )
 
 
-class PublicProductListView(generics.ListAPIView):
+class PublicProductListView(
+    generics.ListAPIView
+):
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
     authentication_classes = []
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -64,30 +76,36 @@ class PublicProductListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = (
             LotteryProduct.objects
-            .filter(is_active=True)
+            .filter(
+                is_active=True,
+            )
         )
 
-        query = self.request.query_params.get(
-            "q",
-            "",
-        ).strip()
+        query = (
+            self.request.query_params
+            .get(
+                "q",
+                "",
+            )
+            .strip()
+        )
 
-        kind = self.request.query_params.get(
+        kind = choice_query_param(
+            self.request,
             "kind",
-            "",
-        ).strip().upper()
+            choices=(
+                LotteryProduct._meta
+                .get_field("kind")
+                .choices
+            ),
+        )
 
         if query:
             queryset = queryset.filter(
                 name__icontains=query,
             )
 
-        valid_kinds = {
-            choice
-            for choice, _ in LotteryProduct.Kind.choices
-        }
-
-        if kind in valid_kinds:
+        if kind is not None:
             queryset = queryset.filter(
                 kind=kind,
             )
@@ -95,25 +113,36 @@ class PublicProductListView(generics.ListAPIView):
         return queryset
 
 
-class PublicProductDetailView(generics.RetrieveAPIView):
+class PublicProductDetailView(
+    generics.RetrieveAPIView
+):
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
     authentication_classes = []
 
     def get_queryset(self):
-        return LotteryProduct.objects.filter(
-            is_active=True,
+        return (
+            LotteryProduct.objects
+            .filter(
+                is_active=True,
+            )
         )
 
 
-class PublicEventListView(generics.ListAPIView):
+class PublicEventListView(
+    generics.ListAPIView
+):
     serializer_class = EventSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
     authentication_classes = []
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -132,36 +161,42 @@ class PublicEventListView(generics.ListAPIView):
     )
 
     def get_queryset(self):
-        queryset = public_events_queryset()
+        queryset = (
+            public_events_queryset()
+        )
 
-        product_id = self.request.query_params.get(
+        product_id = positive_int_query_param(
+            self.request,
             "product",
-            "",
-        ).strip()
+        )
 
-        status = self.request.query_params.get(
+        event_status = choice_query_param(
+            self.request,
             "status",
-            "",
-        ).strip().upper()
+            choices=(
+                DrawEvent._meta
+                .get_field("status")
+                .choices
+            ),
+        )
 
-        query = self.request.query_params.get(
-            "q",
-            "",
-        ).strip()
+        query = (
+            self.request.query_params
+            .get(
+                "q",
+                "",
+            )
+            .strip()
+        )
 
-        if product_id.isdigit():
+        if product_id is not None:
             queryset = queryset.filter(
-                product_id=int(product_id),
+                product_id=product_id,
             )
 
-        valid_statuses = {
-            choice
-            for choice, _ in DrawEvent.Status.choices
-        }
-
-        if status in valid_statuses:
+        if event_status is not None:
             queryset = queryset.filter(
-                status=status,
+                status=event_status,
             )
 
         if query:
@@ -172,23 +207,33 @@ class PublicEventListView(generics.ListAPIView):
         return queryset
 
 
-class PublicEventDetailView(generics.RetrieveAPIView):
+class PublicEventDetailView(
+    generics.RetrieveAPIView
+):
     serializer_class = EventSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
     authentication_classes = []
 
     def get_queryset(self):
-        return public_events_queryset()
+        return (
+            public_events_queryset()
+        )
 
 
-class PublicResultListView(generics.ListAPIView):
+class PublicResultListView(
+    generics.ListAPIView
+):
     serializer_class = ResultSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
     authentication_classes = []
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -211,22 +256,26 @@ class PublicResultListView(generics.ListAPIView):
             )
         )
 
-        product_id = self.request.query_params.get(
+        product_id = positive_int_query_param(
+            self.request,
             "product",
-            "",
-        ).strip()
+        )
 
-        if product_id.isdigit():
+        if product_id is not None:
             queryset = queryset.filter(
-                event__product_id=int(product_id),
+                event__product_id=product_id,
             )
 
         return queryset
 
 
-class PublicResultDetailView(generics.RetrieveAPIView):
+class PublicResultDetailView(
+    generics.RetrieveAPIView
+):
     serializer_class = ResultSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
     authentication_classes = []
 
     def get_queryset(self):

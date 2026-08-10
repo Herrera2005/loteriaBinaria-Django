@@ -408,6 +408,7 @@ class ApiV1ClientTicketTests(TestCase):
             payload["price"],
             {
                 "minor": 100,
+                "currency": "VIRTUAL",
                 "display": "V 1.00",
             },
         )
@@ -416,6 +417,7 @@ class ApiV1ClientTicketTests(TestCase):
             payload["award"],
             {
                 "minor": 0,
+                "currency": "VIRTUAL",
                 "display": "V 0.00",
             },
         )
@@ -459,6 +461,7 @@ class ApiV1ClientTicketTests(TestCase):
             payload["award"],
             {
                 "minor": 100000,
+                "currency": "VIRTUAL",
                 "display": "V 1,000.00",
             },
         )
@@ -724,7 +727,7 @@ class ApiV1ClientTicketTests(TestCase):
             self.winner_ticket.pk,
         )
 
-    def test_invalid_ticket_status_filter_does_not_crash(self):
+    def test_invalid_ticket_status_filter_returns_bad_request(self):
         token = self._token_for(
             self.client_user
         )
@@ -744,12 +747,19 @@ class ApiV1ClientTicketTests(TestCase):
 
         self.assertEqual(
             response.status_code,
-            200,
-        )
+            400,
+        )   
+
+        payload = response.json()
 
         self.assertEqual(
-            response.json()["count"],
-            2,
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "evaluation_status",
+            payload["error"]["fields"],
         )
 
     def test_ticket_list_supports_ordering(self):
@@ -827,3 +837,54 @@ class ApiV1ClientTicketTests(TestCase):
                     response.status_code,
                     405,
                 )
+
+    def test_invalid_event_filter_returns_bad_request(self):
+        token = self._token_for(
+            self.client_user
+        )
+
+        response = self.client.get(
+            reverse(
+                "api:v1-client-ticket-list"
+            ),
+            {
+                "event": "abc",
+            },
+            HTTP_AUTHORIZATION=(
+                f"Token {token.key}"
+            ),
+            HTTP_X_ACTIVE_MODE=CLIENT,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        self.assertIn(
+            "event",
+            response.json()["error"]["fields"],
+        )
+
+    def test_invalid_product_filter_returns_bad_request(self):
+        token = self._token_for(
+            self.client_user
+        )
+
+        response = self.client.get(
+            reverse(
+                "api:v1-client-ticket-list"
+            ),
+            {
+                "product": "-1",
+            },
+            HTTP_AUTHORIZATION=(
+                f"Token {token.key}"
+            ),
+            HTTP_X_ACTIVE_MODE=CLIENT,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )

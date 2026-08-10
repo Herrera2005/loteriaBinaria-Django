@@ -266,18 +266,31 @@ class ApiV1PublicTests(TestCase):
                 "OFFICIAL",
             )
 
-    def test_unknown_product_kind_does_not_crash_api(self):
+    def test_unknown_product_kind_returns_bad_request(self):
         response = self.client.get(
-            reverse("api:v1-public-product-list"),
+            reverse(
+                "api:v1-public-product-list"
+            ),
             {
                 "kind": "NO_EXISTE",
             },
         )
 
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()["count"],
-            2,
+            response.status_code,
+            400,
+        )
+
+        payload = response.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "kind",
+            payload["error"]["fields"],
         )
 
     def test_event_list_is_public_and_excludes_drafts(self):
@@ -380,6 +393,7 @@ class ApiV1PublicTests(TestCase):
             payload["price"],
             {
                 "minor": 100,
+                "currency": "VIRTUAL",
                 "display": "V 1.00",
             },
         )
@@ -388,6 +402,7 @@ class ApiV1PublicTests(TestCase):
             payload["prize"],
             {
                 "minor": 50000,
+                "currency": "VIRTUAL",
                 "display": "V 500.00",
             },
         )
@@ -461,24 +476,31 @@ class ApiV1PublicTests(TestCase):
             self.scheduled_event.pk,
         )
 
-    def test_unknown_event_status_does_not_crash_api(self):
+    def test_unknown_event_status_returns_bad_request(self):
         response = self.client.get(
-            reverse("api:v1-public-event-list"),
+            reverse(
+                "api:v1-public-event-list"
+            ),
             {
                 "status": "NO_EXISTE",
             },
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
 
-        names = {
-            item["name"]
-            for item in response.json()["results"]
-        }
+        payload = response.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
 
         self.assertIn(
-            self.open_event.name,
-            names,
+            "status",
+            payload["error"]["fields"],
         )
 
     def test_event_datetimes_are_serialized(self):
@@ -774,4 +796,86 @@ class ApiV1PublicTests(TestCase):
         self.assertNotIn(
             "reason",
             payload,
+        )
+
+    def test_invalid_event_product_filter_returns_bad_request(self):
+        response = self.client.get(
+            reverse(
+                "api:v1-public-event-list"
+            ),
+            {
+                "product": "abc",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+    def test_invalid_event_status_filter_returns_bad_request(self):
+        response = self.client.get(
+            reverse(
+                "api:v1-public-event-list"
+            ),
+            {
+                "status": "NO_EXISTE",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        self.assertIn(
+            "status",
+            response.json()["error"]["fields"],
+        )
+
+    def test_invalid_public_event_ordering_returns_bad_request(self):
+        response = self.client.get(
+            reverse(
+                "api:v1-public-event-list"
+            ),
+            {
+                "ordering": "password",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        payload = response.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "ordering",
+            payload["error"]["fields"],
+        )
+
+    def test_valid_public_event_ordering_is_accepted(self):
+        response = self.client.get(
+            reverse(
+                "api:v1-public-event-list"
+            ),
+            {
+                "ordering": "-draw_at",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
         )

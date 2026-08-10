@@ -7,16 +7,7 @@ from apps.finance.models import (
     Wallet,
 )
 from apps.lottery.models import Ticket
-
-
-def _money_data(amount_minor: int) -> dict[str, object]:
-    amount_minor = int(amount_minor)
-
-    return {
-        "minor": amount_minor,
-        "display": f"V {amount_minor / 100:,.2f}",
-    }
-
+from ..money import money_data
 
 class ClientWalletSerializer(serializers.ModelSerializer):
     currency_label = serializers.CharField(
@@ -53,25 +44,28 @@ class ClientWalletSerializer(serializers.ModelSerializer):
         self,
         obj: Wallet,
     ) -> dict[str, object]:
-        return _money_data(
-            obj.available_minor
+        return money_data(
+            obj.available_minor,
+            currency=obj.currency,
         )
 
     def get_reserved(
         self,
         obj: Wallet,
     ) -> dict[str, object]:
-        return _money_data(
-            obj.reserved_minor
+        return money_data(
+            obj.reserved_minor,
+            currency=obj.currency,
         )
 
     def get_total(
         self,
         obj: Wallet,
     ) -> dict[str, object]:
-        return _money_data(
+        return money_data(
             obj.available_minor
-            + obj.reserved_minor
+            + obj.reserved_minor,
+            currency=obj.currency,
         )
 
 
@@ -172,16 +166,18 @@ class ClientTicketSerializer(
         self,
         obj: Ticket,
     ) -> dict[str, object]:
-        return _money_data(
-            obj.price_minor
+        return money_data(
+            obj.price_minor,
+            currency=Wallet.Currency.VIRTUAL,
         )
 
     def get_award(
         self,
         obj: Ticket,
     ) -> dict[str, object]:
-        return _money_data(
-            obj.award_minor
+        return money_data(
+            obj.award_minor,
+            currency=Wallet.Currency.VIRTUAL,
         )
 
 
@@ -271,14 +267,16 @@ class ClientMovementSerializer(
         self,
         obj: Movement,
     ) -> dict[str, object]:
-        return _money_data(
-            obj.amount_minor
+        return money_data(
+            obj.amount_minor,
+            currency=obj.wallet.currency,
         )
 
     def get_balance_after(
         self,
         obj: Movement,
     ) -> dict[str, object]:
-        return _money_data(
-            obj.balance_after_minor
+        return money_data(
+            obj.balance_after_minor,
+            currency=obj.wallet.currency,
         )

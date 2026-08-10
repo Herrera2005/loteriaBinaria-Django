@@ -272,6 +272,7 @@ class ApiV1ClientMovementTests(TestCase):
             payload["amount"],
             {
                 "minor": 250,
+                "currency": "VIRTUAL",
                 "display": "V 2.50",
             },
         )
@@ -280,6 +281,7 @@ class ApiV1ClientMovementTests(TestCase):
             payload["balance_after"],
             {
                 "minor": 750,
+                "currency": "VIRTUAL",
                 "display": "V 7.50",
             },
         )
@@ -455,7 +457,7 @@ class ApiV1ClientMovementTests(TestCase):
                 Movement.Direction.CREDIT,
             )
 
-    def test_invalid_filter_does_not_crash(self):
+    def test_invalid_filter_returns_bad_request(self):
         response = self.client.get(
             self.list_url,
             {
@@ -466,12 +468,19 @@ class ApiV1ClientMovementTests(TestCase):
 
         self.assertEqual(
             response.status_code,
-            200,
+            400,
         )
 
+        payload = response.json()
+
         self.assertEqual(
-            response.json()["count"],
-            3,
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "type",
+            payload["error"]["fields"],
         )
 
     def test_movement_list_supports_ordering(self):
@@ -546,3 +555,43 @@ class ApiV1ClientMovementTests(TestCase):
                     response.status_code,
                     405,
                 )
+
+    def test_invalid_ordering_returns_bad_request(self):
+        response = self.client.get(
+            self.list_url,
+            {
+                "ordering": "pepito",
+            },
+            **self._headers(),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        payload = response.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "ordering",
+            payload["error"]["fields"],
+        )
+
+    def test_valid_ordering_is_accepted(self):
+        response = self.client.get(
+            self.list_url,
+            {
+                "ordering": "-created_at",
+            },
+            **self._headers(),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )

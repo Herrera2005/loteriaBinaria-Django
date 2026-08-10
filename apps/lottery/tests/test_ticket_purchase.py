@@ -98,6 +98,56 @@ class TicketPurchaseServiceTests(TestCase):
         self.assertEqual(self.wallet.available_minor, 750)
         self.assertEqual(Movement.objects.filter(operation_id=operation_id).count(), 1)
 
+    def test_same_operation_id_with_other_data_is_rejected(self):
+        operation_id = uuid.uuid4()
+
+        first, created = purchase_ticket(
+            user=self.user,
+            active_mode=CLIENT,
+            event_id=self.event.pk,
+            combination="0123",
+            operation_id=operation_id,
+        )
+
+        self.assertTrue(created)
+        self.assertEqual(
+            first.normalized_key,
+            "0123",
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "identificador de operación",
+        ):
+            purchase_ticket(
+                user=self.user,
+                active_mode=CLIENT,
+                event_id=self.event.pk,
+                combination="0124",
+                operation_id=operation_id,
+            )
+
+        self.assertEqual(
+            Ticket.objects.filter(
+                operation_id=operation_id,
+            ).count(),
+            1,
+        )
+
+        self.assertEqual(
+            Movement.objects.filter(
+                operation_id=operation_id,
+            ).count(),
+            1,
+        )
+
+        self.wallet.refresh_from_db()
+
+        self.assertEqual(
+            self.wallet.available_minor,
+            750,
+        )
+
     def test_duplicate_combination_is_rejected_without_second_debit(self):
         purchase_ticket(
             user=self.user,

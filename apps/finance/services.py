@@ -429,6 +429,22 @@ def purchase_vendor_inventory(
         return existing, False
 
     real_wallet = _wallet(vendor, Wallet.Currency.REAL)
+    existing = VendorInventoryPurchase.objects.filter(
+        operation_id=operation_id
+    ).first()
+
+    if existing:
+        if (
+            existing.user_id != vendor.pk
+            or existing.amount_minor != virtual_amount
+            or existing.cost_real_minor != real_cost
+        ):
+            raise ValidationError(
+                "El identificador de operación "
+                "ya fue utilizado con otros datos."
+            )
+
+        return existing, False
     virtual_wallet = _wallet(vendor, Wallet.Currency.VIRTUAL)
     if real_wallet.available_minor < real_cost:
         raise ValidationError(

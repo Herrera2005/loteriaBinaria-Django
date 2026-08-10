@@ -1,7 +1,9 @@
 from __future__ import annotations
-from uuid import UUID
+from ..http import (
+    parse_idempotency_key,
+    raise_domain_validation_error,
+)
 from rest_framework import (
-    filters,
     generics,
     status,
 )
@@ -11,7 +13,9 @@ from rest_framework.authentication import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
+from ..throttles import (
+    UnsafeMethodScopedRateThrottle,
+)
 
 from apps.finance.models import (
     Movement,
@@ -46,9 +50,11 @@ from ..serializers.vendor import (
     VendorProfileSerializer,
     VendorWalletSerializer,
 )
+from ..query import choice_query_param
 from django.core.exceptions import (
     ValidationError as DjangoValidationError,
 )
+from ..filters import StrictOrderingFilter
 
 VENDOR_PERMISSION_CLASSES = [
     IsAuthenticated,
@@ -58,36 +64,6 @@ VENDOR_PERMISSION_CLASSES = [
     HasActiveVendorProfile,
 ]
 
-def _raise_vendor_service_error(
-    exc: DjangoValidationError,
-) -> None:
-    if hasattr(exc, "message_dict"):
-        raise ValidationError(
-            exc.message_dict
-        ) from exc
-
-    messages = getattr(
-        exc,
-        "messages",
-        None,
-    )
-
-    if messages:
-        raise ValidationError(
-            {
-                "non_field_errors": list(
-                    messages
-                )
-            }
-        ) from exc
-
-    raise ValidationError(
-        {
-            "non_field_errors": [
-                str(exc)
-            ]
-        }
-    ) from exc
 
 def _fresh_assignment(
     assignment_id: int,
@@ -102,43 +78,7 @@ def _fresh_assignment(
         )
     )
 
-def _parse_vendor_idempotency_key(
-    request,
-) -> UUID:
-    raw_value = request.headers.get(
-        "Idempotency-Key",
-        "",
-    ).strip()
 
-    if not raw_value:
-        raise ValidationError(
-            {
-                "idempotency_key": [
-                    (
-                        "Debe enviar el encabezado "
-                        "Idempotency-Key con un UUID válido."
-                    )
-                ]
-            }
-        )
-
-    try:
-        return UUID(raw_value)
-    except (
-        TypeError,
-        ValueError,
-        AttributeError,
-    ) as exc:
-        raise ValidationError(
-            {
-                "idempotency_key": [
-                    (
-                        "El encabezado Idempotency-Key "
-                        "debe contener un UUID válido."
-                    )
-                ]
-            }
-        ) from exc
 
 class VendorProfileView(APIView):
     authentication_classes = [
@@ -214,7 +154,7 @@ class VendorMovementListView(
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -240,65 +180,47 @@ class VendorMovementListView(
             )
         )
 
-        currency = (
-            self.request.query_params
-            .get("currency", "")
-            .strip()
-            .upper()
-        )
-
-        movement_type = (
-            self.request.query_params
-            .get("type", "")
-            .strip()
-            .upper()
-        )
-
-        direction = (
-            self.request.query_params
-            .get("direction", "")
-            .strip()
-            .upper()
-        )
-
-        valid_currencies = {
-            value
-            for value, _ in (
+        currency = choice_query_param(
+            self.request,
+            "currency",
+            choices=(
                 Wallet._meta
                 .get_field("currency")
                 .choices
-            )
-        }
+            ),
+        )
 
-        valid_types = {
-            value
-            for value, _ in (
+        movement_type = choice_query_param(
+            self.request,
+            "type",
+            choices=(
                 Movement._meta
                 .get_field("type")
                 .choices
-            )
-        }
+            ),
+        )
 
-        valid_directions = {
-            value
-            for value, _ in (
+        direction = choice_query_param(
+            self.request,
+            "direction",
+            choices=(
                 Movement._meta
                 .get_field("direction")
                 .choices
-            )
-        }
+            ),
+        )
 
-        if currency in valid_currencies:
+        if currency is not None:
             queryset = queryset.filter(
                 wallet__currency=currency
             )
 
-        if movement_type in valid_types:
+        if movement_type is not None:
             queryset = queryset.filter(
                 type=movement_type
             )
 
-        if direction in valid_directions:
+        if direction is not None:
             queryset = queryset.filter(
                 direction=direction
             )
@@ -357,7 +279,7 @@ class VendorAssignmentListView(
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -404,12 +326,18 @@ class VendorAssignmentDetailView(
                 "request",
             )
         )
+    
 
 class VendorAssignRequestView(APIView):
     authentication_classes = [
         TokenAuthentication,
     ]
     permission_classes = VENDOR_PERMISSION_CLASSES
+
+    throttle_classes = [
+        UnsafeMethodScopedRateThrottle,
+    ]
+    throttle_scope = "vendor_conversion_action"
 
     def post(self, request, pk):
         try:
@@ -418,7 +346,7 @@ class VendorAssignRequestView(APIView):
                 request_id=pk,
             )
         except DjangoValidationError as exc:
-            _raise_vendor_service_error(
+            raise_domain_validation_error(
                 exc
             )
 
@@ -437,12 +365,18 @@ class VendorAssignRequestView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+    
 
 class VendorCompleteAssignmentView(APIView):
     authentication_classes = [
         TokenAuthentication,
     ]
     permission_classes = VENDOR_PERMISSION_CLASSES
+
+    throttle_classes = [
+        UnsafeMethodScopedRateThrottle,
+    ]
+    throttle_scope = "vendor_conversion_action"
 
     def post(self, request, pk):
         try:
@@ -453,7 +387,7 @@ class VendorCompleteAssignmentView(APIView):
                 )
             )
         except DjangoValidationError as exc:
-            _raise_vendor_service_error(
+            raise_domain_validation_error(
                 exc
             )
 
@@ -472,12 +406,18 @@ class VendorCompleteAssignmentView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+    
 
 class VendorReleaseAssignmentView(APIView):
     authentication_classes = [
         TokenAuthentication,
     ]
     permission_classes = VENDOR_PERMISSION_CLASSES
+
+    throttle_classes = [
+        UnsafeMethodScopedRateThrottle,
+    ]
+    throttle_scope = "vendor_conversion_action"
 
     def post(self, request, pk):
         try:
@@ -488,7 +428,7 @@ class VendorReleaseAssignmentView(APIView):
                 )
             )
         except DjangoValidationError as exc:
-            _raise_vendor_service_error(
+            raise_domain_validation_error(
                 exc
             )
 
@@ -508,6 +448,7 @@ class VendorReleaseAssignmentView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class VendorInventoryPurchaseListView(
     generics.ListAPIView
 ):
@@ -516,13 +457,18 @@ class VendorInventoryPurchaseListView(
     ]
     permission_classes = VENDOR_PERMISSION_CLASSES
 
+    throttle_classes = [
+        UnsafeMethodScopedRateThrottle,
+    ]
+    throttle_scope = "vendor_inventory_purchase"
+
     serializer_class = (
         VendorInventoryPurchaseSerializer
     )
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -557,7 +503,7 @@ class VendorInventoryPurchaseListView(
         )
 
         operation_id = (
-            _parse_vendor_idempotency_key(
+            parse_idempotency_key(
                 request
             )
         )
@@ -576,7 +522,7 @@ class VendorInventoryPurchaseListView(
                 )
             )
         except DjangoValidationError as exc:
-            _raise_vendor_service_error(
+            raise_domain_validation_error(
                 exc
             )
 

@@ -13,14 +13,7 @@ from apps.vendors.models import (
     VendorProfile,
 )
 
-
-def _money_data(amount_minor: int) -> dict[str, object]:
-    amount_minor = int(amount_minor)
-
-    return {
-        "minor": amount_minor,
-        "display": f"V {amount_minor / 100:,.2f}",
-    }
+from ..money import money_data
 
 
 class VendorProfileSerializer(serializers.ModelSerializer):
@@ -74,40 +67,40 @@ class VendorWalletSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_available(self, obj):
-        return _money_data(
-            obj.available_minor
+        return money_data(
+            obj.available_minor,
+            currency=obj.currency,
         )
 
     def get_reserved(self, obj):
-        return _money_data(
-            obj.reserved_minor
+        return money_data(
+            obj.reserved_minor,
+            currency=obj.currency,
         )
 
     def get_total(self, obj):
-        return _money_data(
-            obj.available_minor
-            + obj.reserved_minor
+        return money_data(
+            obj.available_minor + obj.reserved_minor,
+            currency=obj.currency,
         )
 
 
-class VendorMovementWalletSerializer(
-    serializers.Serializer
-):
+class VendorMovementWalletSerializer(serializers.Serializer):
     id = serializers.IntegerField(
         read_only=True,
     )
+
     currency = serializers.CharField(
         read_only=True,
     )
+
     currency_label = serializers.CharField(
         source="get_currency_display",
         read_only=True,
     )
 
 
-class VendorMovementSerializer(
-    serializers.ModelSerializer
-):
+class VendorMovementSerializer(serializers.ModelSerializer):
     wallet = VendorMovementWalletSerializer(
         read_only=True,
     )
@@ -142,19 +135,19 @@ class VendorMovementSerializer(
         read_only_fields = fields
 
     def get_amount(self, obj):
-        return _money_data(
-            obj.amount_minor
+        return money_data(
+            obj.amount_minor,
+            currency=obj.wallet.currency,
         )
 
     def get_balance_after(self, obj):
-        return _money_data(
-            obj.balance_after_minor
+        return money_data(
+            obj.balance_after_minor,
+            currency=obj.wallet.currency,
         )
 
 
-class VendorConversionRequestSerializer(
-    serializers.ModelSerializer
-):
+class VendorConversionRequestSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(
         source="get_status_display",
         read_only=True,
@@ -175,18 +168,18 @@ class VendorConversionRequestSerializer(
         read_only_fields = fields
 
     def get_amount(self, obj):
-        return _money_data(
-            obj.amount_minor
+        return money_data(
+            obj.amount_minor,
+            currency=Wallet.Currency.REAL,
         )
 
 
-class VendorAssignmentRequestSerializer(
-    serializers.ModelSerializer
-):
+class VendorAssignmentRequestSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(
         source="get_status_display",
         read_only=True,
     )
+
     amount = serializers.SerializerMethodField()
 
     class Meta:
@@ -203,14 +196,13 @@ class VendorAssignmentRequestSerializer(
         read_only_fields = fields
 
     def get_amount(self, obj):
-        return _money_data(
-            obj.amount_minor
+        return money_data(
+            obj.amount_minor,
+            currency=Wallet.Currency.REAL,
         )
 
 
-class VendorAssignmentSerializer(
-    serializers.ModelSerializer
-):
+class VendorAssignmentSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(
         source="get_status_display",
         read_only=True,
@@ -233,9 +225,8 @@ class VendorAssignmentSerializer(
         )
         read_only_fields = fields
 
-class VendorInventoryPurchaseSerializer(
-    serializers.ModelSerializer
-):
+
+class VendorInventoryPurchaseSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(
         source="get_status_display",
         read_only=True,
@@ -257,19 +248,19 @@ class VendorInventoryPurchaseSerializer(
         read_only_fields = fields
 
     def get_virtual(self, obj):
-        return _money_data(
-            obj.amount_minor
+        return money_data(
+            obj.amount_minor,
+            currency=Wallet.Currency.VIRTUAL,
         )
 
     def get_real_cost(self, obj):
-        return _money_data(
-            obj.cost_real_minor
+        return money_data(
+            obj.cost_real_minor,
+            currency=Wallet.Currency.REAL,
         )
 
 
-class VendorInventoryPurchaseInputSerializer(
-    serializers.Serializer
-):
+class VendorInventoryPurchaseInputSerializer(serializers.Serializer):
     virtual_minor = serializers.IntegerField(
         min_value=1,
     )

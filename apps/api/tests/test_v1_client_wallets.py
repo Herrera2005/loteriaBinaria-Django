@@ -267,7 +267,8 @@ class ApiV1ClientWalletTests(TestCase):
             payload["available"],
             {
                 "minor": 12500,
-                "display": "V 125.00",
+                "currency": "REAL",
+                "display": "$ 125.00",
             },
         )
 
@@ -275,7 +276,8 @@ class ApiV1ClientWalletTests(TestCase):
             payload["reserved"],
             {
                 "minor": 2500,
-                "display": "V 25.00",
+                "currency": "REAL",
+                "display": "$ 25.00",
             },
         )
 
@@ -283,7 +285,8 @@ class ApiV1ClientWalletTests(TestCase):
             payload["total"],
             {
                 "minor": 15000,
-                "display": "V 150.00",
+                "currency": "REAL",
+                "display": "$ 150.00",
             },
         )
 

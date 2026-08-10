@@ -1,22 +1,16 @@
 from __future__ import annotations
 
-from uuid import UUID
-
 from django.core.exceptions import (
     ValidationError as DjangoValidationError,
 )
 from rest_framework import (
-    filters,
     generics,
     status,
 )
 from rest_framework.authentication import (
     TokenAuthentication,
 )
-from rest_framework.exceptions import (
-    NotFound,
-    ValidationError,
-)
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,14 +19,25 @@ from apps.finance.models import (
     Movement,
     Wallet,
 )
-from apps.lottery.models import DrawEvent, Ticket
+from apps.lottery.models import (
+    DrawEvent,
+    Ticket,
+)
 from apps.lottery.services import purchase_ticket
 
+from ..http import (
+    parse_idempotency_key,
+    raise_domain_validation_error,
+)
 from ..pagination import PublicApiPagination
 from ..permissions import (
     HasActiveMode,
     IsClientMode,
     IsOperationalUser,
+)
+from ..query import (
+    choice_query_param,
+    positive_int_query_param,
 )
 from ..serializers.auth import AuthUserSerializer
 from ..serializers.client import (
@@ -41,7 +46,10 @@ from ..serializers.client import (
     ClientTicketSerializer,
     ClientWalletSerializer,
 )
-
+from ..filters import StrictOrderingFilter
+from ..throttles import (
+    UnsafeMethodScopedRateThrottle,
+)
 
 CLIENT_PERMISSION_CLASSES = [
     IsAuthenticated,
@@ -49,74 +57,6 @@ CLIENT_PERMISSION_CLASSES = [
     HasActiveMode,
     IsClientMode,
 ]
-
-
-IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
-
-
-def _parse_idempotency_key(request) -> UUID:
-    raw_value = request.headers.get(
-        IDEMPOTENCY_KEY_HEADER,
-        "",
-    ).strip()
-
-    if not raw_value:
-        raise ValidationError(
-            {
-                "idempotency_key": [
-                    (
-                        "Debe enviar el encabezado "
-                        "Idempotency-Key con un UUID válido."
-                    )
-                ]
-            }
-        )
-
-    try:
-        return UUID(raw_value)
-    except (TypeError, ValueError, AttributeError) as exc:
-        raise ValidationError(
-            {
-                "idempotency_key": [
-                    (
-                        "El encabezado Idempotency-Key "
-                        "debe contener un UUID válido."
-                    )
-                ]
-            }
-        ) from exc
-
-
-def _raise_service_validation_error(
-    exc: DjangoValidationError,
-) -> None:
-    if hasattr(exc, "message_dict"):
-        raise ValidationError(
-            exc.message_dict
-        ) from exc
-
-    messages = getattr(
-        exc,
-        "messages",
-        None,
-    )
-
-    if messages:
-        raise ValidationError(
-            {
-                "non_field_errors": list(
-                    messages
-                )
-            }
-        ) from exc
-
-    raise ValidationError(
-        {
-            "non_field_errors": [
-                str(exc)
-            ]
-        }
-    ) from exc
 
 
 class ClientProfileView(APIView):
@@ -184,11 +124,16 @@ class ClientTicketListView(
     ]
     permission_classes = CLIENT_PERMISSION_CLASSES
 
+    throttle_classes = [
+        UnsafeMethodScopedRateThrottle,
+    ]
+    throttle_scope = "ticket_purchase"
+
     serializer_class = ClientTicketSerializer
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -216,98 +161,54 @@ class ClientTicketListView(
             )
         )
 
-        event_id = (
-            self.request.query_params
-            .get(
-                "event",
-                "",
-            )
-            .strip()
+        event_id = positive_int_query_param(
+            self.request,
+            "event",
         )
 
-        product_id = (
-            self.request.query_params
-            .get(
-                "product",
-                "",
-            )
-            .strip()
+        product_id = positive_int_query_param(
+            self.request,
+            "product",
         )
 
-        ownership_status = (
-            self.request.query_params
-            .get(
-                "ownership_status",
-                "",
-            )
-            .strip()
-            .upper()
-        )
-
-        evaluation_status = (
-            self.request.query_params
-            .get(
-                "evaluation_status",
-                "",
-            )
-            .strip()
-            .upper()
-        )
-
-        if event_id.isdigit():
-            queryset = queryset.filter(
-                event_id=int(
-                    event_id
-                )
-            )
-
-        if product_id.isdigit():
-            queryset = queryset.filter(
-                event__product_id=int(
-                    product_id
-                )
-            )
-
-        valid_ownership_statuses = {
-            choice
-            for choice, _ in (
+        ownership_status = choice_query_param(
+            self.request,
+            "ownership_status",
+            choices=(
                 Ticket._meta
-                .get_field(
-                    "ownership_status"
-                )
+                .get_field("ownership_status")
                 .choices
-            )
-        }
+            ),
+        )
 
-        if (
-            ownership_status
-            in valid_ownership_statuses
-        ):
-            queryset = queryset.filter(
-                ownership_status=(
-                    ownership_status
-                )
-            )
-
-        valid_evaluation_statuses = {
-            choice
-            for choice, _ in (
+        evaluation_status = choice_query_param(
+            self.request,
+            "evaluation_status",
+            choices=(
                 Ticket._meta
-                .get_field(
-                    "evaluation_status"
-                )
+                .get_field("evaluation_status")
                 .choices
-            )
-        }
+            ),
+        )
 
-        if (
-            evaluation_status
-            in valid_evaluation_statuses
-        ):
+        if event_id is not None:
             queryset = queryset.filter(
-                evaluation_status=(
-                    evaluation_status
-                )
+                event_id=event_id
+            )
+
+        if product_id is not None:
+            queryset = queryset.filter(
+                event__product_id=product_id
+            )
+
+        if ownership_status is not None:
+            queryset = queryset.filter(
+                ownership_status=ownership_status
+            )
+
+        if evaluation_status is not None:
+            queryset = queryset.filter(
+                evaluation_status=evaluation_status
             )
 
         return queryset
@@ -323,10 +224,8 @@ class ClientTicketListView(
             raise_exception=True
         )
 
-        operation_id = (
-            _parse_idempotency_key(
-                request
-            )
+        operation_id = parse_idempotency_key(
+            request
         )
 
         event_id = (
@@ -356,7 +255,7 @@ class ClientTicketListView(
                 "El evento solicitado no existe."
             ) from exc
         except DjangoValidationError as exc:
-            _raise_service_validation_error(
+            raise_domain_validation_error(
                 exc
             )
 
@@ -405,6 +304,7 @@ class ClientTicketDetailView(
             )
         )
 
+
 class ClientMovementListView(
     generics.ListAPIView
 ):
@@ -417,7 +317,7 @@ class ClientMovementListView(
     pagination_class = PublicApiPagination
 
     filter_backends = [
-        filters.OrderingFilter,
+        StrictOrderingFilter,
     ]
 
     ordering_fields = (
@@ -443,80 +343,47 @@ class ClientMovementListView(
             )
         )
 
-        currency = (
-            self.request.query_params
-            .get(
-                "currency",
-                "",
-            )
-            .strip()
-            .upper()
-        )
-
-        movement_type = (
-            self.request.query_params
-            .get(
-                "type",
-                "",
-            )
-            .strip()
-            .upper()
-        )
-
-        direction = (
-            self.request.query_params
-            .get(
-                "direction",
-                "",
-            )
-            .strip()
-            .upper()
-        )
-
-        valid_currencies = {
-            choice
-            for choice, _ in (
+        currency = choice_query_param(
+            self.request,
+            "currency",
+            choices=(
                 Wallet._meta
-                .get_field(
-                    "currency"
-                )
+                .get_field("currency")
                 .choices
-            )
-        }
+            ),
+        )
 
-        valid_types = {
-            choice
-            for choice, _ in (
+        movement_type = choice_query_param(
+            self.request,
+            "type",
+            choices=(
                 Movement._meta
-                .get_field(
-                    "type"
-                )
+                .get_field("type")
                 .choices
-            )
-        }
+            ),
+        )
 
-        valid_directions = {
-            choice
-            for choice, _ in (
+        direction = choice_query_param(
+            self.request,
+            "direction",
+            choices=(
                 Movement._meta
-                .get_field(
-                    "direction"
-                )
+                .get_field("direction")
                 .choices
-            )
-        }
+            ),
+        )
 
-        if currency in valid_currencies:
+        if currency is not None:
             queryset = queryset.filter(
                 wallet__currency=currency
             )
 
-        if movement_type in valid_types:
+        if movement_type is not None:
             queryset = queryset.filter(
                 type=movement_type
             )
 
-        if direction in valid_directions:
+        if direction is not None:
             queryset = queryset.filter(
                 direction=direction
             )

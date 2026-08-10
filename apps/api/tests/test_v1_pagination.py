@@ -240,21 +240,29 @@ class ApiV1PaginationTests(TestCase):
             "Sorteo 01",
         )
 
-    def test_unknown_ordering_field_is_ignored(self):
+    def test_unknown_ordering_field_returns_bad_request(self):
         response = self.client.get(
-            reverse("api:v1-public-event-list"),
+            reverse(
+                "api:v1-public-event-list"
+            ),
             {
-                "ordering": "password",
-                "page_size": 100,
+                "ordering": "campo_desconocido",
             },
         )
 
         self.assertEqual(
             response.status_code,
-            200,
+            400,
         )
 
+        payload = response.json()
+
         self.assertEqual(
-            response.json()["count"],
-            25,
+            payload["error"]["code"],
+            "BAD_REQUEST",
+        )
+
+        self.assertIn(
+            "ordering",
+            payload["error"]["fields"],
         )

@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
@@ -605,4 +606,109 @@ class ApiV1ClientTicketPurchaseTests(TestCase):
                 "10",
                 "A",
             ],
+        )
+
+    @override_settings(
+        REST_FRAMEWORK={
+            "DEFAULT_RENDERER_CLASSES": [
+                "rest_framework.renderers.JSONRenderer",
+            ],
+            "DEFAULT_PARSER_CLASSES": [
+                "rest_framework.parsers.JSONParser",
+            ],
+            "DEFAULT_PERMISSION_CLASSES": [
+                "rest_framework.permissions.IsAuthenticated",
+            ],
+            "DATETIME_FORMAT": "iso-8601",
+            "DATE_FORMAT": "iso-8601",
+            "EXCEPTION_HANDLER": (
+                "apps.api.v1.exceptions."
+                "api_exception_handler"
+            ),
+            "DEFAULT_THROTTLE_RATES": {
+                "login": "20/minute",
+                "ticket_purchase": "1/minute",
+                "vendor_conversion_action": "60/minute",
+                "vendor_inventory_purchase": "30/minute",
+            },
+        }
+    )
+    
+    def test_ticket_purchase_is_throttled(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+        first_operation_id = uuid.uuid4()
+        second_operation_id = uuid.uuid4()
+
+        first = self._purchase(
+            operation_id=first_operation_id,
+            symbols=[
+                "0",
+                "1",
+                "2",
+                "3",
+            ],
+        )
+
+        self.assertEqual(
+            first.status_code,
+            201,
+        )
+
+        second = self._purchase(
+            operation_id=second_operation_id,
+            symbols=[
+                "0",
+                "1",
+                "2",
+                "4",
+            ],
+        )
+
+        self.assertEqual(
+            second.status_code,
+            429,
+        )
+
+        payload = second.json()
+
+        self.assertEqual(
+            payload["error"]["code"],
+            "THROTTLED",
+        )
+
+        self.assertEqual(
+            Ticket.objects.filter(
+                operation_id=first_operation_id
+            ).count(),
+            1,
+        )
+
+        self.assertEqual(
+            Ticket.objects.filter(
+                operation_id=second_operation_id
+            ).count(),
+            0,
+        )
+
+        self.assertEqual(
+            Movement.objects.filter(
+                operation_id=first_operation_id
+            ).count(),
+            1,
+        )
+
+        self.assertEqual(
+            Movement.objects.filter(
+                operation_id=second_operation_id
+            ).count(),
+            0,
+        )
+
+        self.wallet.refresh_from_db()
+
+        self.assertEqual(
+            self.wallet.available_minor,
+            750,
         )

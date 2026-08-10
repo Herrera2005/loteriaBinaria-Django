@@ -222,6 +222,7 @@ class ApiV1VendorInventoryTests(TestCase):
             payload["purchase"]["virtual"],
             {
                 "minor": 10000,
+                "currency": "VIRTUAL",
                 "display": "V 100.00",
             },
         )
@@ -230,7 +231,8 @@ class ApiV1VendorInventoryTests(TestCase):
             payload["purchase"]["real_cost"],
             {
                 "minor": 9000,
-                "display": "V 90.00",
+                "currency": "REAL",
+                "display": "$ 90.00",
             },
         )
 

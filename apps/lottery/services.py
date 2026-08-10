@@ -143,6 +143,22 @@ def purchase_ticket(
         )
 
     wallet = _active_virtual_wallet(user)
+    existing = Ticket.objects.filter(
+        operation_id=operation_id
+    ).first()
+
+    if existing is not None:
+        if (
+            existing.user_id != user.pk
+            or existing.event_id != event.pk
+            or existing.normalized_key != normalized_key
+        ):
+            raise ValidationError(
+                "El identificador de operación "
+                "ya fue usado con otros datos."
+            )
+
+        return existing, False
     if wallet.available_minor < event.price_minor:
         raise ValidationError("Saldo VIRTUAL insuficiente para comprar el boleto.")
 
@@ -157,12 +173,38 @@ def purchase_ticket(
         price_minor=event.price_minor,
     )
     ticket.full_clean()
+
     try:
-        ticket.save(force_insert=True)
+        with transaction.atomic():
+            ticket.save(force_insert=True)
     except IntegrityError as exc:
-        raise ValidationError(
-            "La combinación ya fue comprada para este evento."
-        ) from exc
+        existing_by_operation = Ticket.objects.filter(
+            operation_id=operation_id,
+        ).first()
+
+        if existing_by_operation is not None:
+            if (
+                existing_by_operation.user_id != user.pk
+                or existing_by_operation.event_id != event.pk
+                or existing_by_operation.normalized_key != normalized_key
+            ):
+                raise ValidationError(
+                    "El identificador de operación "
+                    "ya fue usado con otros datos."
+                ) from exc
+
+            return existing_by_operation, False
+
+        if Ticket.objects.filter(
+            event=event,
+            normalized_key=normalized_key,
+        ).exists():
+            raise ValidationError(
+                "La combinación ya fue comprada "
+                "para este evento."
+            ) from exc
+
+        raise
 
     Movement.objects.create(
         wallet=wallet,

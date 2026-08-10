@@ -5,7 +5,9 @@ from rest_framework.views import APIView
 
 class HealthView(APIView):
     authentication_classes = []
-    permission_classes = [AllowAny]
+    permission_classes = [
+        AllowAny,
+    ]
 
     def get(self, request):
         return Response(

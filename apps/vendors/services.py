@@ -151,6 +151,22 @@ def create_conversion_request(
     except Wallet.DoesNotExist as exc:
         raise ValidationError("La wallet REAL requerida no existe.") from exc
 
+    existing = ConversionRequest.objects.filter(
+        operation_id=operation_id,
+    ).first()
+
+    if existing is not None:
+        if (
+            existing.client_id != client.pk
+            or existing.amount_minor != amount
+        ):
+            raise ValidationError(
+                "El identificador de operación "
+                "ya fue utilizado con otros datos."
+            )
+
+        return existing, False
+
     if real_wallet.status != Wallet.Status.ACTIVE:
         raise ValidationError("La wallet REAL no está activa.")
     if real_wallet.available_minor < amount:

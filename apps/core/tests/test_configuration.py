@@ -10,10 +10,13 @@ from django.urls import reverse
 
 
 class ConfigurationTests(SimpleTestCase):
-    def test_phase_one_uses_sqlite(self):
-        self.assertEqual(
+    def test_workshop_uses_supported_database_backend(self):
+        self.assertIn(
             settings.DATABASES["default"]["ENGINE"],
-            "django.db.backends.sqlite3",
+            {
+                "django.db.backends.sqlite3",
+                "django.db.backends.mysql",
+            },
         )
 
     def test_relative_sqlite_url_resolves_under_project_root(self):
