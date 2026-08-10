@@ -6,10 +6,18 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from ..modes import (
+    ACTIVE_MODE_HEADER,
+    resolve_active_mode,
+)
 from ..serializers.auth import (
+    ActiveModeSerializer,
     AuthUserSerializer,
     LoginSerializer,
+)
+from ..permissions import (
+    HasActiveMode,
+    IsOperationalUser,
 )
 from ..throttles import LoginRateThrottle
 
@@ -82,4 +90,61 @@ class LogoutView(APIView):
 
         return Response(
             status=status.HTTP_204_NO_CONTENT,
+        )
+
+class ModeView(APIView):
+    authentication_classes = [
+        TokenAuthentication,
+    ]
+    permission_classes = [
+        IsAuthenticated,
+        IsOperationalUser,
+    ]
+
+    def get(self, request):
+        resolution = resolve_active_mode(
+            request.user,
+            request.headers.get(
+                ACTIVE_MODE_HEADER
+            ),
+        )
+
+        serializer = ActiveModeSerializer(
+            {
+                "requested_mode": (
+                    resolution.requested_mode
+                ),
+                "active_mode": (
+                    resolution.active_mode
+                ),
+                "available_modes": list(
+                    resolution.available_modes
+                ),
+            }
+        )
+
+        return Response(
+            serializer.data
+        )
+
+class ContextView(APIView):
+    authentication_classes = [
+        TokenAuthentication,
+    ]
+    permission_classes = [
+        IsAuthenticated,
+        IsOperationalUser,
+        HasActiveMode,
+    ]
+
+    def get(self, request):
+        return Response(
+            {
+                "user": AuthUserSerializer(
+                    request.user
+                ).data,
+                "active_mode": (
+                    request.active_mode
+                ),
+            }
         )

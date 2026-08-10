@@ -13,6 +13,8 @@ from .views.auth import (
     LoginView,
     LogoutView,
     MeView,
+    ModeView,
+    ContextView,
 )
 
 
@@ -64,6 +66,16 @@ urlpatterns = [
         "auth/me/",
         MeView.as_view(),
         name="v1-auth-me",
+    ),
+    path(
+        "auth/mode/",
+        ModeView.as_view(),
+        name="v1-auth-mode",
+    ),
+    path(
+        "auth/context/",
+        ContextView.as_view(),
+        name="v1-auth-context",
     ),
     path(
         "auth/logout/",

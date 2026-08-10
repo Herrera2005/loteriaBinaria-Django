@@ -134,3 +134,17 @@ class AuthUserSerializer(serializers.ModelSerializer):
         return list(
             assigned_role_codes(obj)
         )
+
+class ActiveModeSerializer(serializers.Serializer):
+    requested_mode = serializers.CharField(
+        allow_null=True,
+        read_only=True,
+    )
+    active_mode = serializers.CharField(
+        allow_null=True,
+        read_only=True,
+    )
+    available_modes = serializers.ListField(
+        child=serializers.CharField(),
+        read_only=True,
+    )
