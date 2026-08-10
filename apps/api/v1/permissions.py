@@ -9,6 +9,7 @@ from .modes import (
     normalize_active_mode,
     user_can_operate_as,
 )
+from apps.accounts.roles import CLIENT
 
 
 class IsOperationalUser(BasePermission):
@@ -55,3 +56,13 @@ class HasActiveMode(BasePermission):
         request.active_mode = requested_mode
 
         return True
+
+class IsClientMode(BasePermission):
+    message = "Debe operar en modo CLIENTE."
+
+    def has_permission(self, request, view):
+        return getattr(
+            request,
+            "active_mode",
+            None,
+        ) == CLIENT

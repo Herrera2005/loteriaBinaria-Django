@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include,path
 
 from .views.health import HealthView
 from .views.public import (
@@ -81,5 +81,9 @@ urlpatterns = [
         "auth/logout/",
         LogoutView.as_view(),
         name="v1-auth-logout",
+    ),
+    path(
+        "client/",
+        include("apps.api.v1.client_urls"),
     ),
 ]

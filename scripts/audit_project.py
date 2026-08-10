@@ -234,7 +234,7 @@ def check_urls(errors):
         defined.update(url_names_from_file(app_urls))
 
         # URLs declaradas en submódulos como apps/api/v1/urls.py.
-        for nested_urls in app_urls.parent.rglob("urls.py"):
+        for nested_urls in app_urls.parent.rglob("*urls.py"):
             if nested_urls == app_urls:
                 continue
 
