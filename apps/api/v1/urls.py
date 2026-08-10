@@ -86,4 +86,8 @@ urlpatterns = [
         "client/",
         include("apps.api.v1.client_urls"),
     ),
+    path(
+        "vendor/",
+        include("apps.api.v1.vendor_urls"),
+    ),
 ]

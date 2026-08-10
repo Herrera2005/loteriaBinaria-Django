@@ -28,3 +28,30 @@ htmlcov/
 
 # Logs
 *.log
+
+# Respaldos locales de trabajo
+Respaldos/
+
+# Bases de datos locales
+db.sqlite3
+*.sqlite3
+*.db
+
+# Entornos virtuales Python
+venv/
+.venv/
+env/
+
+# Variables de entorno locales
+.env
+.env.*
+
+# Conservar el ejemplo versionado
+!.env.example
+
+# Archivos generados por Python
+__pycache__/
+*.py[cod]
+
+# Static recopilado para despliegue
+staticfiles/

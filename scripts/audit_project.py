@@ -48,6 +48,20 @@ REQUIRED_FILES = (
     "apps/lottery/tests/test_event_series.py",
     "apps/lottery/tests/test_automatic_results.py",
     "apps/lottery/tests/test_closure_repairs.py",
+    "apps/api/urls.py",
+    "apps/api/v1/urls.py",
+    "apps/api/v1/client_urls.py",
+    "apps/api/v1/vendor_urls.py",
+    "apps/api/v1/exceptions.py",
+    "apps/api/v1/modes.py",
+    "apps/api/v1/permissions.py",
+    "apps/api/v1/pagination.py",
+    "apps/api/v1/views/auth.py",
+    "apps/api/v1/views/client.py",
+    "apps/api/v1/views/vendor.py",
+    "apps/api/v1/serializers/auth.py",
+    "apps/api/v1/serializers/client.py",
+    "apps/api/v1/serializers/vendor.py",
     "templates/base.html",
     "templates/lottery/series_list.html",
     "templates/lottery/series_detail.html",
@@ -121,6 +135,20 @@ EXPECTED_PROJECT_URLS = {
     "lottery:series_generate",
     "lottery:client_event_list",
     "lottery:client_ticket_list",
+    "api:v1-health",
+    "api:v1-auth-login",
+    "api:v1-auth-me",
+    "api:v1-auth-logout",
+    "api:v1-client-profile",
+    "api:v1-client-wallet-list",
+    "api:v1-client-ticket-list",
+    "api:v1-client-movement-list",
+    "api:v1-vendor-profile",
+    "api:v1-vendor-wallet-list",
+    "api:v1-vendor-movement-list",
+    "api:v1-vendor-request-available-list",
+    "api:v1-vendor-assignment-list",
+    "api:v1-vendor-inventory-purchase-list",
 }
 
 
@@ -178,15 +206,34 @@ def check_required(errors):
 
 
 def check_residue(errors):
-    for relative, path in project_files():
-        if any(part in FORBIDDEN_ROOT_NAMES for part in relative.parts):
-            errors.append(f"Residuo de entrega: {relative}")
+    for path in ROOT.rglob("*"):
+        if not path.is_file():
             continue
+
+        relative = path.relative_to(ROOT)
+
+        if any(
+            part in FORBIDDEN_ROOT_NAMES
+            for part in relative.parts
+        ):
+            errors.append(
+                f"Residuo de entrega: {relative}"
+            )
+            continue
+
         if relative.name in FORBIDDEN_FILE_NAMES:
-            errors.append(f"Archivo prohibido en entrega: {relative}")
+            errors.append(
+                f"Archivo prohibido en entrega: {relative}"
+            )
             continue
-        if relative.suffix.lower() in FORBIDDEN_SUFFIXES:
-            errors.append(f"Residuo generado: {relative}")
+
+        if (
+            relative.suffix.lower()
+            in FORBIDDEN_SUFFIXES
+        ):
+            errors.append(
+                f"Residuo generado: {relative}"
+            )
 
 
 def check_python(errors):

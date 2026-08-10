@@ -3,13 +3,17 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.policies import is_operational_user
+from apps.vendors.models import VendorProfile
 
 from .modes import (
     ACTIVE_MODE_HEADER,
     normalize_active_mode,
     user_can_operate_as,
 )
-from apps.accounts.roles import CLIENT
+from apps.accounts.roles import (
+    CLIENT,
+    VENDOR,
+)
 
 
 class IsOperationalUser(BasePermission):
@@ -66,3 +70,42 @@ class IsClientMode(BasePermission):
             "active_mode",
             None,
         ) == CLIENT
+
+class IsVendorMode(BasePermission):
+    message = "Debe operar en modo VENDEDOR."
+
+    def has_permission(self, request, view):
+        return (
+            getattr(
+                request,
+                "active_mode",
+                None,
+            )
+            == VENDOR
+        )
+
+
+class HasActiveVendorProfile(BasePermission):
+    message = (
+        "El usuario no posee un perfil vendedor activo."
+    )
+
+    def has_permission(self, request, view):
+        try:
+            profile = (
+                VendorProfile.objects
+                .select_related("user")
+                .get(user=request.user)
+            )
+        except VendorProfile.DoesNotExist:
+            return False
+
+        if (
+            profile.status
+            != VendorProfile.Status.ACTIVE
+        ):
+            return False
+
+        request.vendor_profile = profile
+
+        return True
