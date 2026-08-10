@@ -9,6 +9,11 @@ from .views.public import (
     PublicResultDetailView,
     PublicResultListView,
 )
+from .views.auth import (
+    LoginView,
+    LogoutView,
+    MeView,
+)
 
 
 urlpatterns = [
@@ -49,5 +54,20 @@ urlpatterns = [
         "public/results/<int:pk>/",
         PublicResultDetailView.as_view(),
         name="v1-public-result-detail",
+    ),
+    path(
+        "auth/login/",
+        LoginView.as_view(),
+        name="v1-auth-login",
+    ),
+    path(
+        "auth/me/",
+        MeView.as_view(),
+        name="v1-auth-me",
+    ),
+    path(
+        "auth/logout/",
+        LogoutView.as_view(),
+        name="v1-auth-logout",
     ),
 ]

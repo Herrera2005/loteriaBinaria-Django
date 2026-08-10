@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.vendors.apps.VendorsConfig",
     "apps.lottery.apps.LotteryConfig",
     "rest_framework",
+    "rest_framework.authtoken",
 ]
 
 MIDDLEWARE = [
@@ -212,4 +213,7 @@ REST_FRAMEWORK = {
     "DATETIME_FORMAT": "iso-8601",
     "DATE_FORMAT": "iso-8601",
     "EXCEPTION_HANDLER": "apps.api.v1.exceptions.api_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "20/minute",
+    },
 }
